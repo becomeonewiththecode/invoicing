@@ -1,0 +1,26 @@
+# Claude Code - personal files
+.claude/Claude.md
+.claude/settings.local.json
+.claude/memory/
+
+# Claude Code - shared files (DO NOT ignore)
+# CLAUDE.md
+# .claude/rules/
+
+# Cursor
+.ai/*
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# OS
+.DS_Store

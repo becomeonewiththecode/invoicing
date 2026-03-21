@@ -1,0 +1,264 @@
+import { Router, Response } from 'express';
+import pool from '../config/database';
+import redis from '../config/redis';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import {
+  createInvoiceSchema,
+  updateInvoiceSchema,
+  updateInvoiceStatusSchema,
+  paginationSchema,
+} from '../models/validation';
+
+const router = Router();
+router.use(authenticate);
+
+async function generateInvoiceNumber(userId: string): Promise<string> {
+  const result = await pool.query(
+    "SELECT invoice_number FROM invoices WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
+    [userId]
+  );
+  if (result.rows.length === 0) return 'INV-0001';
+  const last = result.rows[0].invoice_number;
+  const num = parseInt(last.replace('INV-', '')) + 1;
+  return `INV-${num.toString().padStart(4, '0')}`;
+}
+
+async function applyDiscount(userId: string, code: string, subtotal: number): Promise<number> {
+  const result = await pool.query(
+    'SELECT type, value FROM discount_codes WHERE user_id = $1 AND code = $2 AND is_active = true',
+    [userId, code]
+  );
+  if (result.rows.length === 0) return 0;
+  const discount = result.rows[0];
+  if (discount.type === 'percent') {
+    return (subtotal * discount.value) / 100;
+  }
+  return Math.min(discount.value, subtotal);
+}
+
+async function invalidateRevenueCache(userId: string) {
+  const keys = await redis.keys(`revenue:${userId}:*`);
+  if (keys.length > 0) await redis.del(...keys);
+}
+
+// List invoices
+router.get('/', validate(paginationSchema, 'query'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { page, limit } = req.query as unknown as { page: number; limit: number };
+    const offset = (page - 1) * limit;
+
+    const [invoices, countResult] = await Promise.all([
+      pool.query(
+        `SELECT i.*, c.name as client_name, c.email as client_email
+         FROM invoices i JOIN clients c ON i.client_id = c.id
+         WHERE i.user_id = $1 ORDER BY i.created_at DESC LIMIT $2 OFFSET $3`,
+        [req.userId, limit, offset]
+      ),
+      pool.query('SELECT COUNT(*) FROM invoices WHERE user_id = $1', [req.userId]),
+    ]);
+
+    res.json({
+      data: invoices.rows,
+      pagination: { page, limit, total: parseInt(countResult.rows[0].count) },
+    });
+  } catch (err) {
+    console.error('List invoices error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get single invoice with items
+router.get('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const [invoiceResult, itemsResult] = await Promise.all([
+      pool.query(
+        `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address
+         FROM invoices i JOIN clients c ON i.client_id = c.id
+         WHERE i.id = $1 AND i.user_id = $2`,
+        [req.params.id, req.userId]
+      ),
+      pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]),
+    ]);
+
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    res.json({ ...invoiceResult.rows[0], items: itemsResult.rows });
+  } catch (err) {
+    console.error('Get invoice error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create invoice
+router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { clientId, issueDate, dueDate, taxRate, discountCode, notes, isRecurring, recurrenceInterval, items } =
+      req.body;
+
+    // Verify client belongs to user
+    const clientCheck = await client.query('SELECT id FROM clients WHERE id = $1 AND user_id = $2', [
+      clientId,
+      req.userId,
+    ]);
+    if (clientCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const invoiceNumber = await generateInvoiceNumber(req.userId!);
+
+    // Calculate totals
+    const subtotal = items.reduce(
+      (sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice,
+      0
+    );
+    const discountAmount = discountCode ? await applyDiscount(req.userId!, discountCode, subtotal) : 0;
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = (taxableAmount * (taxRate || 0)) / 100;
+    const total = taxableAmount + taxAmount;
+
+    const invoiceResult = await client.query(
+      `INSERT INTO invoices (user_id, client_id, invoice_number, issue_date, due_date, subtotal, tax_rate, tax_amount, discount_code, discount_amount, total, notes, is_recurring, recurrence_interval)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      [
+        req.userId,
+        clientId,
+        invoiceNumber,
+        issueDate,
+        dueDate,
+        subtotal,
+        taxRate || 0,
+        taxAmount,
+        discountCode || null,
+        discountAmount,
+        total,
+        notes || null,
+        isRecurring,
+        recurrenceInterval || null,
+      ]
+    );
+
+    // Insert items
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const amount = item.quantity * item.unitPrice;
+      await client.query(
+        'INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, amount, sort_order) VALUES ($1, $2, $3, $4, $5, $6)',
+        [invoiceResult.rows[0].id, item.description, item.quantity, item.unitPrice, amount, i]
+      );
+    }
+
+    await client.query('COMMIT');
+    await invalidateRevenueCache(req.userId!);
+
+    res.status(201).json(invoiceResult.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Create invoice error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Update invoice status
+router.patch('/:id/status', validate(updateInvoiceStatusSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const { status } = req.body;
+    const result = await pool.query(
+      "UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING *",
+      [status, req.params.id, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    await invalidateRevenueCache(req.userId!);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update status error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete invoice (only drafts)
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      "DELETE FROM invoices WHERE id = $1 AND user_id = $2 AND status = 'draft' RETURNING id",
+      [req.params.id, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found or cannot be deleted (only drafts can be deleted)' });
+    }
+    await invalidateRevenueCache(req.userId!);
+    res.status(204).send();
+  } catch (err) {
+    console.error('Delete invoice error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Revenue stats
+router.get('/stats/revenue', async (req: AuthRequest, res: Response) => {
+  try {
+    const cacheKey = `revenue:${req.userId}:summary`;
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+
+    const result = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'paid') as paid_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'paid'), 0) as total_revenue,
+         COUNT(*) FILTER (WHERE status = 'overdue') as overdue_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'overdue'), 0) as overdue_amount,
+         COUNT(*) FILTER (WHERE status = 'sent') as pending_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'sent'), 0) as pending_amount
+       FROM invoices WHERE user_id = $1`,
+      [req.userId]
+    );
+
+    const stats = result.rows[0];
+    await redis.setex(cacheKey, 300, JSON.stringify(stats)); // Cache 5 minutes
+    res.json(stats);
+  } catch (err) {
+    console.error('Revenue stats error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// CSV export
+router.get('/export/csv', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT i.invoice_number, i.status, i.issue_date, i.due_date, i.subtotal, i.tax_amount, i.discount_amount, i.total, c.name as client_name
+       FROM invoices i JOIN clients c ON i.client_id = c.id
+       WHERE i.user_id = $1 ORDER BY i.issue_date DESC`,
+      [req.userId]
+    );
+
+    const headers = 'Invoice Number,Client,Status,Issue Date,Due Date,Subtotal,Tax,Discount,Total\n';
+    const rows = result.rows
+      .map(
+        (r) =>
+          `${r.invoice_number},"${r.client_name}",${r.status},${r.issue_date},${r.due_date},${r.subtotal},${r.tax_amount},${r.discount_amount},${r.total}`
+      )
+      .join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="invoices.csv"');
+    res.send(headers + rows);
+  } catch (err) {
+    console.error('CSV export error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+export default router;
