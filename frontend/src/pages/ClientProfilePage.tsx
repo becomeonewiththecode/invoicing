@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -104,14 +105,26 @@ export function ClientProfilePage() {
     },
   });
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{ invoiceCount: number } | null>(null);
+
   const deleteMutation = useMutation({
-    mutationFn: () => deleteClient(clientId!),
+    mutationFn: (force = false) => deleteClient(clientId!, force),
     onSuccess: () => {
+      setDeleteConfirm(null);
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['revenue-stats'] });
       toast.success('Client deleted');
       navigate('/clients');
     },
-    onError: () => toast.error('Failed to delete client. They may have existing invoices.'),
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const count = (err.response.data as { invoiceCount?: number }).invoiceCount ?? 0;
+        setDeleteConfirm({ invoiceCount: count });
+      } else {
+        toast.error('Failed to delete client');
+      }
+    },
   });
 
   const toPayload = (data: ClientFormData) => ({
@@ -170,7 +183,7 @@ export function ClientProfilePage() {
           <button
             type="button"
             onClick={() => {
-              if (confirm('Delete this client?')) deleteMutation.mutate();
+              if (confirm('Delete this client?')) deleteMutation.mutate(false);
             }}
             disabled={deleteMutation.isPending}
             className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm disabled:opacity-50"
@@ -179,6 +192,34 @@ export function ClientProfilePage() {
           </button>
         </div>
       </div>
+
+      {deleteConfirm && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 -mt-6">
+          <p className="text-sm text-red-800 font-medium">
+            This client has {deleteConfirm.invoiceCount} invoice(s).
+          </p>
+          <p className="text-sm text-red-700 mt-1">
+            Force delete will permanently remove all associated invoices and the client. This cannot be undone.
+          </p>
+          <div className="flex gap-3 mt-3">
+            <button
+              type="button"
+              onClick={() => deleteMutation.mutate(true)}
+              disabled={deleteMutation.isPending}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50"
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete client and all invoices'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteConfirm(null)}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <p className="text-sm text-gray-600 -mt-6">
         Jump to:{' '}
