@@ -2,19 +2,21 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getInvoice, deleteInvoice, updateInvoiceStatus } from '../api/invoices';
+import { getInvoice, deleteInvoice, updateInvoiceStatus, sendInvoiceToCompanyEmail, createShareLink, revokeShareLink } from '../api/invoices';
 import { getSettings } from '../api/settings';
 import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { generateInvoicePdf } from '../utils/pdf';
 import { formatInvoiceClientLabel } from '../utils/clientDisplay';
 import type { InvoiceStatus } from '../types';
+import axios from 'axios';
 
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   const { data: invoice, isPending } = useQuery({
     queryKey: ['invoice', id],
@@ -36,6 +38,41 @@ export function InvoiceDetailPage() {
       toast.success('Status updated');
     },
     onError: () => toast.error('Failed to update status'),
+  });
+
+  const emailToCompanyMutation = useMutation({
+    mutationFn: () => sendInvoiceToCompanyEmail(id!),
+    onSuccess: (data) => {
+      toast.success(`Invoice emailed to ${data.sentTo}`);
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err) ? (err.response?.data as { error?: string })?.error : undefined;
+      toast.error(msg || 'Failed to send email');
+    },
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: () => createShareLink(id!),
+    onSuccess: ({ token }) => {
+      const url = `${window.location.origin}/share/${token}`;
+      setShareUrl(url);
+      navigator.clipboard.writeText(url).then(
+        () => toast.success('Share link copied to clipboard'),
+        () => toast.success('Share link created')
+      );
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+    },
+    onError: () => toast.error('Failed to create share link'),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: () => revokeShareLink(id!),
+    onSuccess: () => {
+      setShareUrl(null);
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+      toast.success('Share link revoked');
+    },
+    onError: () => toast.error('Failed to revoke share link'),
   });
 
   const deleteMutation = useMutation({
@@ -103,6 +140,42 @@ export function InvoiceDetailPage() {
             >
               Generate PDF
             </button>
+            <button
+              type="button"
+              disabled={emailToCompanyMutation.isPending}
+              onClick={() => emailToCompanyMutation.mutate()}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {emailToCompanyMutation.isPending ? 'Sending…' : 'Email to company'}
+            </button>
+            <button
+              type="button"
+              disabled={shareMutation.isPending}
+              onClick={() => {
+                if (invoice.share_token) {
+                  const url = `${window.location.origin}/share/${invoice.share_token}`;
+                  navigator.clipboard.writeText(url).then(
+                    () => toast.success('Share link copied to clipboard'),
+                    () => { setShareUrl(url); toast.success('Share link ready'); }
+                  );
+                } else {
+                  shareMutation.mutate();
+                }
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {shareMutation.isPending ? 'Creating…' : invoice.share_token ? 'Copy share link' : 'Share link'}
+            </button>
+            {(invoice.share_token || shareUrl) && (
+              <button
+                type="button"
+                disabled={revokeMutation.isPending}
+                onClick={() => revokeMutation.mutate()}
+                className="px-4 py-2 border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-50"
+              >
+                {revokeMutation.isPending ? 'Revoking…' : 'Revoke link'}
+              </button>
+            )}
             {invoice.status === 'draft' && (
               <button
                 type="button"

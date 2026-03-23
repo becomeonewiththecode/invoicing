@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import clientRoutes from './routes/clients';
 import invoiceRoutes from './routes/invoices';
+import shareRoutes from './routes/share';
 import discountRoutes from './routes/discounts';
 import settingsRoutes from './routes/settings';
 
@@ -24,6 +25,7 @@ app.use('/api/uploads', express.static(path.join(process.cwd(), 'uploads')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/invoices/share', shareRoutes); // public — must be before authenticated invoice routes
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/settings', settingsRoutes);

@@ -16,6 +16,7 @@ interface SettingsForm {
   taxId: string;
   defaultHourlyRate: string;
   businessFax: string;
+  businessEmail: string;
   logoUrl: string;
 }
 
@@ -41,6 +42,7 @@ export function SettingsPage() {
       taxId: '',
       defaultHourlyRate: '',
       businessFax: '',
+      businessEmail: '',
       logoUrl: '',
     },
   });
@@ -57,6 +59,7 @@ export function SettingsPage() {
       defaultHourlyRate:
         settings.defaultHourlyRate != null ? String(settings.defaultHourlyRate) : '',
       businessFax: settings.businessFax ?? '',
+      businessEmail: settings.businessEmail ?? '',
       logoUrl: settings.logoUrl ?? '',
     });
   }, [settings, reset]);
@@ -108,6 +111,7 @@ export function SettingsPage() {
       taxId: data.taxId.trim() || undefined,
       defaultHourlyRate: hourly === '' ? null : Number(hourly),
       businessFax: data.businessFax.trim() || undefined,
+      businessEmail: data.businessEmail.trim() || undefined,
       logoUrl: data.logoUrl.trim() || undefined,
     });
   };
@@ -225,6 +229,18 @@ export function SettingsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Fax number</label>
               <input {...register('businessFax')} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company email (invoice copies)</label>
+              <input
+                type="email"
+                {...register('businessEmail')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="Where to send “email invoice to company” — leave blank to use your login email"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Used when you email an invoice copy to yourself from an invoice. SMTP must be configured on the server.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Company logo</label>

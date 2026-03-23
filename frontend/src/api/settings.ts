@@ -15,6 +15,7 @@ export type SettingsUpdatePayload = {
   taxId?: string;
   defaultHourlyRate?: number | null;
   businessFax?: string;
+  businessEmail?: string;
   logoUrl?: string;
 };
 
