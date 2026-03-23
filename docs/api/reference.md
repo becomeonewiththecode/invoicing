@@ -300,7 +300,9 @@ Per-client invoice aggregates for the authenticated user. The client must belong
   "draft_total": "100.00",
   "sent_total": "500.00",
   "paid_total": "15000.00",
-  "late_total": "0"
+  "late_total": "0",
+  "total_revenue": "15600.00",
+  "total_tax": "2028.00"
 }
 ```
 
