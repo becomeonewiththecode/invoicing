@@ -88,6 +88,18 @@ export interface RevenueStats {
   pending_amount: string;
 }
 
+/** GET /invoices/stats/by-client/:clientId — per-client counts and totals by status */
+export interface ClientInvoiceStats {
+  draft_count: string;
+  sent_count: string;
+  paid_count: string;
+  late_count: string;
+  draft_total: string;
+  sent_total: string;
+  paid_total: string;
+  late_total: string;
+}
+
 export interface DiscountCode {
   id: string;
   code: string;

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
@@ -8,9 +8,15 @@ import { InvoicesPage } from './pages/InvoicesPage';
 import { InvoiceDetailPage } from './pages/InvoiceDetailPage';
 import { NewInvoicePage } from './pages/NewInvoicePage';
 import { ClientsPage } from './pages/ClientsPage';
+import { ClientProfilePage } from './pages/ClientProfilePage';
 import { DiscountsPage } from './pages/DiscountsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SharedInvoicePage } from './pages/SharedInvoicePage';
+
+function RedirectClientStatsToProfile() {
+  const { clientId } = useParams();
+  return <Navigate to={`/clients/${clientId}#invoice-status`} replace />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +41,8 @@ export default function App() {
             <Route path="invoices/new" element={<NewInvoicePage />} />
             <Route path="invoices/:id/edit" element={<NewInvoicePage />} />
             <Route path="invoices/:id" element={<InvoiceDetailPage />} />
+            <Route path="clients/:clientId/stats" element={<RedirectClientStatsToProfile />} />
+            <Route path="clients/:clientId" element={<ClientProfilePage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="discounts" element={<DiscountsPage />} />
             <Route path="settings" element={<SettingsPage />} />

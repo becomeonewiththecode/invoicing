@@ -128,6 +128,40 @@ router.get('/stats/revenue', async (req: AuthRequest, res: Response) => {
   }
 });
 
+/** Invoice counts and totals by status for one client (register before /:id) */
+router.get('/stats/by-client/:clientId', async (req: AuthRequest, res: Response) => {
+  try {
+    const { clientId } = req.params;
+    const check = await pool.query('SELECT 1 FROM clients WHERE id = $1 AND user_id = $2', [
+      clientId,
+      req.userId,
+    ]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const result = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'draft')::text AS draft_count,
+         COUNT(*) FILTER (WHERE status = 'sent')::text AS sent_count,
+         COUNT(*) FILTER (WHERE status = 'paid')::text AS paid_count,
+         COUNT(*) FILTER (WHERE status = 'late')::text AS late_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'draft'), 0)::text AS draft_total,
+         COALESCE(SUM(total) FILTER (WHERE status = 'sent'), 0)::text AS sent_total,
+         COALESCE(SUM(total) FILTER (WHERE status = 'paid'), 0)::text AS paid_total,
+         COALESCE(SUM(total) FILTER (WHERE status = 'late'), 0)::text AS late_total
+       FROM invoices
+       WHERE user_id = $1 AND client_id = $2`,
+      [req.userId, clientId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Client invoice stats error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // CSV export (register before /:id)
 router.get('/export/csv', async (req: AuthRequest, res: Response) => {
   try {

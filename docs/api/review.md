@@ -28,7 +28,7 @@ Order matters for Express:
 - **Pagination:** List endpoints accept `page` and `limit` query params where implemented.
 - **Validation:** Invalid input returns **400** with Zod-style `details` when applicable.
 - **Rate limits:** Auth routes and sensitive actions use Redis-backed limits (fail-open if Redis is down).
-- **Caching:** `GET /api/invoices/stats/revenue` caches per user in Redis (~5 minutes); mutations invalidate as implemented in route handlers.
+- **Caching:** `GET /api/invoices/stats/revenue` caches per user in Redis (~5 minutes); mutations invalidate as implemented in route handlers. `GET /api/invoices/stats/by-client/:clientId` is not cached.
 
 ## Domain concepts
 

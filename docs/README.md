@@ -12,7 +12,7 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 | **Database** | [database/schema.md](database/schema.md) · [database/diagram.md](database/diagram.md) |
 | **API** | [api/review.md](api/review.md) · [api/reference.md](api/reference.md) |
 | **Backend** | [backend/overview.md](backend/overview.md) |
-| **Frontend** | [frontend/overview.md](frontend/overview.md) |
+| **Frontend** | [frontend/overview.md](frontend/overview.md) · [frontend/routes.md](frontend/routes.md) (routes, client profile) |
 
 ## Deployment (separate folder)
 

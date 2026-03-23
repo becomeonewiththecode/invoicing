@@ -1,6 +1,6 @@
 import axios from 'axios';
 import api from './client';
-import type { Invoice, PaginatedResponse, RevenueStats } from '../types';
+import type { Invoice, PaginatedResponse, RevenueStats, ClientInvoiceStats } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
 
@@ -73,6 +73,11 @@ export async function getSharedInvoice(token: string): Promise<Invoice> {
 
 export async function getRevenueStats(): Promise<RevenueStats> {
   const { data } = await api.get('/invoices/stats/revenue');
+  return data;
+}
+
+export async function getClientInvoiceStats(clientId: string): Promise<ClientInvoiceStats> {
+  const { data } = await api.get<ClientInvoiceStats>(`/invoices/stats/by-client/${clientId}`);
   return data;
 }
 

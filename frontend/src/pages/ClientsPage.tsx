@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
@@ -24,6 +24,8 @@ export function ClientsPage() {
   const [page, setPage] = useState(1);
   const [draft, setDraft] = useState<FormDraft>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data, isPending, isError, error } = useQuery({
@@ -37,6 +39,13 @@ export function ClientsPage() {
   });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ClientFormData>();
+
+  /** Deep link from invoices: /clients?edit=<uuid> → client profile */
+  const editFromQuery = searchParams.get('edit');
+  useEffect(() => {
+    if (!editFromQuery) return;
+    navigate(`/clients/${editFromQuery}#details`, { replace: true });
+  }, [editFromQuery, navigate]);
 
   useEffect(() => {
     if (!draft) return;
@@ -122,15 +131,17 @@ export function ClientsPage() {
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold">Clients</h1>
-          <p className="text-sm text-gray-500 mt-1">Select a client to open their invoices on the Invoices page.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Click a client name or Profile to open their page (details, invoice status, and invoice links).
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedClientId && (
             <Link
-              to={`/invoices?clientId=${selectedClientId}`}
+              to={`/clients/${encodeURIComponent(selectedClientId)}#invoices`}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              View invoices
+              View profile
             </Link>
           )}
           <button
@@ -297,7 +308,12 @@ export function ClientsPage() {
                     />
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-medium text-gray-900">{formatClientLabel(client)}</span>
+                    <Link
+                      to={`/clients/${encodeURIComponent(client.id)}`}
+                      className="font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                    >
+                      {formatClientLabel(client)}
+                    </Link>
                     {client.company?.trim() &&
                       client.name.trim() &&
                       client.name.trim() !== client.company.trim() && (
@@ -307,12 +323,18 @@ export function ClientsPage() {
                   <td className="px-6 py-4 text-gray-600">{client.email}</td>
                   <td className="px-6 py-4 text-gray-600">{client.phone || '-'}</td>
                   <td className="px-6 py-4 text-right space-x-3 whitespace-nowrap">
+                    <Link
+                      to={`/clients/${encodeURIComponent(client.id)}`}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      Profile
+                    </Link>
                     <button
                       type="button"
                       onClick={() => setDraft({ type: 'edit', client })}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
-                      Edit
+                      Quick edit
                     </button>
                     <button
                       type="button"
