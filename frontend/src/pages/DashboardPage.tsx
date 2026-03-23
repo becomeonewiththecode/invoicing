@@ -26,21 +26,27 @@ export function DashboardPage() {
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 md:items-stretch">
+        <div className="bg-white rounded-xl p-6 shadow-sm flex flex-col min-h-[8.5rem]">
           <p className="text-sm text-gray-500">Total Revenue</p>
-          <p className="text-3xl font-bold text-green-600">${Number(stats?.total_revenue || 0).toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">{stats?.paid_count || 0} paid invoices</p>
+          <p className="text-3xl font-bold text-green-600 tabular-nums mt-2 flex-1 flex items-center">
+            ${Number(stats?.total_revenue || 0).toLocaleString()}
+          </p>
+          <p className="text-sm text-gray-400 mt-auto pt-1">{stats?.paid_count || 0} paid invoices</p>
         </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="bg-white rounded-xl p-6 shadow-sm flex flex-col min-h-[8.5rem]">
           <p className="text-sm text-gray-500">Pending</p>
-          <p className="text-3xl font-bold text-blue-600">${Number(stats?.pending_amount || 0).toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">{stats?.pending_count || 0} invoices</p>
+          <p className="text-3xl font-bold text-blue-600 tabular-nums mt-2 flex-1 flex items-center">
+            ${Number(stats?.pending_amount || 0).toLocaleString()}
+          </p>
+          <p className="text-sm text-gray-400 mt-auto pt-1">{stats?.pending_count || 0} invoices</p>
         </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="bg-white rounded-xl p-6 shadow-sm flex flex-col min-h-[8.5rem]">
           <p className="text-sm text-gray-500">Late</p>
-          <p className="text-3xl font-bold text-red-600">${Number(stats?.late_amount || 0).toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">{stats?.late_count || 0} invoices</p>
+          <p className="text-3xl font-bold text-red-600 tabular-nums mt-2 flex-1 flex items-center">
+            ${Number(stats?.late_amount || 0).toLocaleString()}
+          </p>
+          <p className="text-sm text-gray-400 mt-auto pt-1">{stats?.late_count || 0} invoices</p>
         </div>
       </div>
 
