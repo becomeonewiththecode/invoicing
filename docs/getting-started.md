@@ -41,7 +41,7 @@ cd ../frontend && npm install
 npx pm2 start ecosystem.config.js
 ```
 
-This starts both the API server (port 3002) and the frontend dev server (port 5173).
+This starts both the API server (port **3002** per `ecosystem.config.js`) and the frontend dev server (port 5173). Align `backend/.env` `PORT` and `frontend/vite.config.ts` proxy with this port.
 
 **Option B: Manual start**
 
@@ -83,5 +83,5 @@ docker compose up
 This starts all services:
 - PostgreSQL on port 5432
 - Redis on port 6379
-- Backend API on port 3002
+- Backend API on port **3001** (see `docker-compose.yml`)
 - Frontend (via nginx) on port 80
