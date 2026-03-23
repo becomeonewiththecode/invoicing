@@ -26,7 +26,7 @@ const discountCodeSchema = z.object({
   code: z.string().min(1),
   description: z.string().nullish(),
   type: z.enum(['percent', 'fixed']),
-  value: z.number(),
+  value: z.coerce.number(),
   is_active: z.boolean().optional().default(true),
   created_at: z.string(),
 }).passthrough();
@@ -34,10 +34,10 @@ const discountCodeSchema = z.object({
 const invoiceItemSchema = z.object({
   id: z.string().uuid(),
   description: z.string().min(1),
-  quantity: z.number(),
-  unit_price: z.number(),
-  amount: z.number(),
-  sort_order: z.number().optional().default(0),
+  quantity: z.coerce.number(),
+  unit_price: z.coerce.number(),
+  amount: z.coerce.number(),
+  sort_order: z.coerce.number().optional().default(0),
   created_at: z.string(),
 }).passthrough();
 
@@ -54,12 +54,12 @@ const invoiceSchema = z.object({
   status: z.string().min(1),
   issue_date: z.string(),
   due_date: z.string(),
-  subtotal: z.number(),
-  tax_rate: z.number(),
-  tax_amount: z.number(),
+  subtotal: z.coerce.number(),
+  tax_rate: z.coerce.number(),
+  tax_amount: z.coerce.number(),
   discount_code: z.string().nullish(),
-  discount_amount: z.number(),
-  total: z.number(),
+  discount_amount: z.coerce.number(),
+  total: z.coerce.number(),
   notes: z.string().nullish(),
   is_recurring: z.boolean().optional().default(false),
   recurrence_interval: z.string().nullish(),
@@ -86,7 +86,7 @@ const exportV1Schema: z.ZodType<DataExportV1> = z.object({
     business_website: z.string().nullable(),
     business_fax: z.string().nullable(),
     logo_url: z.string().nullable(),
-    client_counter: z.number().int().nonnegative(),
+    client_counter: z.coerce.number().int().nonnegative(),
   }),
   clients: z.array(clientSchema),
   discount_codes: z.array(discountCodeSchema),
@@ -120,9 +120,11 @@ router.post(
     try {
       const parsed = importBodySchema.safeParse(req.body);
       if (!parsed.success) {
+        const details = parsed.error.flatten();
+        console.error('Data import validation error: Invalid backup file', details);
         return res.status(400).json({
           error: 'Invalid backup file',
-          details: parsed.error.flatten(),
+          details,
         });
       }
 
@@ -133,6 +135,7 @@ router.post(
       );
       if (orphanedInvoices.length > 0) {
         const nums = orphanedInvoices.map((i) => i.invoice_number).join(', ');
+        console.error(`Data import validation error: invoices referencing missing clients: ${nums}`);
         return res.status(400).json({
           error: `Backup contains invoices referencing missing clients: ${nums}`,
         });
@@ -154,6 +157,7 @@ router.post(
       ] as const) {
         const dup = dupeCheck(arr as { id: string }[], label);
         if (dup) {
+          console.error(`Data import validation error: duplicate ${label} id: ${dup}`);
           return res.status(400).json({ error: `Duplicate ${label} id in backup: ${dup}` });
         }
       }
