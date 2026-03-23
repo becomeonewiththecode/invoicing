@@ -29,6 +29,20 @@ function fmtMoney(amount: number): string {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
 }
 
+/**
+ * jsPDF measures strings for `align: 'right'` using built-in font metrics. Unicode minus (U+2212)
+ * and narrow/no-break spaces from Intl can break that and produce spaced-out glyphs ("$ 1 . 6 0").
+ * Use ASCII-only, normalized spaces for all currency drawn in tables.
+ */
+function fmtMoneyPdf(amount: number): string {
+  return fmtMoney(amount)
+    .replace(/\u2212/g, '-') // minus sign → hyphen
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function fmtDate(iso: string): string {
   try {
     const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
@@ -209,7 +223,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   const colAmt = right;
   const descTextW = vDescQty - M - 2;
   /** Inset (mm) so right-aligned figures sit off the vertical grid lines. */
-  const colPad = 1.5;
+  const colPad = 2.5;
   const qtyX = colQtyRight - colPad;
   const rateX = colRateRight - colPad;
   const amtX = colAmt - colPad;
@@ -269,9 +283,9 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
       doc.setFontSize(9);
       doc.text(descLines, colDesc + 1, y);
       // Same top baseline as first description line (avoids drifting down the cell)
-      doc.text(String(item.quantity), qtyX, y, { align: 'right' });
-      doc.text(fmtMoney(itemUnitPrice(item)), rateX, y, { align: 'right' });
-      doc.text(fmtMoney(n(item.amount)), amtX, y, { align: 'right' });
+      doc.text(n(item.quantity).toFixed(2), qtyX, y, { align: 'right' });
+      doc.text(fmtMoneyPdf(itemUnitPrice(item)), rateX, y, { align: 'right' });
+      doc.text(fmtMoneyPdf(n(item.amount)), amtX, y, { align: 'right' });
       y += rowHeight;
       doc.setDrawColor(...gray.line);
       doc.line(M, y, right, y);
@@ -299,7 +313,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
 
   doc.setFontSize(9);
   doc.text('Subtotal', labelLeftX, y);
-  doc.text(fmtMoney(n(invoice.subtotal)), amtX, y, { align: 'right' });
+  doc.text(fmtMoneyPdf(n(invoice.subtotal)), amtX, y, { align: 'right' });
   y += 6;
   doc.setDrawColor(...gray.line);
   doc.line(totalsBoxLeft, y, totalsBoxRight, y);
@@ -313,7 +327,8 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
       y
     );
     doc.setTextColor(0, 0, 0);
-    doc.text(`−${fmtMoney(n(invoice.discount_amount))}`, amtX, y, { align: 'right' });
+    // Negative amount via fmtMoney (not Unicode − + string) so jsPDF right-align width is correct
+    doc.text(fmtMoneyPdf(-n(invoice.discount_amount)), amtX, y, { align: 'right' });
     y += 6;
     doc.setDrawColor(...gray.line);
     doc.line(totalsBoxLeft, y, totalsBoxRight, y);
@@ -322,7 +337,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
 
   if (n(invoice.tax_amount) > 0) {
     doc.text(`Tax (${n(invoice.tax_rate)}%)`, labelLeftX, y);
-    doc.text(fmtMoney(n(invoice.tax_amount)), amtX, y, { align: 'right' });
+    doc.text(fmtMoneyPdf(n(invoice.tax_amount)), amtX, y, { align: 'right' });
     y += 6;
     doc.setDrawColor(...gray.line);
     doc.line(totalsBoxLeft, y, totalsBoxRight, y);
@@ -332,7 +347,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('Total', labelLeftX, y);
-  doc.text(fmtMoney(n(invoice.total)), amtX, y, { align: 'right' });
+  doc.text(fmtMoneyPdf(n(invoice.total)), amtX, y, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   y += 6;
   doc.setDrawColor(...gray.line);
