@@ -17,7 +17,7 @@ export function DashboardPage() {
     ? [
         { name: 'Revenue', value: Number(stats.total_revenue) },
         { name: 'Pending', value: Number(stats.pending_amount) },
-        { name: 'Overdue', value: Number(stats.overdue_amount) },
+        { name: 'Late', value: Number(stats.late_amount) },
       ]
     : [];
 
@@ -38,9 +38,9 @@ export function DashboardPage() {
           <p className="text-sm text-gray-400 mt-1">{stats?.pending_count || 0} invoices</p>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm">
-          <p className="text-sm text-gray-500">Overdue</p>
-          <p className="text-3xl font-bold text-red-600">${Number(stats?.overdue_amount || 0).toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-1">{stats?.overdue_count || 0} invoices</p>
+          <p className="text-sm text-gray-500">Late</p>
+          <p className="text-3xl font-bold text-red-600">${Number(stats?.late_amount || 0).toLocaleString()}</p>
+          <p className="text-sm text-gray-400 mt-1">{stats?.late_count || 0} invoices</p>
         </div>
       </div>
 

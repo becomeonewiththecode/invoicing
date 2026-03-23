@@ -1,10 +1,12 @@
 import jsPDF from 'jspdf';
 import type { Invoice, InvoiceItem, UserSettings } from '../types';
 import { formatInvoiceClientLabel } from './clientDisplay';
+import { resolveApiAssetUrl } from './resolveApiUrl';
 
 async function loadImageDataUrl(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const resolved = resolveApiAssetUrl(url);
+    const res = await fetch(resolved, { mode: 'cors' });
     if (!res.ok) return null;
     const blob = await res.blob();
     if (!blob.type.startsWith('image/')) return null;
@@ -41,7 +43,7 @@ function itemUnitPrice(item: InvoiceItem): number {
   return n(raw);
 }
 
-/** Square-style invoice: clear hierarchy, neutral palette, strong “amount due”, professional line table. */
+/** Square-style invoice: clear hierarchy, neutral palette, professional line table. */
 export async function generateInvoicePdf(invoice: Invoice, company?: UserSettings | null) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -56,14 +58,18 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
 
   let y = M;
 
-  // —— Top: logo (left) + INVOICE title (right) ——
+  // —— Top: INVOICE title (left) + optional logo (right) ——
   let logoBottom = y;
   if (company?.logoUrl) {
     const dataUrl = await loadImageDataUrl(company.logoUrl);
     if (dataUrl) {
-      const fmt = /data:image\/jpe?g/i.test(dataUrl) ? 'JPEG' : 'PNG';
+      const fmt = /data:image\/jpe?g/i.test(dataUrl)
+        ? 'JPEG'
+        : /data:image\/webp/i.test(dataUrl)
+          ? 'WEBP'
+          : 'PNG';
       try {
-        doc.addImage(dataUrl, fmt, M, y, 42, 18);
+        doc.addImage(dataUrl, fmt, right - 42, y, 42, 18);
         logoBottom = y + 22;
       } catch {
         /* ignore */
@@ -74,11 +80,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.setTextColor(...ink);
-  doc.text('INVOICE', right, y + 12, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...gray.label);
-  doc.text('Tax invoice', right, y + 18, { align: 'right' });
+  doc.text('INVOICE', M, y + 12);
   doc.setTextColor(0, 0, 0);
 
   y = Math.max(y + 22, logoBottom) + 4;
@@ -196,106 +198,151 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   }
   y += 6;
 
-  // —— Amount due strip ——
-  doc.setFillColor(250, 250, 250);
-  doc.rect(M, y, contentW, 12, 'F');
-  doc.setDrawColor(...gray.line);
-  doc.line(M, y + 12, right, y + 12);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...ink);
-  doc.text('Amount due', M + 3, y + 8);
-  doc.setFontSize(14);
-  doc.text(fmtMoney(n(invoice.total)), right - 3, y + 8, { align: 'right' });
-  y += 18;
-
-  // —— Line items table ——
+  // —— Line items table (grid: desc | qty | rate | amount) ——
   const colDesc = M;
-  const colQty = 128;
-  const colRate = 152;
+  /** Column boundaries (mm). Hours column sized for typical values; rate/amount stay readable. */
+  const vDescQty = 126;
+  const vQtyRate = 146;
+  const vRateAmt = 168;
+  const colQtyRight = vQtyRate;
+  const colRateRight = vRateAmt;
   const colAmt = right;
+  const descTextW = vDescQty - M - 2;
+  /** Inset (mm) so right-aligned figures sit off the vertical grid lines. */
+  const colPad = 1.5;
+  const qtyX = colQtyRight - colPad;
+  const rateX = colRateRight - colPad;
+  const amtX = colAmt - colPad;
 
   function drawTableHeader(yy: number) {
-    doc.setFillColor(...tableHeaderBg);
-    doc.rect(M, yy - 5, contentW, 8, 'F');
     doc.setDrawColor(...gray.line);
-    doc.line(M, yy + 3, right, yy + 3);
+    doc.line(M, yy - 5, right, yy - 5);
+    doc.setFillColor(...tableHeaderBg);
+    doc.rect(M, yy - 5, contentW, 9, 'F');
+    doc.setDrawColor(...gray.line);
+    doc.line(M, yy + 4, right, yy + 4);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setTextColor(...gray.label);
     doc.text('DESCRIPTION', colDesc + 1, yy);
-    doc.text('QTY', colQty, yy, { align: 'right' });
-    doc.text('RATE', colRate, yy, { align: 'right' });
-    doc.text('AMOUNT', colAmt, yy, { align: 'right' });
+    doc.text('Hours', qtyX, yy, { align: 'right' });
+    doc.text('RATE', rateX, yy, { align: 'right' });
+    doc.text('AMOUNT', amtX, yy, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     return yy + 10;
   }
 
-  y = drawTableHeader(y);
+  function strokeVerticalGrid(topY: number, bottomY: number) {
+    doc.setDrawColor(...gray.line);
+    doc.line(M, topY, M, bottomY);
+    doc.line(vDescQty, topY, vDescQty, bottomY);
+    doc.line(vQtyRate, topY, vQtyRate, bottomY);
+    doc.line(vRateAmt, topY, vRateAmt, bottomY);
+    doc.line(right, topY, right, bottomY);
+  }
 
-  const rowH = 6;
+  let tableSegmentStartY = y;
+  y = drawTableHeader(y);
+  let tableTopY = tableSegmentStartY - 5;
+
+  /** Min row height (mm); line items need enough room so text baseline isn’t on the row rule */
+  const rowH = 7;
+  /** Gap (mm) below each horizontal rule before the next row’s baseline — avoids overlap with the line */
+  const rowGapAfterRule = 2;
   const maxY = pageH - M - 40;
 
   if (invoice.items?.length) {
     for (const item of invoice.items) {
-      if (y > maxY) {
-        doc.addPage();
-        y = M + 8;
-        y = drawTableHeader(y);
-      }
-      const desc = doc.splitTextToSize(item.description, 105);
-      const rows = Math.max(1, desc.length);
+      const descRaw = doc.splitTextToSize(item.description, descTextW);
+      const descLines = Array.isArray(descRaw) ? descRaw : [String(descRaw)];
+      const rows = Math.max(1, descLines.length);
       const blockH = rows * 4 + 2;
+      const rowHeight = Math.max(blockH, rowH);
+      if (y + rowHeight + rowGapAfterRule > maxY) {
+        strokeVerticalGrid(tableTopY, y);
+        doc.addPage();
+        tableSegmentStartY = M + 8;
+        y = drawTableHeader(M + 8);
+        tableTopY = tableSegmentStartY - 5;
+      }
       doc.setFontSize(9);
-      doc.text(desc, colDesc + 1, y);
-      doc.text(String(item.quantity), colQty, y, { align: 'right' });
-      doc.text(fmtMoney(itemUnitPrice(item)), colRate, y, { align: 'right' });
-      doc.text(fmtMoney(n(item.amount)), colAmt, y, { align: 'right' });
-      y += Math.max(blockH, rowH);
+      doc.text(descLines, colDesc + 1, y);
+      // Same top baseline as first description line (avoids drifting down the cell)
+      doc.text(String(item.quantity), qtyX, y, { align: 'right' });
+      doc.text(fmtMoney(itemUnitPrice(item)), rateX, y, { align: 'right' });
+      doc.text(fmtMoney(n(item.amount)), amtX, y, { align: 'right' });
+      y += rowHeight;
+      doc.setDrawColor(...gray.line);
+      doc.line(M, y, right, y);
+      y += rowGapAfterRule;
     }
+  } else {
+    y += 8;
+    doc.setDrawColor(...gray.line);
+    doc.line(M, y, right, y);
   }
 
-  y += 4;
-  doc.setDrawColor(...gray.line);
-  doc.line(M, y, right, y);
-  y += 8;
+  strokeVerticalGrid(tableTopY, y);
 
-  // —— Totals (right column) ——
-  const labelX = 138;
+  y += 4;
+
+  // —— Totals (boxed grid: labels | amounts) ——
+  const totalsBoxLeft = vDescQty;
+  /** Left edge of label text inside the label column (between totalsBoxLeft and vRateAmt). */
+  const labelLeftX = totalsBoxLeft + 2;
+  const totalsBoxRight = right;
+  const totalsTopY = y;
+  doc.setDrawColor(...gray.line);
+  doc.line(totalsBoxLeft, totalsTopY, totalsBoxRight, totalsTopY);
+  y += 4;
+
   doc.setFontSize(9);
-  doc.text('Subtotal', labelX, y, { align: 'right' });
-  doc.text(fmtMoney(n(invoice.subtotal)), colAmt, y, { align: 'right' });
+  doc.text('Subtotal', labelLeftX, y);
+  doc.text(fmtMoney(n(invoice.subtotal)), amtX, y, { align: 'right' });
   y += 6;
+  doc.setDrawColor(...gray.line);
+  doc.line(totalsBoxLeft, y, totalsBoxRight, y);
+  y += 4;
 
   if (n(invoice.discount_amount) > 0) {
     doc.setTextColor(...gray.label);
     doc.text(
       invoice.discount_code ? `Discount (${invoice.discount_code})` : 'Discount',
-      labelX,
-      y,
-      { align: 'right' }
+      labelLeftX,
+      y
     );
     doc.setTextColor(0, 0, 0);
-    doc.text(`−${fmtMoney(n(invoice.discount_amount))}`, colAmt, y, { align: 'right' });
+    doc.text(`−${fmtMoney(n(invoice.discount_amount))}`, amtX, y, { align: 'right' });
     y += 6;
+    doc.setDrawColor(...gray.line);
+    doc.line(totalsBoxLeft, y, totalsBoxRight, y);
+    y += 4;
   }
 
   if (n(invoice.tax_amount) > 0) {
-    doc.text(`Tax (${n(invoice.tax_rate)}%)`, labelX, y, { align: 'right' });
-    doc.text(fmtMoney(n(invoice.tax_amount)), colAmt, y, { align: 'right' });
+    doc.text(`Tax (${n(invoice.tax_rate)}%)`, labelLeftX, y);
+    doc.text(fmtMoney(n(invoice.tax_amount)), amtX, y, { align: 'right' });
     y += 6;
+    doc.setDrawColor(...gray.line);
+    doc.line(totalsBoxLeft, y, totalsBoxRight, y);
+    y += 4;
   }
 
-  doc.setDrawColor(...gray.line);
-  doc.line(labelX - 42, y, right, y);
-  y += 6;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Total', labelX, y, { align: 'right' });
-  doc.text(fmtMoney(n(invoice.total)), colAmt, y, { align: 'right' });
+  doc.text('Total', labelLeftX, y);
+  doc.text(fmtMoney(n(invoice.total)), amtX, y, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  y += 10;
+  y += 6;
+  doc.setDrawColor(...gray.line);
+  doc.line(totalsBoxLeft, y, totalsBoxRight, y);
+
+  const totalsBottomY = y;
+  doc.line(totalsBoxLeft, totalsTopY, totalsBoxLeft, totalsBottomY);
+  doc.line(vRateAmt, totalsTopY, vRateAmt, totalsBottomY);
+  doc.line(totalsBoxRight, totalsTopY, totalsBoxRight, totalsBottomY);
+  y += 4;
 
   // —— Notes / terms ——
   if (invoice.notes?.trim()) {
@@ -319,7 +366,19 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   doc.setFontSize(8);
   doc.setTextColor(...gray.label);
   doc.text('Thank you for your business.', M, footY);
-  doc.text(`Status: ${invoice.status.toUpperCase()}`, right, footY, { align: 'right' });
+  const raw = invoice.status as string;
+  const statusPdf = raw === 'late' || raw === 'overdue' ? 'LATE' : raw.toUpperCase();
+  doc.text(`Status: ${statusPdf}`, right, footY, { align: 'right' });
+
+  const totalPages = doc.getNumberOfPages();
+  const pageNumY = pageH - 6;
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...gray.label);
+    doc.text(`Page ${p} of ${totalPages}`, right, pageNumY, { align: 'right' });
+  }
 
   return doc;
 }

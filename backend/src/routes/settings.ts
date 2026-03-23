@@ -1,4 +1,8 @@
 import { Router, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
@@ -6,6 +10,79 @@ import { settingsSchema } from '../models/validation';
 
 const router = Router();
 router.use(authenticate);
+
+const LOGO_DIR = path.join(process.cwd(), 'uploads', 'logos');
+const LOGO_PUBLIC_PREFIX = '/api/uploads/logos';
+
+function ensureLogoDir() {
+  if (!fs.existsSync(LOGO_DIR)) fs.mkdirSync(LOGO_DIR, { recursive: true });
+}
+
+function extFromMime(mime: string): string {
+  if (mime === 'image/jpeg') return '.jpg';
+  if (mime === 'image/png') return '.png';
+  if (mime === 'image/webp') return '.webp';
+  if (mime === 'image/gif') return '.gif';
+  return '.png';
+}
+
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
+function normalizeExtFromFilename(originalname: string): string | null {
+  const ext = path.extname(originalname).toLowerCase();
+  if (!ALLOWED_EXT.has(ext)) return null;
+  if (ext === '.jpeg') return '.jpg';
+  return ext;
+}
+
+/** Resolves a stored logo_url to an on-disk path, or null if external / not ours. */
+function storagePathFromPublicUrl(logoUrl: string | null | undefined): string | null {
+  if (!logoUrl || typeof logoUrl !== 'string') return null;
+  if (!logoUrl.startsWith(`${LOGO_PUBLIC_PREFIX}/`)) return null;
+  const name = path.basename(logoUrl);
+  if (!name || name === '.' || name === '..') return null;
+  return path.join(LOGO_DIR, name);
+}
+
+function deleteStoredLogoFileIfOwned(logoUrl: string | null | undefined) {
+  const p = storagePathFromPublicUrl(logoUrl);
+  if (p && fs.existsSync(p)) fs.unlinkSync(p);
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    ensureLogoDir();
+    cb(null, LOGO_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const fromMime = extFromMime(file.mimetype);
+    const fromName = normalizeExtFromFilename(file.originalname);
+    const ext =
+      file.mimetype === 'application/octet-stream' || !file.mimetype?.trim()
+        ? fromName ?? fromMime
+        : fromMime;
+    cb(null, `${uuidv4()}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const mimeOk =
+      /^image\/(jpeg|png|webp|gif)$/i.test(file.mimetype) ||
+      /^image\/x-png$/i.test(file.mimetype);
+    const extOk = normalizeExtFromFilename(file.originalname) !== null;
+    /** Browsers often send PNG/JPEG as application/octet-stream or omit the type. */
+    const octetOk =
+      (file.mimetype === 'application/octet-stream' || !file.mimetype?.trim()) && extOk;
+    if (mimeOk || octetOk) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG, WebP, or GIF images are allowed'));
+    }
+  },
+});
 
 function rowToJson(row: Record<string, unknown>) {
   return {
@@ -40,6 +117,69 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.post(
+  '/logo',
+  (req: AuthRequest, res: Response, next) => {
+    upload.single('logo')(req, res, (err: unknown) => {
+      if (err) {
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        return res.status(400).json({ error: msg });
+      }
+      next();
+    });
+  },
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const prev = await pool.query('SELECT logo_url FROM users WHERE id = $1', [req.userId]);
+      deleteStoredLogoFileIfOwned(prev.rows[0]?.logo_url as string | null);
+
+      const publicPath = `${LOGO_PUBLIC_PREFIX}/${file.filename}`;
+      const result = await pool.query(
+        `UPDATE users SET logo_url = $1, updated_at = NOW() WHERE id = $2
+         RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
+                   tax_id, default_hourly_rate, business_fax, logo_url`,
+        [publicPath, req.userId]
+      );
+
+      if (result.rows.length === 0) {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.json(rowToJson(result.rows[0]));
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+router.delete('/logo', async (req: AuthRequest, res: Response) => {
+  try {
+    const prev = await pool.query('SELECT logo_url FROM users WHERE id = $1', [req.userId]);
+    deleteStoredLogoFileIfOwned(prev.rows[0]?.logo_url as string | null);
+
+    const result = await pool.query(
+      `UPDATE users SET logo_url = NULL, updated_at = NOW() WHERE id = $1
+       RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
+                 tax_id, default_hourly_rate, business_fax, logo_url`,
+      [req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(rowToJson(result.rows[0]));
+  } catch (err) {
+    console.error('Logo delete error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response) => {
   try {
     const {
@@ -55,6 +195,13 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
     } = req.body;
 
     const emptyToNull = (s: string | undefined) => (s === '' || s === undefined ? null : s);
+
+    const prev = await pool.query('SELECT logo_url FROM users WHERE id = $1', [req.userId]);
+    const oldUrl = prev.rows[0]?.logo_url as string | null;
+    const newUrl = emptyToNull(logoUrl);
+    if (oldUrl && oldUrl.startsWith(LOGO_PUBLIC_PREFIX) && oldUrl !== newUrl) {
+      deleteStoredLogoFileIfOwned(oldUrl);
+    }
 
     const result = await pool.query(
       `UPDATE users SET
@@ -80,7 +227,7 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
         emptyToNull(taxId),
         defaultHourlyRate === null || defaultHourlyRate === undefined ? null : defaultHourlyRate,
         emptyToNull(businessFax),
-        emptyToNull(logoUrl),
+        newUrl,
         req.userId,
       ]
     );

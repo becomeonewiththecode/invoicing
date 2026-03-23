@@ -34,7 +34,7 @@ export interface Client {
   updated_at: string;
 }
 
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue';
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'late';
 
 export interface InvoiceItem {
   id?: string;
@@ -71,13 +71,15 @@ export interface Invoice {
   items?: InvoiceItem[];
   created_at: string;
   updated_at: string;
+  /** Set when invoice is marked sent; late status after 30 days from this time */
+  sent_at?: string | null;
 }
 
 export interface RevenueStats {
   paid_count: string;
   total_revenue: string;
-  overdue_count: string;
-  overdue_amount: string;
+  late_count: string;
+  late_amount: string;
   pending_count: string;
   pending_amount: string;
 }

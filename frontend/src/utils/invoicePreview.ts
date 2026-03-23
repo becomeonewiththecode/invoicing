@@ -22,7 +22,7 @@ export interface InvoiceFormShape {
   notes: string;
   isRecurring: boolean;
   recurrenceInterval?: string;
-  items: { description: string }[];
+  items: { description: string; hours: number }[];
 }
 
 /** Builds a synthetic Invoice for PDF/HTML preview (not persisted). */
@@ -38,9 +38,9 @@ export function buildInvoiceFromForm(
   const taxRate = settings?.defaultTaxRate ?? 0;
 
   const lineItems: InvoiceItem[] = form.items
-    .filter((i) => i.description?.trim())
+    .filter((i) => i.description?.trim() && Number(i.hours) > 0)
     .map((i) => {
-      const qty = 1;
+      const qty = Number(i.hours);
       const unit = hourly;
       const amount = qty * unit;
       return {

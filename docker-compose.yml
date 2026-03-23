@@ -33,6 +33,8 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - ./backend/uploads:/app/uploads
 
   frontend:
     build:

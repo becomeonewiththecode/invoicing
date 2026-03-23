@@ -37,8 +37,8 @@ CREATE TABLE IF NOT EXISTS clients (
 
 CREATE INDEX idx_clients_user_id ON clients(user_id);
 
--- Invoice status enum
-CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid', 'overdue');
+-- Invoice status enum (late = unpaid, 30+ days after sent_at; set by daily job)
+CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid', 'late');
 
 -- Invoices table
 CREATE TABLE IF NOT EXISTS invoices (
