@@ -25,7 +25,8 @@ See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice
 flowchart TB
   subgraph Browser
     subgraph Router["React Router"]
-      PUB["/login · /register · /share/:token"]
+      PUB["/login · /register"]
+      SHARE["/share/:token\n(view + mark paid)"]
       PROT["Protected: / invoices clients discounts settings"]
     end
 
@@ -35,18 +36,22 @@ flowchart TB
     end
 
     subgraph IO["I/O"]
-      AX["Axios\nJWT header"]
+      AX["Axios (authenticated)\nJWT header"]
+      AXPUB["Axios (public)\nno auth"]
       PDF["jsPDF\ninvoice PDF"]
     end
 
-    Router --> RQ
-    Router --> ZS
+    PROT --> RQ
+    PROT --> ZS
+    SHARE --> RQ
     RQ --> AX
+    RQ --> AXPUB
     PROT --> PDF
   end
 
   API["Backend /api"]
-  AX -->|HTTPS same-origin or CORS| API
+  AX -->|authenticated routes| API
+  AXPUB -->|share + mark paid| API
 ```
 
 **Dev server:** Vite serves on port **5173** and can proxy `/api` to the backend (see `vite.config.ts`).

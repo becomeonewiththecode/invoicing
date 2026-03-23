@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
 import { getDiscounts } from '../api/discounts';
 import type { Client } from '../types';
@@ -98,12 +99,20 @@ export function ClientsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteClient,
+    mutationFn: (id: string) => deleteClient(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success('Client deleted');
     },
-    onError: () => toast.error('Failed to delete client. They may have existing invoices.'),
+    onError: (err: unknown, id: string) => {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const count = (err.response.data as { invoiceCount?: number }).invoiceCount ?? 0;
+        toast.error(`Client has ${count} invoice(s). Use the client profile to force delete.`);
+        navigate(`/clients/${id}`);
+      } else {
+        toast.error('Failed to delete client');
+      }
+    },
   });
 
   const toPayload = (data: ClientFormData) => ({

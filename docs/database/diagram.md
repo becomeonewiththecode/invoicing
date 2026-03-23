@@ -13,7 +13,10 @@ erDiagram
     string email UK
     string password_hash
     string business_name
+    string business_email
     decimal default_tax_rate
+    decimal default_hourly_rate
+    string logo_url
     int client_counter
   }
 
@@ -23,6 +26,7 @@ erDiagram
     string customer_number
     string name
     string email
+    string discount_code
   }
 
   invoices {
@@ -30,9 +34,10 @@ erDiagram
     uuid user_id FK
     uuid client_id FK
     string invoice_number
-    invoice_status status
+    invoice_status status "draft sent paid late cancelled"
     date issue_date
     date due_date
+    decimal total
     timestamptz sent_at
     string share_token UK
   }
