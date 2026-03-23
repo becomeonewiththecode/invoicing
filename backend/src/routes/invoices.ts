@@ -538,18 +538,37 @@ router.patch('/:id/status', validate(updateInvoiceStatusSchema), async (req: Aut
   }
 });
 
-// Delete invoice (only drafts)
+// Delete invoice — hard-deletes drafts, soft-deletes (cancels) sent/late invoices
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const result = await pool.query(
-      "DELETE FROM invoices WHERE id = $1 AND user_id = $2 AND status = 'draft' RETURNING id",
+    const invoice = await pool.query(
+      'SELECT id, status FROM invoices WHERE id = $1 AND user_id = $2',
       [req.params.id, req.userId]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Invoice not found or cannot be deleted (only drafts can be deleted)' });
+    if (invoice.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
     }
-    await invalidateRevenueCache(req.userId!);
-    res.status(204).send();
+
+    const { status } = invoice.rows[0];
+
+    if (status === 'draft') {
+      await pool.query('DELETE FROM invoices WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
+      await invalidateRevenueCache(req.userId!);
+      return res.status(204).send();
+    }
+
+    if (status === 'sent' || status === 'late') {
+      await pool.query(
+        "UPDATE invoices SET status = 'cancelled'::invoice_status, share_token = NULL, updated_at = NOW() WHERE id = $1 AND user_id = $2",
+        [req.params.id, req.userId]
+      );
+      await invalidateRevenueCache(req.userId!);
+      return res.json({ id: req.params.id, status: 'cancelled' });
+    }
+
+    return res.status(400).json({
+      error: `Cannot delete an invoice with status "${status}". Only draft, sent, or late invoices can be deleted.`,
+    });
   } catch (err) {
     console.error('Delete invoice error:', err);
     res.status(500).json({ error: 'Internal server error' });

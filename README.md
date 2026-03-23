@@ -6,15 +6,16 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 
 ## Features
 
-- **Invoices** — Draft → Sent → Paid; **Late** when past the late rule after `sent_at`; line items use **description + hours** and the default hourly rate from Settings  
+- **Invoices** — Draft → Sent → Paid; **Late** when past the late rule after `sent_at`; **Cancelled** via soft-delete for sent/late invoices (drafts hard-delete); line items use **description + hours** and the default hourly rate from Settings
 - **Clients** — Customer numbers, optional default discount codes; **[client profile](docs/frontend/routes.md)** (`/clients/:id`) for details, per-client invoice status, and invoice links  
 - **Discounts** — Percent or fixed codes  
 - **Company profile** — Tax rate, address, logo, optional company email for invoice copy emails  
 - **Dashboard** — Revenue stats (cached in Redis)  
 - **PDF** — Client-side invoice PDFs (jsPDF)  
-- **Email** — Optional “email to company” on an invoice (SMTP on the server)  
-- **Jobs** — Daily cron for late invoices and recurring drafts  
-- **Data backup** — Download a JSON snapshot of your business data (profile, clients, discount codes, invoices); import replaces that data for the current account (Settings)
+- **Share links** — Generate a public URL for any invoice; clients can view and mark as paid without logging in
+- **Email** — Optional “email to company” on an invoice (SMTP on the server)
+- **Jobs** — Daily cron for late invoices and recurring drafts
+- **Data backup** — Download a JSON snapshot of your business data (profile, clients, discount codes, invoices); import replaces that data for the current account (Settings) with strict validation and referential integrity checks
 
 ---
 

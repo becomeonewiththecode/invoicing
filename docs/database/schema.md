@@ -1,6 +1,6 @@
 # Database schema
 
-PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sql` (Docker Compose mounts it for init). **Existing** databases may need SQL in `backend/migrations/` applied in order (`002`–`007`, etc.).
+PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sql` (Docker Compose mounts it for init). **Existing** databases may need SQL in `backend/migrations/` applied in order (`002`–`008`, etc.).
 
 ## Entity relationships (text)
 
@@ -19,9 +19,9 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 
 ### `invoice_status`
 
-`draft`, `sent`, `paid`, `late`
+`draft`, `sent`, `paid`, `late`, `cancelled`
 
-`late` is used for unpaid invoices that meet the **late** business rule (see app jobs). Legacy `overdue` values were migrated to `late` in migration `005`.
+`late` is used for unpaid invoices that meet the **late** business rule (see app jobs). Legacy `overdue` values were migrated to `late` in migration `005`. `cancelled` is a soft-delete status for sent/late invoices (migration `008`); draft invoices are hard-deleted instead.
 
 ## Tables
 

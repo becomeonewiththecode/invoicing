@@ -76,19 +76,41 @@ export async function exportUserData(userId: string): Promise<DataExportV1> {
       await client.query('SELECT * FROM invoices WHERE user_id = $1 ORDER BY created_at', [userId])
     ).rows;
 
-    const invoices: DataExportV1['invoices'] = [];
-    for (const inv of invRows) {
-      const items = (await client.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order, created_at', [inv.id]))
-        .rows;
-      const payment_reminders = (
-        await client.query('SELECT * FROM payment_reminders WHERE invoice_id = $1 ORDER BY sent_at', [inv.id])
-      ).rows;
-      invoices.push({
-        ...inv,
-        items,
-        payment_reminders,
-      });
+    const invoiceIds = invRows.map((r) => r.id);
+
+    // Batch-fetch items and reminders for all invoices in two queries instead of 2N
+    const allItems = invoiceIds.length > 0
+      ? (await client.query(
+          'SELECT * FROM invoice_items WHERE invoice_id = ANY($1) ORDER BY sort_order, created_at',
+          [invoiceIds]
+        )).rows
+      : [];
+    const allReminders = invoiceIds.length > 0
+      ? (await client.query(
+          'SELECT * FROM payment_reminders WHERE invoice_id = ANY($1) ORDER BY sent_at',
+          [invoiceIds]
+        )).rows
+      : [];
+
+    // Group by invoice_id
+    const itemsByInvoice = new Map<string, Record<string, unknown>[]>();
+    for (const it of allItems) {
+      const list = itemsByInvoice.get(it.invoice_id) ?? [];
+      list.push(it);
+      itemsByInvoice.set(it.invoice_id, list);
     }
+    const remindersByInvoice = new Map<string, Record<string, unknown>[]>();
+    for (const pr of allReminders) {
+      const list = remindersByInvoice.get(pr.invoice_id) ?? [];
+      list.push(pr);
+      remindersByInvoice.set(pr.invoice_id, list);
+    }
+
+    const invoices: DataExportV1['invoices'] = invRows.map((inv) => ({
+      ...inv,
+      items: itemsByInvoice.get(inv.id) ?? [],
+      payment_reminders: remindersByInvoice.get(inv.id) ?? [],
+    }));
 
     return {
       version: DATA_EXPORT_VERSION,
@@ -103,8 +125,13 @@ export async function exportUserData(userId: string): Promise<DataExportV1> {
   }
 }
 
+const VALID_STATUSES = new Set(['draft', 'sent', 'paid', 'late', 'cancelled']);
+
 function normStatus(s: string): string {
   if (s === 'overdue') return 'late';
+  if (!VALID_STATUSES.has(s)) {
+    throw new Error(`Unknown invoice status in backup: "${s}"`);
+  }
   return s;
 }
 

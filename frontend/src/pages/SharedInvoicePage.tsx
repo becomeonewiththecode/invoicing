@@ -1,10 +1,12 @@
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getSharedInvoice } from '../api/invoices';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast, { Toaster } from 'react-hot-toast';
+import { getSharedInvoice, markSharedInvoicePaid } from '../api/invoices';
 import { StatusBadge } from '../components/common/StatusBadge';
 
 export function SharedInvoicePage() {
   const { token } = useParams<{ token: string }>();
+  const queryClient = useQueryClient();
 
   const { data: invoice, isPending, isError } = useQuery({
     queryKey: ['shared-invoice', token],
@@ -31,6 +33,17 @@ export function SharedInvoicePage() {
     );
   }
 
+  const markPaidMutation = useMutation({
+    mutationFn: () => markSharedInvoicePaid(token!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shared-invoice', token] });
+      toast.success('Invoice marked as paid');
+    },
+    onError: () => toast.error('Failed to update invoice status'),
+  });
+
+  const canMarkPaid = invoice.status === 'sent' || invoice.status === 'late';
+
   const company = {
     businessName: (invoice as Record<string, unknown>).business_name as string | null,
     businessPhone: (invoice as Record<string, unknown>).business_phone as string | null,
@@ -42,6 +55,7 @@ export function SharedInvoicePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <Toaster position="top-right" />
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-8">
         {/* Company header */}
         <div className="flex justify-between items-start mb-8">
@@ -64,7 +78,19 @@ export function SharedInvoicePage() {
           </div>
           <div className="text-right">
             <h1 className="text-2xl font-bold text-gray-900">{invoice.invoice_number}</h1>
-            <StatusBadge status={invoice.status} />
+            <div className="flex items-center justify-end gap-3 mt-1">
+              <StatusBadge status={invoice.status} />
+              {canMarkPaid && (
+                <button
+                  type="button"
+                  disabled={markPaidMutation.isPending}
+                  onClick={() => markPaidMutation.mutate()}
+                  className="px-4 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {markPaidMutation.isPending ? 'Updating...' : 'Mark as Paid'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

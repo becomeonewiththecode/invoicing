@@ -5,6 +5,7 @@ const statusStyles: Record<InvoiceStatus, string> = {
   sent: 'bg-blue-100 text-blue-700',
   paid: 'bg-green-100 text-green-700',
   late: 'bg-red-100 text-red-700',
+  cancelled: 'bg-orange-100 text-orange-700',
 };
 
 const statusLabel: Record<InvoiceStatus, string> = {
@@ -12,6 +13,7 @@ const statusLabel: Record<InvoiceStatus, string> = {
   sent: 'Sent',
   paid: 'Paid',
   late: 'Late',
+  cancelled: 'Cancelled',
 };
 
 function normalizeStatus(s: string): InvoiceStatus {

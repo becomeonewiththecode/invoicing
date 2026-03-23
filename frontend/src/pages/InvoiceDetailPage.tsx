@@ -79,9 +79,12 @@ export function InvoiceDetailPage() {
     mutationFn: deleteInvoice,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
       queryClient.invalidateQueries({ queryKey: ['revenue-stats'] });
-      toast.success('Invoice deleted');
-      navigate('/invoices');
+      toast.success(invoice?.status === 'draft' ? 'Invoice deleted' : 'Invoice cancelled');
+      if (invoice?.status === 'draft') {
+        navigate('/invoices');
+      }
     },
     onError: () => toast.error('Failed to delete invoice'),
   });
@@ -164,15 +167,18 @@ export function InvoiceDetailPage() {
             >
               {emailToCompanyMutation.isPending ? 'Sending…' : 'Email to company'}
             </button>
-            {invoice.status === 'draft' && (
+            {['draft', 'sent', 'late'].includes(invoice.status) && (
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm('Delete this draft invoice?')) deleteMutation.mutate(invoice.id);
+                  const msg = invoice.status === 'draft'
+                    ? 'Delete this draft invoice? This cannot be undone.'
+                    : 'Cancel this invoice? It will be marked as cancelled and any share link will be revoked.';
+                  if (confirm(msg)) deleteMutation.mutate(invoice.id);
                 }}
                 className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
               >
-                Delete
+                {invoice.status === 'draft' ? 'Delete' : 'Cancel invoice'}
               </button>
             )}
             {nextAction && (
