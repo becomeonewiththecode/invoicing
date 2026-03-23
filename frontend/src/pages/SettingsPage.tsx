@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getSettings, updateSettings, uploadLogo, deleteLogo } from '../api/settings';
+import { downloadAccountBackup, importAccountBackup } from '../api/data';
 import { useAuthStore } from '../stores/authStore';
 import { resolveApiAssetUrl } from '../utils/resolveApiUrl';
 
@@ -26,6 +28,8 @@ export function SettingsPage() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importBackupInputRef = useRef<HTMLInputElement>(null);
+  const [importReplaceConfirmed, setImportReplaceConfirmed] = useState(false);
 
   const { data: settings, isPending } = useQuery({
     queryKey: ['settings'],
@@ -100,6 +104,28 @@ export function SettingsPage() {
     onError: () => toast.error('Failed to remove logo'),
   });
 
+  const exportMutation = useMutation({
+    mutationFn: downloadAccountBackup,
+    onSuccess: () => toast.success('Backup downloaded'),
+    onError: () => toast.error('Export failed'),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: importAccountBackup,
+    onSuccess: () => {
+      setImportReplaceConfirmed(false);
+      if (importBackupInputRef.current) importBackupInputRef.current.value = '';
+      queryClient.invalidateQueries();
+      toast.success('Backup imported. Your account data was replaced.');
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data as { error?: string })?.error
+        : undefined;
+      toast.error(msg || (err instanceof Error ? err.message : 'Import failed'));
+    },
+  });
+
   const onSubmit = (data: SettingsForm) => {
     const hourly = data.defaultHourlyRate.trim();
     mutation.mutate({
@@ -139,6 +165,73 @@ export function SettingsPage() {
         >
           Manage discount codes →
         </Link>
+      </div>
+
+      <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <h2 className="text-sm font-semibold text-gray-900">Data backup</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Download a JSON file with your profile, clients, discount codes, and invoices. You can restore it later on this
+          or another account — importing replaces all of that data for the current user.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => exportMutation.mutate()}
+            disabled={exportMutation.isPending}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 disabled:opacity-50"
+          >
+            {exportMutation.isPending ? 'Preparing…' : 'Download backup'}
+          </button>
+        </div>
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-700 font-medium">Import from backup</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Choose a <code className="text-xs bg-gray-200 px-1 rounded">.json</code> file from &quot;Download backup&quot;
+            above. This deletes your current clients, invoices, and discounts for this account and replaces them with the
+            file contents. Your login email and password are unchanged.
+          </p>
+          <label className="mt-3 flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={importReplaceConfirmed}
+              onChange={(e) => setImportReplaceConfirmed(e.target.checked)}
+              className="mt-1 rounded border-gray-300"
+            />
+            <span className="text-sm text-gray-700">
+              I understand this permanently replaces my current business data with the backup.
+            </span>
+          </label>
+          <input
+            ref={importBackupInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            aria-hidden
+            tabIndex={-1}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f || !importReplaceConfirmed) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const parsed = JSON.parse(String(reader.result));
+                  importMutation.mutate(parsed);
+                } catch {
+                  toast.error('Invalid JSON file');
+                }
+              };
+              reader.readAsText(f);
+            }}
+          />
+          <button
+            type="button"
+            disabled={!importReplaceConfirmed || importMutation.isPending}
+            onClick={() => importBackupInputRef.current?.click()}
+            className="mt-3 px-4 py-2 border border-amber-300 bg-amber-50 text-amber-900 rounded-lg text-sm font-medium hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {importMutation.isPending ? 'Importing…' : 'Choose backup file…'}
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-sm p-8 space-y-6">

@@ -4,7 +4,7 @@ Express (TypeScript) application in `backend/src/`. Entry: `server.ts` loads `ap
 
 ## Request pipeline
 
-Global middleware on `app.ts`: `helmet` → `cors` → `morgan` → `express.json()`. Static files for uploads at `/api/uploads`.
+Global middleware on `app.ts`: `helmet` → `cors` → `morgan` → **`/api/data`** with `express.json({ limit: '15mb' })` → `express.json()` for all other routes. Static files for uploads at `/api/uploads`.
 
 Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JWT) as required.
 
@@ -18,6 +18,8 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/share.ts` | Public read-only invoice by token |
 | `routes/discounts.ts` | Discount codes |
 | `routes/settings.ts` | Company profile, defaults, logo upload/delete |
+| `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore |
+| `services/dataPort.ts` | Builds export payload; transactional replace on import (invalidates revenue cache) |
 | `middleware/auth.ts` | JWT verification |
 | `middleware/validate.ts` | Zod validation |
 | `middleware/rateLimit.ts` | Redis sliding windows / counters |
@@ -29,13 +31,14 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 ```mermaid
 flowchart LR
   subgraph HTTP["Express app"]
-    MW["helmet · cors · morgan · json"]
+    MW["helmet · cors · morgan\n+json (+15mb on /api/data)"]
     AUTH["/api/auth"]
     CL["/api/clients"]
     SH["/api/invoices/share\n(public)"]
     INV["/api/invoices"]
     DISC["/api/discounts"]
     SET["/api/settings"]
+    DATA["/api/data\nexport · import"]
     ST["/api/uploads static"]
     HL["/api/health"]
   end
@@ -54,6 +57,7 @@ flowchart LR
   MW --> INV
   MW --> DISC
   MW --> SET
+  MW --> DATA
   MW --> ST
   MW --> HL
 
@@ -64,6 +68,8 @@ flowchart LR
   INV --> RD
   DISC --> PG
   SET --> PG
+  DATA --> PG
+  DATA --> RD
   J1 --> PG
   J2 --> PG
 ```

@@ -11,6 +11,7 @@ import invoiceRoutes from './routes/invoices';
 import shareRoutes from './routes/share';
 import discountRoutes from './routes/discounts';
 import settingsRoutes from './routes/settings';
+import dataPortRoutes from './routes/dataPort';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
+app.use('/api/data', express.json({ limit: '15mb' }), dataPortRoutes);
 app.use(express.json());
 app.use('/api/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

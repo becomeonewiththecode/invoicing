@@ -368,6 +368,50 @@ Removes the stored logo file and clears `logoUrl`.
 
 ---
 
+## Data backup (authenticated)
+
+Full account export and destructive restore. Implemented in `backend/src/services/dataPort.ts`; JSON body limit for import is **15MB** (see `app.ts`).
+
+### GET /data/export
+
+Download a JSON backup of the authenticated user’s data.
+
+**Response (200):** `Content-Type: application/json; charset=utf-8`, `Content-Disposition: attachment` with a dated filename (e.g. `invoicing-backup-2026-03-21.json`).
+
+**Payload shape (version 1):** `version` (number, currently `1`), `exportedAt` (ISO timestamp), `profile` (user settings columns as stored in the DB), `clients`, `discount_codes`, `invoices` (each invoice includes nested `items` and `payment_reminders`). Login credentials are **not** included.
+
+### POST /data/import
+
+Replace **all** of the user’s clients, discount codes, and invoices (including line items and payment reminders) with the contents of a valid export file, and update the user row from `profile` in the file.
+
+**Rate limit:** 3 requests per minute per IP.
+
+**Request body:**
+
+```json
+{
+  "data": { "version": 1, "exportedAt": "...", "profile": {}, "clients": [], "discount_codes": [], "invoices": [] },
+  "confirmReplace": true
+}
+```
+
+`confirmReplace` must be the literal boolean **`true`** (safety guard for clients and scripts).
+
+**Response (200):**
+
+```json
+{
+  "ok": true,
+  "message": "Data imported successfully"
+}
+```
+
+**Errors:** **400** if the body fails validation (e.g. wrong shape, `version` not `1`). **500** on database or server errors.
+
+**Notes:** Import does not upload logo files; only `logo_url` (or equivalent profile field) is restored if present. Revenue cache in Redis is invalidated after a successful import.
+
+---
+
 ## Public invoice share (no JWT)
 
 ### GET /invoices/share/:token

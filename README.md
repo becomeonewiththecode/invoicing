@@ -14,6 +14,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 - **PDF** — Client-side invoice PDFs (jsPDF)  
 - **Email** — Optional “email to company” on an invoice (SMTP on the server)  
 - **Jobs** — Daily cron for late invoices and recurring drafts  
+- **Data backup** — Download a JSON snapshot of your business data (profile, clients, discount codes, invoices); import replaces that data for the current account (Settings)
 
 ---
 

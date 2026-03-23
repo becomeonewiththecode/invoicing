@@ -8,7 +8,7 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 |------|------|
 | `src/App.tsx` | `BrowserRouter`, route table, public vs protected layout |
 | `src/layouts/AppLayout.tsx` | Sidebar + outlet for authenticated pages |
-| `src/api/` | Axios instance (`client.ts`) + resource modules; base URL from `VITE_API_URL` |
+| `src/api/` | Axios instance (`client.ts`) + resource modules (`settings`, `data` backup helpers, …); base URL from `VITE_API_URL` |
 | `src/store/` | Zustand auth store (persisted) |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
 | `src/utils/pdf.ts` | jsPDF invoice generation |

@@ -16,19 +16,22 @@
 
 Order matters for Express:
 
-1. `/api/auth` — no JWT.
-2. `/api/clients`, then **`/api/invoices/share`** (public) **before** `/api/invoices` so `share` is not parsed as an invoice id.
-3. `/api/invoices` — CRUD, stats, CSV, share-token minting, email helpers.
-4. `/api/discounts`, `/api/settings`.
-5. Static uploads: `/api/uploads`.
-6. `GET /api/health` — health check.
+1. **`/api/data`** — authenticated export/import; mounted with `express.json({ limit: '15mb' })` so large backups can be posted (see [reference](reference.md#data-backup-authenticated)).
+2. `/api/auth` — no JWT.
+3. `/api/clients`, then **`/api/invoices/share`** (public) **before** `/api/invoices` so `share` is not parsed as an invoice id.
+4. `/api/invoices` — CRUD, stats, CSV, share-token minting, email helpers.
+5. `/api/discounts`, `/api/settings`.
+6. Static uploads: `/api/uploads`.
+7. `GET /api/health` — health check.
+
+**Note:** In `app.ts`, the `/api/data` router is registered **before** the global `express.json()` so import requests use the larger body limit; other routes use the default JSON parser.
 
 ## Conventions
 
 - **Pagination:** List endpoints accept `page` and `limit` query params where implemented.
 - **Validation:** Invalid input returns **400** with Zod-style `details` when applicable.
 - **Rate limits:** Auth routes and sensitive actions use Redis-backed limits (fail-open if Redis is down).
-- **Caching:** `GET /api/invoices/stats/revenue` caches per user in Redis (~5 minutes); mutations invalidate as implemented in route handlers. `GET /api/invoices/stats/by-client/:clientId` is not cached.
+- **Caching:** `GET /api/invoices/stats/revenue` caches per user in Redis (~5 minutes); mutations invalidate as implemented in route handlers. `GET /api/invoices/stats/by-client/:clientId` is not cached. Successful **`POST /api/data/import`** invalidates the revenue cache for the user.
 
 ## Domain concepts
 
