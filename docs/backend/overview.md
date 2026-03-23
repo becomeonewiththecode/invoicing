@@ -18,8 +18,10 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/share.ts` | Public invoice by token: read-only view + mark as paid |
 | `routes/discounts.ts` | Discount codes |
 | `routes/settings.ts` | Company profile, defaults, logo upload/delete |
-| `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore |
+| `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore; numeric fields use `z.coerce.number()` to accept both numbers and DB string decimals; validation failures logged to console |
 | `services/dataPort.ts` | Builds export payload (batched queries); transactional replace on import with strict Zod validation, referential integrity, and duplicate-ID checks |
+| `services/mail.ts` | Nodemailer SMTP transport (optional; used by send-to-company) |
+| `services/invoiceEmailHtml.ts` | HTML + plain-text email templates for invoice summaries |
 | `middleware/auth.ts` | JWT verification |
 | `middleware/validate.ts` | Zod validation |
 | `middleware/rateLimit.ts` | Redis sliding windows / counters |
@@ -34,13 +36,18 @@ flowchart LR
     MW["helmet · cors · morgan\n+json (+15mb on /api/data)"]
     AUTH["/api/auth"]
     CL["/api/clients"]
-    SH["/api/invoices/share\n(public)"]
+    SH["/api/invoices/share\n(public: view + mark paid)"]
     INV["/api/invoices"]
     DISC["/api/discounts"]
     SET["/api/settings"]
     DATA["/api/data\nexport · import"]
     ST["/api/uploads static"]
     HL["/api/health"]
+  end
+
+  subgraph Services["Services"]
+    MAIL["mail.ts\nnodemailer SMTP"]
+    TMPL["invoiceEmailHtml.ts"]
   end
 
   subgraph Jobs["node-cron"]
@@ -50,6 +57,7 @@ flowchart LR
 
   PG[(PostgreSQL)]
   RD[(Redis)]
+  SMTP["SMTP server\n(optional)"]
 
   MW --> AUTH
   MW --> CL
@@ -64,8 +72,12 @@ flowchart LR
   AUTH --> PG
   CL --> PG
   SH --> PG
+  SH --> RD
   INV --> PG
   INV --> RD
+  INV --> MAIL
+  MAIL --> TMPL
+  MAIL --> SMTP
   DISC --> PG
   SET --> PG
   DATA --> PG

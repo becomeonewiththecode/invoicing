@@ -412,12 +412,12 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 
 **Errors:** **400** if the body fails validation. Validation includes:
 
-- Schema check: each client, discount code, invoice, line item, and payment reminder is validated for required fields, correct types, and valid UUIDs (not just `z.record(z.unknown())`).
+- Schema check: each client, discount code, invoice, line item, and payment reminder is validated for required fields, correct types, and valid UUIDs. Numeric fields (amounts, rates, quantities) accept both numbers and numeric strings to handle PostgreSQL `DECIMAL` column serialisation.
 - Referential integrity: every invoice's `client_id` must reference a client present in the backup's `clients` array.
 - Duplicate detection: no two records of the same entity type may share an `id`.
 - `version` must be `1`; `confirmReplace` must be `true`.
 
-**500** on database or server errors (the import runs inside a transaction and rolls back on failure).
+**500** on database or server errors (the import runs inside a transaction and rolls back on failure). All validation failures are logged to the server console with a `Data import validation error:` prefix.
 
 **Notes:** Import does not upload logo files; only `logo_url` (or equivalent profile field) is restored if present. Revenue cache in Redis is invalidated after a successful import.
 
