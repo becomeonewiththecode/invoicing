@@ -22,8 +22,8 @@ SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`,
 Single page for one client (see `ClientProfilePage.tsx`):
 
 1. **Client details** — Edit fields and save; delete client. Hash: `#details`.
-2. **Invoice status** — Counts and dollar totals by status (draft / sent / paid / late) for this client only (`GET /api/invoices/stats/by-client/:clientId`). Hash: `#invoice-status`.
-3. **Invoices** — Table of invoices with links to each `/invoices/:id`; button to full filtered list (`/invoices?clientId=`). Hash: `#invoices`.
+2. **Invoice status** — Total revenue and total tax collected summary cards, plus counts and dollar totals by status (draft / sent / paid / late) for this client only (`GET /api/invoices/stats/by-client/:clientId`). Hash: `#invoice-status`.
+3. **Invoices** — Table of invoices showing per-invoice revenue, tax, and total columns with a totals footer row; links to each `/invoices/:id`; button to full filtered list (`/invoices?clientId=`). Hash: `#invoices`.
 
 **Deep links**
 

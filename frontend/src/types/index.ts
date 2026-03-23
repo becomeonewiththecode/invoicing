@@ -98,6 +98,8 @@ export interface ClientInvoiceStats {
   sent_total: string;
   paid_total: string;
   late_total: string;
+  total_revenue: string;
+  total_tax: string;
 }
 
 export interface DiscountCode {

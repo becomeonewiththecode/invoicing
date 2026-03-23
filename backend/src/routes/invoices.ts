@@ -149,7 +149,9 @@ router.get('/stats/by-client/:clientId', async (req: AuthRequest, res: Response)
          COALESCE(SUM(total) FILTER (WHERE status = 'draft'), 0)::text AS draft_total,
          COALESCE(SUM(total) FILTER (WHERE status = 'sent'), 0)::text AS sent_total,
          COALESCE(SUM(total) FILTER (WHERE status = 'paid'), 0)::text AS paid_total,
-         COALESCE(SUM(total) FILTER (WHERE status = 'late'), 0)::text AS late_total
+         COALESCE(SUM(total) FILTER (WHERE status = 'late'), 0)::text AS late_total,
+         COALESCE(SUM(total), 0)::text AS total_revenue,
+         COALESCE(SUM(tax_amount), 0)::text AS total_tax
        FROM invoices
        WHERE user_id = $1 AND client_id = $2`,
       [req.userId, clientId]

@@ -332,17 +332,29 @@ export function ClientProfilePage() {
         {statsQuery.isPending && <p className="text-gray-400">Loading stats…</p>}
         {statsQuery.isError && <p className="text-red-600">Could not load invoice stats.</p>}
         {s && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {STATS_ROWS.map((row) => (
-              <div key={row.label} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                <p className="text-sm font-medium text-gray-500">{row.label}</p>
-                <p className={`text-2xl font-bold tabular-nums mt-1 ${row.color}`}>
-                  {Number(s[row.countKey] ?? 0)} invoices
-                </p>
-                <p className="text-sm text-gray-600 mt-2 tabular-nums">Total {money(s[row.totalKey])}</p>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <p className="text-sm font-medium text-gray-500">Total revenue</p>
+                <p className="text-2xl font-bold tabular-nums mt-1 text-green-700">{money(s.total_revenue)}</p>
               </div>
-            ))}
-          </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <p className="text-sm font-medium text-gray-500">Total tax collected</p>
+                <p className="text-2xl font-bold tabular-nums mt-1 text-amber-600">{money(s.total_tax)}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {STATS_ROWS.map((row) => (
+                <div key={row.label} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <p className="text-sm font-medium text-gray-500">{row.label}</p>
+                  <p className={`text-2xl font-bold tabular-nums mt-1 ${row.color}`}>
+                    {Number(s[row.countKey] ?? 0)} invoices
+                  </p>
+                  <p className="text-sm text-gray-600 mt-2 tabular-nums">Total {money(s[row.totalKey])}</p>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </section>
 
@@ -369,6 +381,8 @@ export function ClientProfilePage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Invoice #</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Due</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500">Revenue</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500">Tax</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500">Total</th>
                 </tr>
               </thead>
@@ -384,10 +398,26 @@ export function ClientProfilePage() {
                       <StatusBadge status={inv.status} />
                     </td>
                     <td className="px-4 py-3 text-gray-600">{inv.due_date?.slice(0, 10) ?? '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium">${Number(inv.total).toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{money(String(Number(inv.total) - Number(inv.tax_amount)))}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{money(String(inv.tax_amount))}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-medium">{money(String(inv.total))}</td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="bg-gray-50 border-t font-semibold">
+                <tr>
+                  <td className="px-4 py-3" colSpan={3}>Totals</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {money(String(invoicesQuery.data.data.reduce((sum, inv) => sum + Number(inv.total) - Number(inv.tax_amount), 0)))}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {money(String(invoicesQuery.data.data.reduce((sum, inv) => sum + Number(inv.tax_amount), 0)))}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {money(String(invoicesQuery.data.data.reduce((sum, inv) => sum + Number(inv.total), 0)))}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
