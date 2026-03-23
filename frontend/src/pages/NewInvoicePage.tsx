@@ -21,7 +21,7 @@ interface InvoiceFormData {
   notes: string;
   isRecurring: boolean;
   recurrenceInterval: string;
-  items: { description: string }[];
+  items: { description: string; hours: number }[];
 }
 
 export function NewInvoicePage() {
@@ -64,7 +64,7 @@ export function NewInvoicePage() {
       issueDate: today,
       dueDate: format(new Date(Date.now() + 30 * 86400000), 'yyyy-MM-dd'),
       isRecurring: false,
-      items: [{ description: '' }],
+      items: [{ description: '', hours: 1 }],
     },
   });
 
@@ -73,8 +73,9 @@ export function NewInvoicePage() {
     const lineItems = existingInvoice.items?.length
       ? existingInvoice.items.map((item) => ({
           description: item.description,
+          hours: Number(item.quantity) || 1,
         }))
-      : [{ description: '' }];
+      : [{ description: '', hours: 1 }];
 
     reset({
       clientId: existingInvoice.client_id,
@@ -92,10 +93,12 @@ export function NewInvoicePage() {
   const clientId = watch('clientId');
   const selectedClient = clientsData?.data.find((c) => c.id === clientId);
   const hourlyRate = settings?.defaultHourlyRate ?? 0;
-  const subtotal = items.reduce(
-    (sum, row) => sum + (row.description?.trim() ? hourlyRate : 0),
-    0
-  );
+  const subtotal = items.reduce((sum, row) => {
+    if (!row.description?.trim()) return sum;
+    const h = Number(row.hours);
+    if (!Number.isFinite(h) || h <= 0) return sum;
+    return sum + h * hourlyRate;
+  }, 0);
 
   const buildPayload = (data: InvoiceFormData): InvoicePayload => {
     const taxRate = settings?.defaultTaxRate ?? 0;
@@ -111,7 +114,7 @@ export function NewInvoicePage() {
       .filter((item) => item.description?.trim())
       .map((item) => ({
         description: item.description.trim(),
-        quantity: 1,
+        quantity: Math.max(0, Number(item.hours)) || 0,
         unitPrice: settings?.defaultHourlyRate ?? 0,
       })),
   };
@@ -145,6 +148,18 @@ export function NewInvoicePage() {
       toast.error('Add at least one line with a description');
       return;
     }
+    for (const row of data.items) {
+      if (!row.description?.trim()) continue;
+      const h = Number(row.hours);
+      if (!Number.isFinite(h) || h <= 0) {
+        toast.error('Enter a positive number of hours for each line item');
+        return;
+      }
+    }
+    if ((settings?.defaultHourlyRate ?? 0) <= 0) {
+      toast.error('Set a default hourly rate under Settings before saving');
+      return;
+    }
     const payload = buildPayload(data);
     if (isEdit) {
       updateMutation.mutate({ invoiceId: id!, payload });
@@ -156,6 +171,18 @@ export function NewInvoicePage() {
   const handlePreview = handleSubmit((data) => {
     if (!data.clientId) {
       toast.error('Select a client');
+      return;
+    }
+    for (const row of data.items) {
+      if (!row.description?.trim()) continue;
+      const h = Number(row.hours);
+      if (!Number.isFinite(h) || h <= 0) {
+        toast.error('Enter a positive number of hours for each line item');
+        return;
+      }
+    }
+    if ((settings?.defaultHourlyRate ?? 0) <= 0) {
+      toast.error('Set a default hourly rate under Settings to preview');
       return;
     }
     const client = clientsData?.data.find((c) => c.id === data.clientId);
@@ -239,14 +266,18 @@ export function NewInvoicePage() {
           </div>
         </div>
 
-        {/* Description (line items): one hour per row at company hourly rate */}
+        {/* Line items: description + hours; rate comes from Settings */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Line items</label>
+          <p className="text-xs text-gray-500 mb-2">
+            Each line uses your default hourly rate from Settings × hours worked.
+          </p>
           <div className="grid grid-cols-12 gap-3 mb-2 text-xs text-gray-500">
-            <div className="col-span-7 md:col-span-8" />
+            <div className="col-span-7 md:col-span-8">
+              <span className="font-medium text-gray-500 uppercase tracking-wide">Description</span>
+            </div>
             <div className="col-span-4 md:col-span-3">
-              <span className="font-medium text-gray-500 uppercase tracking-wide">Hourly Rate</span>
-              <p className="text-[11px] font-normal normal-case mt-0.5">From company settings</p>
+              <span className="font-medium text-gray-500 uppercase tracking-wide">Hours</span>
             </div>
             <div className="col-span-1" />
           </div>
@@ -262,10 +293,12 @@ export function NewInvoicePage() {
                 </div>
                 <div className="col-span-4 md:col-span-3">
                   <input
-                    readOnly
-                    value={settings ? String(settings.defaultHourlyRate ?? 0) : '—'}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800"
-                    aria-label={`Hourly rate for line ${index + 1}`}
+                    type="number"
+                    min={0}
+                    step={0.25}
+                    {...register(`items.${index}.hours`, { valueAsNumber: true, min: 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg tabular-nums"
+                    aria-label={`Hours for line ${index + 1}`}
                   />
                 </div>
                 <div className="col-span-1 flex justify-end pb-2">
@@ -280,7 +313,7 @@ export function NewInvoicePage() {
           </div>
           <button
             type="button"
-            onClick={() => append({ description: '' })}
+            onClick={() => append({ description: '', hours: 1 })}
             className="mt-3 flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
           >
             <HiOutlinePlus className="w-4 h-4" /> Add Item

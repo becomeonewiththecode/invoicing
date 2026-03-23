@@ -19,6 +19,9 @@ dist/
 # Environment
 .env
 
+# Uploaded assets (company logos, etc.)
+backend/uploads/
+
 # Logs
 *.log
 

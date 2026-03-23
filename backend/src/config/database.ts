@@ -15,6 +15,7 @@ pool.on('error', (err) => {
 /** Ensures columns exist on DBs created before they were added to schema.sql (migrations not run). */
 export async function ensureSchema(): Promise<void> {
   await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS discount_code VARCHAR(50)');
+  await pool.query('ALTER TABLE invoices ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ');
 }
 
 export default pool;

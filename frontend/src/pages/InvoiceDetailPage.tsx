@@ -61,9 +61,11 @@ export function InvoiceDetailPage() {
   const nextStatusMap: Partial<Record<InvoiceStatus, { label: string; status: InvoiceStatus }>> = {
     draft: { label: 'Mark as Sent', status: 'sent' },
     sent: { label: 'Mark as Paid', status: 'paid' },
-    overdue: { label: 'Mark as Paid', status: 'paid' },
+    late: { label: 'Mark as Paid', status: 'paid' },
   };
-  const nextAction = nextStatusMap[invoice.status];
+  const statusKey: InvoiceStatus =
+    (invoice.status as string) === 'overdue' ? 'late' : invoice.status;
+  const nextAction = nextStatusMap[statusKey];
 
   return (
     <div>
@@ -79,12 +81,6 @@ export function InvoiceDetailPage() {
             <StatusBadge status={invoice.status} />
           </div>
           <div className="flex gap-3 flex-wrap justify-end">
-            <Link
-              to="/invoices/new"
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Create invoice
-            </Link>
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -151,51 +147,71 @@ export function InvoiceDetailPage() {
           </div>
         </div>
 
-        {/* Items table */}
-        <table className="w-full mb-8">
+        {/* Table cells use align-middle + same line-height so every row aligns the same */}
+        <table className="mb-8 w-full border-collapse border border-gray-300 text-sm">
           <thead>
-            <tr className="border-b">
-              <th className="text-left py-2 text-sm font-medium text-gray-500">Description</th>
-              <th className="text-right py-2 text-sm font-medium text-gray-500">Qty</th>
-              <th className="text-right py-2 text-sm font-medium text-gray-500">Unit Price</th>
-              <th className="text-right py-2 text-sm font-medium text-gray-500">Amount</th>
+            <tr className="bg-gray-50">
+              <th className="border border-gray-300 px-4 py-3 text-left align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+                Description
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+                Hours
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+                Rate
+              </th>
+              <th className="border border-gray-300 px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+                Amount
+              </th>
             </tr>
           </thead>
           <tbody>
             {invoice.items?.map((item, i) => (
-              <tr key={i} className="border-b">
-                <td className="py-3">{item.description}</td>
-                <td className="py-3 text-right">{item.quantity}</td>
-                <td className="py-3 text-right">${(item.unit_price ?? item.unitPrice).toFixed(2)}</td>
-                <td className="py-3 text-right">${Number(item.amount).toFixed(2)}</td>
+              <tr key={i}>
+                <td className="border border-gray-300 px-4 py-3 align-middle text-left leading-normal text-gray-900">
+                  {item.description}
+                </td>
+                <td className="border border-gray-300 px-4 py-3 align-middle text-right leading-normal tabular-nums text-gray-900">
+                  {item.quantity}
+                </td>
+                <td className="border border-gray-300 px-4 py-3 align-middle text-right leading-normal tabular-nums text-gray-900">
+                  ${Number(item.unit_price ?? item.unitPrice ?? 0).toFixed(2)}
+                </td>
+                <td className="border border-gray-300 px-4 py-3 align-middle text-right leading-normal tabular-nums font-medium text-gray-900">
+                  ${Number(item.amount).toFixed(2)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {/* Totals */}
-        <div className="flex justify-end">
-          <div className="w-64 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Subtotal</span>
-              <span>${Number(invoice.subtotal).toFixed(2)}</span>
-            </div>
-            {Number(invoice.discount_amount) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Discount{invoice.discount_code && ` (${invoice.discount_code})`}</span>
-                <span>-${Number(invoice.discount_amount).toFixed(2)}</span>
+        {/* Totals — align with table: cols 1–2 span, label col 3, amount col 4 */}
+        <div className="w-full border border-gray-300 divide-y divide-gray-300">
+          <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-sm">
+            <div className="col-span-2 min-w-0" />
+            <div className="text-left text-gray-500">Subtotal</div>
+            <div className="text-right tabular-nums pl-2">${Number(invoice.subtotal).toFixed(2)}</div>
+          </div>
+          {Number(invoice.discount_amount) > 0 && (
+            <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-sm">
+              <div className="col-span-2 min-w-0" />
+              <div className="text-left text-gray-500">
+                Discount{invoice.discount_code && ` (${invoice.discount_code})`}
               </div>
-            )}
-            {Number(invoice.tax_amount) > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Tax ({invoice.tax_rate}%)</span>
-                <span>${Number(invoice.tax_amount).toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-lg border-t pt-2">
-              <span>Total</span>
-              <span>${Number(invoice.total).toFixed(2)}</span>
+              <div className="text-right tabular-nums pl-2">-${Number(invoice.discount_amount).toFixed(2)}</div>
             </div>
+          )}
+          {Number(invoice.tax_amount) > 0 && (
+            <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-sm">
+              <div className="col-span-2 min-w-0" />
+              <div className="text-left text-gray-500">Tax ({invoice.tax_rate}%)</div>
+              <div className="text-right tabular-nums pl-2">${Number(invoice.tax_amount).toFixed(2)}</div>
+            </div>
+          )}
+          <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-base font-bold">
+            <div className="col-span-2 min-w-0" />
+            <div className="text-left">Total</div>
+            <div className="text-right tabular-nums pl-2">${Number(invoice.total).toFixed(2)}</div>
           </div>
         </div>
 

@@ -167,13 +167,6 @@ export function InvoicesPage() {
                     {invoice.status === 'draft' && (
                       <>
                         <Link
-                          to="/invoices/new"
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          Create invoice
-                        </Link>
-                        <Link
                           to={`/invoices/${invoice.id}/edit`}
                           onClick={(e) => e.stopPropagation()}
                           className="text-blue-600 hover:text-blue-800 text-sm font-medium"

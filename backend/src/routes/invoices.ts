@@ -302,12 +302,20 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
   }
 });
 
-// Update invoice status
+// Update invoice status (sets sent_at when moving draft → sent)
 router.patch('/:id/status', validate(updateInvoiceStatusSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { status } = req.body;
     const result = await pool.query(
-      "UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING *",
+      `UPDATE invoices SET
+        status = $1::invoice_status,
+        sent_at = CASE
+          WHEN $1::text = 'sent' AND (sent_at IS NULL OR status = 'draft') THEN NOW()
+          ELSE sent_at
+        END,
+        updated_at = NOW()
+       WHERE id = $2 AND user_id = $3
+       RETURNING *`,
       [status, req.params.id, req.userId]
     );
     if (result.rows.length === 0) {
@@ -352,8 +360,8 @@ router.get('/stats/revenue', async (req: AuthRequest, res: Response) => {
       `SELECT
          COUNT(*) FILTER (WHERE status = 'paid') as paid_count,
          COALESCE(SUM(total) FILTER (WHERE status = 'paid'), 0) as total_revenue,
-         COUNT(*) FILTER (WHERE status = 'overdue') as overdue_count,
-         COALESCE(SUM(total) FILTER (WHERE status = 'overdue'), 0) as overdue_amount,
+         COUNT(*) FILTER (WHERE status = 'late') as late_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'late'), 0) as late_amount,
          COUNT(*) FILTER (WHERE status = 'sent') as pending_count,
          COALESCE(SUM(total) FILTER (WHERE status = 'sent'), 0) as pending_amount
        FROM invoices WHERE user_id = $1`,

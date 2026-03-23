@@ -1,22 +1,23 @@
 import cron from 'node-cron';
 import pool from '../config/database';
 
-// Check for overdue invoices daily at 9am
+// Mark sent → late when 30+ days past sent_at; reminders for late invoices
 export function startReminderJob() {
   cron.schedule('0 9 * * *', async () => {
-    console.log('Running overdue invoice check...');
+    console.log('Running late invoice check...');
     try {
-      // Mark overdue invoices
       await pool.query(
-        "UPDATE invoices SET status = 'overdue', updated_at = NOW() WHERE status = 'sent' AND due_date < CURRENT_DATE"
+        `UPDATE invoices SET status = 'late', updated_at = NOW()
+         WHERE status = 'sent'
+           AND sent_at IS NOT NULL
+           AND sent_at < NOW() - INTERVAL '30 days'`
       );
 
-      // Get overdue invoices that haven't been reminded in the last 3 days
       const result = await pool.query(
         `SELECT i.id, i.invoice_number, i.total, i.due_date, c.name as client_name, c.email as client_email
          FROM invoices i
          JOIN clients c ON i.client_id = c.id
-         WHERE i.status = 'overdue'
+         WHERE i.status = 'late'
          AND i.id NOT IN (
            SELECT invoice_id FROM payment_reminders
            WHERE sent_at > NOW() - INTERVAL '3 days'
@@ -24,10 +25,9 @@ export function startReminderJob() {
       );
 
       for (const invoice of result.rows) {
-        // Log the reminder (email sending would be added here)
         await pool.query('INSERT INTO payment_reminders (invoice_id, reminder_type) VALUES ($1, $2)', [
           invoice.id,
-          'overdue',
+          'late',
         ]);
         console.log(`Reminder logged for invoice ${invoice.invoice_number} to ${invoice.client_email}`);
       }
