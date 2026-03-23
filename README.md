@@ -7,7 +7,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 ## Features
 
 - **Invoices** — Draft → Sent → Paid; **Late** when past the late rule after `sent_at`; line items use **description + hours** and the default hourly rate from Settings  
-- **Clients** — Customer numbers, optional default discount codes  
+- **Clients** — Customer numbers, optional default discount codes; **[client profile](docs/frontend/routes.md)** (`/clients/:id`) for details, per-client invoice status, and invoice links  
 - **Discounts** — Percent or fixed codes  
 - **Company profile** — Tax rate, address, logo, optional company email for invoice copy emails  
 - **Dashboard** — Revenue stats (cached in Redis)  
@@ -44,6 +44,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | [docs/database/diagram.md](docs/database/diagram.md) | Database ER diagram (Mermaid) |
 | [docs/api/review.md](docs/api/review.md) | API design (auth, routing, conventions) |
 | [docs/api/reference.md](docs/api/reference.md) | Endpoint reference |
+| [docs/frontend/routes.md](docs/frontend/routes.md) | App routes, client profile, deep links |
 | [docs/backend/overview.md](docs/backend/overview.md) | Backend architecture and diagram |
 | [docs/frontend/overview.md](docs/frontend/overview.md) | Frontend architecture and diagram |
 

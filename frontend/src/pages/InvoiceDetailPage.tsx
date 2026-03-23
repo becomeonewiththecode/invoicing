@@ -104,20 +104,36 @@ export function InvoiceDetailPage() {
     (invoice.status as string) === 'overdue' ? 'late' : invoice.status;
   const nextAction = nextStatusMap[statusKey];
 
+  const publicShareDisplayUrl =
+    invoice.share_token != null && invoice.share_token !== ''
+      ? `${window.location.origin}/share/${invoice.share_token}`
+      : shareUrl;
+
   return (
     <div>
-      <button onClick={() => navigate('/invoices')} className="text-sm text-gray-500 hover:text-gray-700 mb-4">
-        &larr; Back to Invoices
-      </button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 text-sm">
+        <button type="button" onClick={() => navigate('/invoices')} className="text-gray-500 hover:text-gray-700">
+          &larr; Back to Invoices
+        </button>
+        <span className="text-gray-300" aria-hidden>
+          |
+        </span>
+        <Link
+          to={`/clients/${encodeURIComponent(invoice.client_id)}`}
+          className="text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Client profile
+        </Link>
+      </div>
 
       <div className="bg-white rounded-xl shadow-sm p-8">
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-start mb-6">
           <div>
             <h1 className="text-2xl font-bold">{invoice.invoice_number}</h1>
             <StatusBadge status={invoice.status} />
           </div>
-          <div className="flex gap-3 flex-wrap justify-end">
+          <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto lg:justify-end">
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -148,34 +164,6 @@ export function InvoiceDetailPage() {
             >
               {emailToCompanyMutation.isPending ? 'Sending…' : 'Email to company'}
             </button>
-            <button
-              type="button"
-              disabled={shareMutation.isPending}
-              onClick={() => {
-                if (invoice.share_token) {
-                  const url = `${window.location.origin}/share/${invoice.share_token}`;
-                  navigator.clipboard.writeText(url).then(
-                    () => toast.success('Share link copied to clipboard'),
-                    () => { setShareUrl(url); toast.success('Share link ready'); }
-                  );
-                } else {
-                  shareMutation.mutate();
-                }
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              {shareMutation.isPending ? 'Creating…' : invoice.share_token ? 'Copy share link' : 'Share link'}
-            </button>
-            {(invoice.share_token || shareUrl) && (
-              <button
-                type="button"
-                disabled={revokeMutation.isPending}
-                onClick={() => revokeMutation.mutate()}
-                className="px-4 py-2 border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-50"
-              >
-                {revokeMutation.isPending ? 'Revoking…' : 'Revoke link'}
-              </button>
-            )}
             {invoice.status === 'draft' && (
               <button
                 type="button"
@@ -198,10 +186,64 @@ export function InvoiceDetailPage() {
           </div>
         </div>
 
+        {/* Public share link — separate block so it is not lost in the action row */}
+        <div className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <h2 className="text-sm font-semibold text-gray-900">Public share link</h2>
+          <p className="text-xs text-gray-600 mt-1 mb-3">
+            Create a link anyone can open to view this invoice (no login). Paste it into email or chat.
+          </p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              disabled={shareMutation.isPending}
+              onClick={() => {
+                if (invoice.share_token) {
+                  const url = `${window.location.origin}/share/${invoice.share_token}`;
+                  navigator.clipboard.writeText(url).then(
+                    () => toast.success('Share link copied to clipboard'),
+                    () => {
+                      setShareUrl(url);
+                      toast.success('Share link ready');
+                    }
+                  );
+                } else {
+                  shareMutation.mutate();
+                }
+              }}
+              className="px-4 py-2 border border-gray-300 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 text-sm font-medium"
+            >
+              {shareMutation.isPending ? 'Creating…' : invoice.share_token ? 'Copy share link' : 'Create share link'}
+            </button>
+            {publicShareDisplayUrl && (
+              <button
+                type="button"
+                disabled={revokeMutation.isPending}
+                onClick={() => revokeMutation.mutate()}
+                className="px-4 py-2 border border-orange-300 text-orange-700 bg-white rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-50 text-sm"
+              >
+                {revokeMutation.isPending ? 'Revoking…' : 'Revoke link'}
+              </button>
+            )}
+          </div>
+          {publicShareDisplayUrl && (
+            <p className="mt-3 text-xs font-mono text-gray-700 break-all bg-white border border-gray-200 rounded px-3 py-2">
+              {publicShareDisplayUrl}
+            </p>
+          )}
+        </div>
+
         {/* Details */}
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Bill To</h3>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+              <h3 className="text-sm font-medium text-gray-500">Bill To</h3>
+              <Link
+                to={`/clients?edit=${encodeURIComponent(invoice.client_id)}`}
+                className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Client profile
+              </Link>
+            </div>
             <p className="font-medium text-gray-900">{formatInvoiceClientLabel(invoice)}</p>
             {invoice.client_company?.trim() &&
               invoice.client_name?.trim() &&

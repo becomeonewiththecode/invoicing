@@ -281,6 +281,27 @@ Get revenue summary statistics. Results are cached in Redis for 5 minutes.
 
 (`pending_*` counts invoices with status `sent`.)
 
+### GET /invoices/stats/by-client/:clientId
+
+Per-client invoice aggregates for the authenticated user. The client must belong to the user. **Not** Redis-cached (unlike `/stats/revenue`).
+
+**Response (200):**
+
+```json
+{
+  "draft_count": "1",
+  "sent_count": "2",
+  "paid_count": "5",
+  "late_count": "0",
+  "draft_total": "100.00",
+  "sent_total": "500.00",
+  "paid_total": "15000.00",
+  "late_total": "0"
+}
+```
+
+**404** if the client id is not found for this user.
+
 ### GET /invoices/export/csv
 
 Download all invoices as a CSV file.
