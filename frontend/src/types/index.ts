@@ -14,6 +14,8 @@ export interface UserSettings {
   taxId: string | null;
   defaultHourlyRate: number | null;
   businessFax: string | null;
+  /** Optional; invoice copies use this, otherwise the account login email */
+  businessEmail: string | null;
   logoUrl: string | null;
 }
 
@@ -73,6 +75,8 @@ export interface Invoice {
   updated_at: string;
   /** Set when invoice is marked sent; late status after 30 days from this time */
   sent_at?: string | null;
+  /** Non-null when a shareable public link has been generated */
+  share_token?: string | null;
 }
 
 export interface RevenueStats {

@@ -78,4 +78,6 @@ export const settingsSchema = z.object({
   defaultHourlyRate: z.union([z.number().min(0), z.null()]).optional(),
   businessFax: z.string().max(50).optional(),
   logoUrl: z.string().max(2000).optional(),
+  /** Company inbox for invoice copy emails; empty string clears */
+  businessEmail: z.union([z.string().email(), z.literal('')]).optional(),
 });

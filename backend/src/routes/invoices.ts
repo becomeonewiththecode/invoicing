@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router, Response } from 'express';
 import pool from '../config/database';
 import redis from '../config/redis';
@@ -8,6 +9,14 @@ import {
   updateInvoiceStatusSchema,
   paginationSchema,
 } from '../models/validation';
+import { rateLimit } from '../middleware/rateLimit';
+import { isSmtpConfigured, sendMail } from '../services/mail';
+import {
+  buildInvoiceEmailHtml,
+  buildInvoiceEmailText,
+  type InvoiceEmailRow,
+  type InvoiceItemEmailRow,
+} from '../services/invoiceEmailHtml';
 
 const router = Router();
 router.use(authenticate);
@@ -86,6 +95,172 @@ router.get('/', validate(paginationSchema, 'query'), async (req: AuthRequest, re
   } catch (err) {
     console.error('List invoices error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Revenue stats (register before /:id so "stats" is not captured as an id)
+router.get('/stats/revenue', async (req: AuthRequest, res: Response) => {
+  try {
+    const cacheKey = `revenue:${req.userId}:summary`;
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+
+    const result = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'paid') as paid_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'paid'), 0) as total_revenue,
+         COUNT(*) FILTER (WHERE status = 'late') as late_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'late'), 0) as late_amount,
+         COUNT(*) FILTER (WHERE status = 'sent') as pending_count,
+         COALESCE(SUM(total) FILTER (WHERE status = 'sent'), 0) as pending_amount
+       FROM invoices WHERE user_id = $1`,
+      [req.userId]
+    );
+
+    const stats = result.rows[0];
+    await redis.setex(cacheKey, 300, JSON.stringify(stats)); // Cache 5 minutes
+    res.json(stats);
+  } catch (err) {
+    console.error('Revenue stats error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// CSV export (register before /:id)
+router.get('/export/csv', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT i.invoice_number, i.status, i.issue_date, i.due_date, i.subtotal, i.tax_amount, i.discount_amount, i.total,
+              c.customer_number as client_customer_number, c.name as client_name
+       FROM invoices i JOIN clients c ON i.client_id = c.id
+       WHERE i.user_id = $1 ORDER BY i.issue_date DESC`,
+      [req.userId]
+    );
+
+    const csvField = (v: unknown): string => {
+      const s = String(v ?? '');
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+    const headers =
+      'Invoice Number,Customer #,Client,Status,Issue Date,Due Date,Subtotal,Tax,Discount,Total\n';
+    const rows = result.rows
+      .map(
+        (r) =>
+          [r.invoice_number, r.client_customer_number, r.client_name, r.status, r.issue_date, r.due_date, r.subtotal, r.tax_amount, r.discount_amount, r.total]
+            .map(csvField)
+            .join(',')
+      )
+      .join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="invoices.csv"');
+    res.send(headers + rows);
+  } catch (err) {
+    console.error('CSV export error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/** Generate a shareable link token for an invoice. */
+router.post('/:id/share', async (req: AuthRequest, res: Response) => {
+  try {
+    const existing = await pool.query(
+      'SELECT share_token FROM invoices WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    // Return existing token if already shared
+    if (existing.rows[0].share_token) {
+      return res.json({ token: existing.rows[0].share_token });
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      'UPDATE invoices SET share_token = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+      [token, req.params.id, req.userId]
+    );
+    res.json({ token });
+  } catch (err) {
+    console.error('Create share link error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/** Revoke the shareable link for an invoice. */
+router.delete('/:id/share', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      'UPDATE invoices SET share_token = NULL, updated_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING id',
+      [req.params.id, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Revoke share link error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/** Email invoice summary to the company address (business email or account email). */
+router.post('/:id/send-to-company', rateLimit({ windowMs: 60_000, max: 5 }), async (req: AuthRequest, res: Response) => {
+  try {
+    if (!isSmtpConfigured()) {
+      return res.status(503).json({
+        error:
+          'Email is not configured. Set SMTP_HOST (and typically SMTP_PORT, SMTP_USER, SMTP_PASS) on the server.',
+      });
+    }
+
+    const userRow = await pool.query(
+      'SELECT email, business_email FROM users WHERE id = $1',
+      [req.userId]
+    );
+    if (userRow.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const to =
+      (userRow.rows[0].business_email as string | null)?.trim() ||
+      (userRow.rows[0].email as string)?.trim();
+    if (!to) {
+      return res.status(400).json({
+        error: 'No company email on file. Add a company email in Settings or use your account email.',
+      });
+    }
+
+    const [invoiceResult, itemsResult] = await Promise.all([
+      pool.query(
+        `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
+                c.customer_number as client_customer_number
+         FROM invoices i JOIN clients c ON i.client_id = c.id
+         WHERE i.id = $1 AND i.user_id = $2`,
+        [req.params.id, req.userId]
+      ),
+      pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]),
+    ]);
+
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const inv = invoiceResult.rows[0] as InvoiceEmailRow;
+    const items = itemsResult.rows as InvoiceItemEmailRow[];
+    const subject = `Invoice ${inv.invoice_number} — ${inv.client_name ?? 'Client'}`;
+    const html = buildInvoiceEmailHtml(inv, items);
+    const text = buildInvoiceEmailText(inv, items);
+
+    await sendMail({ to, subject, html, text });
+    res.json({ ok: true, sentTo: to });
+  } catch (err) {
+    console.error('Send invoice email error:', err);
+    res.status(500).json({ error: 'Failed to send email' });
   }
 });
 
@@ -343,65 +518,6 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     res.status(204).send();
   } catch (err) {
     console.error('Delete invoice error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Revenue stats
-router.get('/stats/revenue', async (req: AuthRequest, res: Response) => {
-  try {
-    const cacheKey = `revenue:${req.userId}:summary`;
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return res.json(JSON.parse(cached));
-    }
-
-    const result = await pool.query(
-      `SELECT
-         COUNT(*) FILTER (WHERE status = 'paid') as paid_count,
-         COALESCE(SUM(total) FILTER (WHERE status = 'paid'), 0) as total_revenue,
-         COUNT(*) FILTER (WHERE status = 'late') as late_count,
-         COALESCE(SUM(total) FILTER (WHERE status = 'late'), 0) as late_amount,
-         COUNT(*) FILTER (WHERE status = 'sent') as pending_count,
-         COALESCE(SUM(total) FILTER (WHERE status = 'sent'), 0) as pending_amount
-       FROM invoices WHERE user_id = $1`,
-      [req.userId]
-    );
-
-    const stats = result.rows[0];
-    await redis.setex(cacheKey, 300, JSON.stringify(stats)); // Cache 5 minutes
-    res.json(stats);
-  } catch (err) {
-    console.error('Revenue stats error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// CSV export
-router.get('/export/csv', async (req: AuthRequest, res: Response) => {
-  try {
-    const result = await pool.query(
-      `SELECT i.invoice_number, i.status, i.issue_date, i.due_date, i.subtotal, i.tax_amount, i.discount_amount, i.total,
-              c.customer_number as client_customer_number, c.name as client_name
-       FROM invoices i JOIN clients c ON i.client_id = c.id
-       WHERE i.user_id = $1 ORDER BY i.issue_date DESC`,
-      [req.userId]
-    );
-
-    const headers =
-      'Invoice Number,Customer #,Client,Status,Issue Date,Due Date,Subtotal,Tax,Discount,Total\n';
-    const rows = result.rows
-      .map(
-        (r) =>
-          `${r.invoice_number},${r.client_customer_number},"${r.client_name}",${r.status},${r.issue_date},${r.due_date},${r.subtotal},${r.tax_amount},${r.discount_amount},${r.total}`
-      )
-      .join('\n');
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="invoices.csv"');
-    res.send(headers + rows);
-  } catch (err) {
-    console.error('CSV export error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

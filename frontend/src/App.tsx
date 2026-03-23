@@ -10,6 +10,7 @@ import { NewInvoicePage } from './pages/NewInvoicePage';
 import { ClientsPage } from './pages/ClientsPage';
 import { DiscountsPage } from './pages/DiscountsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SharedInvoicePage } from './pages/SharedInvoicePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +26,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          <Route path="/share/:token" element={<SharedInvoicePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<AppLayout />}>
