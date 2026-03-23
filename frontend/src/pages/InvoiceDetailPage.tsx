@@ -1,22 +1,30 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getInvoice, updateInvoiceStatus } from '../api/invoices';
+import { getInvoice, deleteInvoice, updateInvoiceStatus } from '../api/invoices';
+import { getSettings } from '../api/settings';
+import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { generateInvoicePdf } from '../utils/pdf';
-import { useAuthStore } from '../stores/authStore';
+import { formatInvoiceClientLabel } from '../utils/clientDisplay';
 import type { InvoiceStatus } from '../types';
 
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const user = useAuthStore((s) => s.user);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  const { data: invoice, isLoading } = useQuery({
+  const { data: invoice, isPending } = useQuery({
     queryKey: ['invoice', id],
     queryFn: () => getInvoice(id!),
     enabled: !!id,
+  });
+
+  const { data: companySettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: getSettings,
   });
 
   const statusMutation = useMutation({
@@ -30,13 +38,24 @@ export function InvoiceDetailPage() {
     onError: () => toast.error('Failed to update status'),
   });
 
-  const handleDownloadPdf = () => {
+  const deleteMutation = useMutation({
+    mutationFn: deleteInvoice,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['revenue-stats'] });
+      toast.success('Invoice deleted');
+      navigate('/invoices');
+    },
+    onError: () => toast.error('Failed to delete invoice'),
+  });
+
+  const handleDownloadPdf = async () => {
     if (!invoice) return;
-    const doc = generateInvoicePdf(invoice, user?.businessName);
+    const doc = await generateInvoicePdf(invoice, companySettings ?? null);
     doc.save(`${invoice.invoice_number}.pdf`);
   };
 
-  if (isLoading) return <div className="text-center py-8 text-gray-400">Loading...</div>;
+  if (isPending) return <div className="text-center py-8 text-gray-400">Loading...</div>;
   if (!invoice) return <div className="text-center py-8 text-gray-400">Invoice not found</div>;
 
   const nextStatusMap: Partial<Record<InvoiceStatus, { label: string; status: InvoiceStatus }>> = {
@@ -59,10 +78,46 @@ export function InvoiceDetailPage() {
             <h1 className="text-2xl font-bold">{invoice.invoice_number}</h1>
             <StatusBadge status={invoice.status} />
           </div>
-          <div className="flex gap-3">
-            <button onClick={handleDownloadPdf} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              Download PDF
+          <div className="flex gap-3 flex-wrap justify-end">
+            <Link
+              to="/invoices/new"
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Create invoice
+            </Link>
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              Preview
             </button>
+            {invoice.status === 'draft' && (
+              <Link
+                to={`/invoices/${invoice.id}/edit`}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Edit
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Generate PDF
+            </button>
+            {invoice.status === 'draft' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Delete this draft invoice?')) deleteMutation.mutate(invoice.id);
+                }}
+                className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                Delete
+              </button>
+            )}
             {nextAction && (
               <button
                 onClick={() => statusMutation.mutate({ status: nextAction.status })}
@@ -78,9 +133,13 @@ export function InvoiceDetailPage() {
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-2">Bill To</h3>
-            <p className="font-medium">{invoice.client_name}</p>
-            {invoice.client_company && <p className="text-gray-600">{invoice.client_company}</p>}
-            {invoice.client_email && <p className="text-gray-600">{invoice.client_email}</p>}
+            <p className="font-medium text-gray-900">{formatInvoiceClientLabel(invoice)}</p>
+            {invoice.client_company?.trim() &&
+              invoice.client_name?.trim() &&
+              invoice.client_name.trim() !== invoice.client_company.trim() && (
+                <p className="text-sm text-gray-600 mt-1">Contact: {invoice.client_name}</p>
+              )}
+            {invoice.client_email && <p className="text-gray-600 mt-1">{invoice.client_email}</p>}
             {invoice.client_address && <p className="text-gray-600">{invoice.client_address}</p>}
           </div>
           <div className="text-right">
@@ -147,6 +206,15 @@ export function InvoiceDetailPage() {
           </div>
         )}
       </div>
+
+      <InvoicePreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        invoice={invoice}
+        company={companySettings ?? null}
+        variant="saved"
+        title={`Preview — ${invoice.invoice_number}`}
+      />
     </div>
   );
 }

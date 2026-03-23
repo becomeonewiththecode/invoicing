@@ -6,8 +6,13 @@ export async function getDiscounts(): Promise<DiscountCode[]> {
   return data;
 }
 
+export async function generateDiscountCode(): Promise<{ code: string }> {
+  const { data } = await api.get<{ code: string }>('/discounts/generate-code');
+  return data;
+}
+
 export async function createDiscount(discount: {
-  code: string;
+  code?: string;
   description?: string;
   type: 'percent' | 'fixed';
   value: number;

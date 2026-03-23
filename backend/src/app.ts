@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import clientRoutes from './routes/clients';
 import invoiceRoutes from './routes/invoices';
 import discountRoutes from './routes/discounts';
+import settingsRoutes from './routes/settings';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/discounts', discountRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

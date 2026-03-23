@@ -9,6 +9,7 @@ import { InvoiceDetailPage } from './pages/InvoiceDetailPage';
 import { NewInvoicePage } from './pages/NewInvoicePage';
 import { ClientsPage } from './pages/ClientsPage';
 import { DiscountsPage } from './pages/DiscountsPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,9 +31,11 @@ export default function App() {
             <Route index element={<DashboardPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="invoices/new" element={<NewInvoicePage />} />
+            <Route path="invoices/:id/edit" element={<NewInvoicePage />} />
             <Route path="invoices/:id" element={<InvoiceDetailPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="discounts" element={<DiscountsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

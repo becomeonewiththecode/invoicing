@@ -18,6 +18,7 @@ export async function createClient(client: {
   company?: string;
   address?: string;
   notes?: string;
+  discountCode?: string | null;
 }): Promise<Client> {
   const { data } = await api.post('/clients', client);
   return data;
