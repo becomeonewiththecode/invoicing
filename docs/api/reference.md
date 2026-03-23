@@ -256,11 +256,15 @@ Update invoice status.
 }
 ```
 
-Valid status values: `draft`, `sent`, `paid`, `late`. Typical flow: `draft` → `sent` → `paid`; **`late`** is set by scheduled jobs when the invoice is unpaid past the late rule (see backend jobs).
+Valid status values: `draft`, `sent`, `paid`, `late`, `cancelled`. Typical flow: `draft` → `sent` → `paid`; **`late`** is set by scheduled jobs when the invoice is unpaid past the late rule (see backend jobs). `cancelled` is set via the DELETE endpoint (see below).
 
 ### DELETE /invoices/:id
 
-Delete an invoice. Only invoices with `draft` status can be deleted.
+Delete or cancel an invoice.
+
+- **Draft** invoices are hard-deleted (removed from the database). Returns **204**.
+- **Sent** or **late** invoices are soft-deleted: status is set to `cancelled`, any share token is revoked. Returns **200** with `{ id, status: "cancelled" }`.
+- **Paid** or already **cancelled** invoices cannot be deleted. Returns **400**.
 
 ### GET /invoices/stats/revenue
 
@@ -406,7 +410,14 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 }
 ```
 
-**Errors:** **400** if the body fails validation (e.g. wrong shape, `version` not `1`). **500** on database or server errors.
+**Errors:** **400** if the body fails validation. Validation includes:
+
+- Schema check: each client, discount code, invoice, line item, and payment reminder is validated for required fields, correct types, and valid UUIDs (not just `z.record(z.unknown())`).
+- Referential integrity: every invoice's `client_id` must reference a client present in the backup's `clients` array.
+- Duplicate detection: no two records of the same entity type may share an `id`.
+- `version` must be `1`; `confirmReplace` must be `true`.
+
+**500** on database or server errors (the import runs inside a transaction and rolls back on failure).
 
 **Notes:** Import does not upload logo files; only `logo_url` (or equivalent profile field) is restored if present. Revenue cache in Redis is invalidated after a successful import.
 
@@ -416,7 +427,21 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 
 ### GET /invoices/share/:token
 
-**`token`** must be 64 characters. Returns invoice header fields, line items as `items`, and business/client display fields. **404** if invalid or unknown.
+**`token`** must be 64 characters. Returns invoice header fields, line items as `items`, and business/client display fields (including company name, address, phone, website, and logo URL for rendering the invoice). **404** if invalid or unknown.
+
+### PATCH /invoices/share/:token/status
+
+Allows a client to mark a shared invoice as paid without authentication.
+
+**Request body:**
+
+```json
+{
+  "status": "paid"
+}
+```
+
+Only `"paid"` is accepted. The invoice must currently be in `sent` or `late` status. Returns the updated `invoice_number` and `status`. **400** if any other status is requested. **404** if the token is invalid or the invoice is not in a payable state.
 
 ---
 

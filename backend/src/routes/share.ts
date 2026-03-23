@@ -47,4 +47,48 @@ router.get('/:token', async (req: Request, res: Response) => {
   }
 });
 
+/** Public endpoint — allows a client to mark a shared invoice as paid. */
+router.patch('/:token/status', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const { status } = req.body ?? {};
+
+    if (!token || token.length !== 64) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    if (status !== 'paid') {
+      return res.status(400).json({ error: 'Only "paid" status is allowed from a share link' });
+    }
+
+    const result = await pool.query(
+      `UPDATE invoices
+         SET status = 'paid'::invoice_status, updated_at = NOW()
+       WHERE share_token = $1 AND status IN ('sent', 'late')
+       RETURNING invoice_number, status`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found or cannot be marked as paid' });
+    }
+
+    // Invalidate revenue cache for the invoice owner
+    const ownerResult = await pool.query(
+      'SELECT user_id FROM invoices WHERE share_token = $1',
+      [token]
+    );
+    if (ownerResult.rows.length > 0) {
+      const userId = ownerResult.rows[0].user_id;
+      const redis = (await import('../config/redis')).default;
+      const keys = await redis.keys(`revenue:${userId}:*`);
+      if (keys.length > 0) await redis.del(...keys);
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Public share status update error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

@@ -7,6 +7,71 @@ import { DATA_EXPORT_VERSION, exportUserData, importUserDataReplace, type DataEx
 const router = Router();
 router.use(authenticate);
 
+const clientSchema = z.object({
+  id: z.string().uuid(),
+  customer_number: z.string().nullish(),
+  name: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().nullish(),
+  company: z.string().nullish(),
+  address: z.string().nullish(),
+  notes: z.string().nullish(),
+  discount_code: z.string().nullish(),
+  created_at: z.string(),
+  updated_at: z.string(),
+}).passthrough();
+
+const discountCodeSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string().min(1),
+  description: z.string().nullish(),
+  type: z.enum(['percent', 'fixed']),
+  value: z.number(),
+  is_active: z.boolean().optional().default(true),
+  created_at: z.string(),
+}).passthrough();
+
+const invoiceItemSchema = z.object({
+  id: z.string().uuid(),
+  description: z.string().min(1),
+  quantity: z.number(),
+  unit_price: z.number(),
+  amount: z.number(),
+  sort_order: z.number().optional().default(0),
+  created_at: z.string(),
+}).passthrough();
+
+const paymentReminderSchema = z.object({
+  id: z.string().uuid(),
+  sent_at: z.string(),
+  reminder_type: z.string().optional().default('overdue'),
+}).passthrough();
+
+const invoiceSchema = z.object({
+  id: z.string().uuid(),
+  client_id: z.string().uuid(),
+  invoice_number: z.string().min(1),
+  status: z.string().min(1),
+  issue_date: z.string(),
+  due_date: z.string(),
+  subtotal: z.number(),
+  tax_rate: z.number(),
+  tax_amount: z.number(),
+  discount_code: z.string().nullish(),
+  discount_amount: z.number(),
+  total: z.number(),
+  notes: z.string().nullish(),
+  is_recurring: z.boolean().optional().default(false),
+  recurrence_interval: z.string().nullish(),
+  next_recurrence_date: z.string().nullish(),
+  sent_at: z.string().nullish(),
+  share_token: z.string().nullish(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  items: z.array(invoiceItemSchema),
+  payment_reminders: z.array(paymentReminderSchema),
+}).passthrough();
+
 const exportV1Schema: z.ZodType<DataExportV1> = z.object({
   version: z.literal(1),
   exportedAt: z.string(),
@@ -23,17 +88,10 @@ const exportV1Schema: z.ZodType<DataExportV1> = z.object({
     logo_url: z.string().nullable(),
     client_counter: z.number().int().nonnegative(),
   }),
-  clients: z.array(z.record(z.string(), z.unknown())),
-  discount_codes: z.array(z.record(z.string(), z.unknown())),
-  invoices: z.array(
-    z
-      .object({
-        items: z.array(z.record(z.string(), z.unknown())),
-        payment_reminders: z.array(z.record(z.string(), z.unknown())),
-      })
-      .passthrough()
-  ),
-});
+  clients: z.array(clientSchema),
+  discount_codes: z.array(discountCodeSchema),
+  invoices: z.array(invoiceSchema),
+}) as z.ZodType<DataExportV1>;
 
 const importBodySchema = z.object({
   data: exportV1Schema,
@@ -66,6 +124,38 @@ router.post(
           error: 'Invalid backup file',
           details: parsed.error.flatten(),
         });
+      }
+
+      // Validate referential integrity: every invoice must reference a client in the backup
+      const clientIds = new Set(parsed.data.data.clients.map((c) => c.id));
+      const orphanedInvoices = parsed.data.data.invoices.filter(
+        (inv) => !clientIds.has(String(inv.client_id))
+      );
+      if (orphanedInvoices.length > 0) {
+        const nums = orphanedInvoices.map((i) => i.invoice_number).join(', ');
+        return res.status(400).json({
+          error: `Backup contains invoices referencing missing clients: ${nums}`,
+        });
+      }
+
+      // Validate no duplicate IDs within each entity type
+      const dupeCheck = (arr: { id: string }[], label: string) => {
+        const seen = new Set<string>();
+        for (const r of arr) {
+          if (seen.has(r.id)) return r.id;
+          seen.add(r.id);
+        }
+        return null;
+      };
+      for (const [arr, label] of [
+        [parsed.data.data.clients, 'clients'],
+        [parsed.data.data.discount_codes, 'discount_codes'],
+        [parsed.data.data.invoices, 'invoices'],
+      ] as const) {
+        const dup = dupeCheck(arr as { id: string }[], label);
+        if (dup) {
+          return res.status(400).json({ error: `Duplicate ${label} id in backup: ${dup}` });
+        }
       }
 
       await importUserDataReplace(req.userId!, parsed.data.data);

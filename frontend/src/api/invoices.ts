@@ -71,6 +71,12 @@ export async function getSharedInvoice(token: string): Promise<Invoice> {
   return data;
 }
 
+/** Marks a shared invoice as paid — public, no auth required. */
+export async function markSharedInvoicePaid(token: string): Promise<{ invoice_number: string; status: string }> {
+  const { data } = await axios.patch(`${API_BASE}/invoices/share/${token}/status`, { status: 'paid' });
+  return data;
+}
+
 export async function getRevenueStats(): Promise<RevenueStats> {
   const { data } = await api.get('/invoices/stats/revenue');
   return data;

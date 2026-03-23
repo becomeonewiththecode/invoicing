@@ -49,7 +49,7 @@ export const createInvoiceSchema = z.object({
 export const updateInvoiceSchema = createInvoiceSchema.partial();
 
 export const updateInvoiceStatusSchema = z.object({
-  status: z.enum(['draft', 'sent', 'paid', 'late']),
+  status: z.enum(['draft', 'sent', 'paid', 'late', 'cancelled']),
 });
 
 // Discount code (code optional on create — server generates if omitted)

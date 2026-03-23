@@ -9,7 +9,7 @@ SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`,
 | `/` | Dashboard | Revenue stats, recent invoices |
 | `/invoices` | Invoice list | Optional `?clientId=` filter |
 | `/invoices/new` | New invoice | |
-| `/invoices/:id` | Invoice detail | Actions: PDF, email, share link, status |
+| `/invoices/:id` | Invoice detail | Actions: PDF, email, share link, status, cancel/delete |
 | `/invoices/:id/edit` | Edit invoice | Draft only |
 | `/clients` | Client list | Radio select, new client form, quick edit |
 | `/clients/:clientId` | **Client profile** | See below |
@@ -34,7 +34,7 @@ Single page for one client (see `ClientProfilePage.tsx`):
 
 | Path | Page |
 |------|------|
-| `/share/:token` | Read-only shared invoice (no login) |
+| `/share/:token` | Shared invoice (no login); clients can mark as paid |
 | `/login`, `/register` | Auth |
 
 ## Related

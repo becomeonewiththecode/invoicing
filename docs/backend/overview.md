@@ -15,11 +15,11 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/auth.ts` | Register, login |
 | `routes/clients.ts` | Client CRUD, customer numbers |
 | `routes/invoices.ts` | Invoices, `GET /stats/revenue`, `GET /stats/by-client/:clientId`, CSV, share tokens, send-to-company email |
-| `routes/share.ts` | Public read-only invoice by token |
+| `routes/share.ts` | Public invoice by token: read-only view + mark as paid |
 | `routes/discounts.ts` | Discount codes |
 | `routes/settings.ts` | Company profile, defaults, logo upload/delete |
 | `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore |
-| `services/dataPort.ts` | Builds export payload; transactional replace on import (invalidates revenue cache) |
+| `services/dataPort.ts` | Builds export payload (batched queries); transactional replace on import with strict Zod validation, referential integrity, and duplicate-ID checks |
 | `middleware/auth.ts` | JWT verification |
 | `middleware/validate.ts` | Zod validation |
 | `middleware/rateLimit.ts` | Redis sliding windows / counters |
