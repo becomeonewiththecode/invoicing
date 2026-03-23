@@ -1,5 +1,7 @@
 # Deployment guide
 
+Repository overview: [README.md](../README.md). Project docs (API, database, architecture): [docs/README.md](../docs/README.md).
+
 ## Docker Compose (recommended)
 
 ### Full stack

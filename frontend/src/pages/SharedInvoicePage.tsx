@@ -91,7 +91,7 @@ export function SharedInvoicePage() {
           </div>
         </div>
 
-        {/* Line items */}
+        {/* Line items + totals in one table so footer columns match Rate / Amount */}
         <table className="mb-8 w-full border-collapse border border-gray-300 text-sm">
           <thead>
             <tr className="bg-gray-50">
@@ -125,37 +125,43 @@ export function SharedInvoicePage() {
               </tr>
             ))}
           </tbody>
+          <tfoot className="bg-gray-50/80">
+            <tr>
+              <td colSpan={2} className="border border-gray-300" aria-hidden />
+              <td className="border border-gray-300 px-4 py-2 text-left text-gray-500">Subtotal</td>
+              <td className="border border-gray-300 px-4 py-2 text-right tabular-nums text-gray-900">
+                ${Number(invoice.subtotal).toFixed(2)}
+              </td>
+            </tr>
+            {Number(invoice.discount_amount) > 0 && (
+              <tr>
+                <td colSpan={2} className="border border-gray-300" aria-hidden />
+                <td className="border border-gray-300 px-4 py-2 text-left text-gray-500">
+                  Discount{invoice.discount_code && ` (${invoice.discount_code})`}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-right tabular-nums text-gray-900">
+                  -${Number(invoice.discount_amount).toFixed(2)}
+                </td>
+              </tr>
+            )}
+            {Number(invoice.tax_amount) > 0 && (
+              <tr>
+                <td colSpan={2} className="border border-gray-300" aria-hidden />
+                <td className="border border-gray-300 px-4 py-2 text-left text-gray-500">Tax ({invoice.tax_rate}%)</td>
+                <td className="border border-gray-300 px-4 py-2 text-right tabular-nums text-gray-900">
+                  ${Number(invoice.tax_amount).toFixed(2)}
+                </td>
+              </tr>
+            )}
+            <tr className="font-bold text-base">
+              <td colSpan={2} className="border border-gray-300" aria-hidden />
+              <td className="border border-gray-300 px-4 py-2 text-left text-gray-900">Total</td>
+              <td className="border border-gray-300 px-4 py-2 text-right tabular-nums text-gray-900">
+                ${Number(invoice.total).toFixed(2)}
+              </td>
+            </tr>
+          </tfoot>
         </table>
-
-        {/* Totals */}
-        <div className="w-full border border-gray-300 divide-y divide-gray-300">
-          <div className="grid grid-cols-4 gap-x-4 px-4 py-2 text-sm">
-            <div className="col-span-2" />
-            <div className="text-left text-gray-500">Subtotal</div>
-            <div className="text-right tabular-nums">${Number(invoice.subtotal).toFixed(2)}</div>
-          </div>
-          {Number(invoice.discount_amount) > 0 && (
-            <div className="grid grid-cols-4 gap-x-4 px-4 py-2 text-sm">
-              <div className="col-span-2" />
-              <div className="text-left text-gray-500">
-                Discount{invoice.discount_code && ` (${invoice.discount_code})`}
-              </div>
-              <div className="text-right tabular-nums">-${Number(invoice.discount_amount).toFixed(2)}</div>
-            </div>
-          )}
-          {Number(invoice.tax_amount) > 0 && (
-            <div className="grid grid-cols-4 gap-x-4 px-4 py-2 text-sm">
-              <div className="col-span-2" />
-              <div className="text-left text-gray-500">Tax ({invoice.tax_rate}%)</div>
-              <div className="text-right tabular-nums">${Number(invoice.tax_amount).toFixed(2)}</div>
-            </div>
-          )}
-          <div className="grid grid-cols-4 gap-x-4 px-4 py-2 text-base font-bold">
-            <div className="col-span-2" />
-            <div className="text-left">Total</div>
-            <div className="text-right tabular-nums">${Number(invoice.total).toFixed(2)}</div>
-          </div>
-        </div>
 
         {invoice.notes && (
           <div className="mt-8 pt-6 border-t">

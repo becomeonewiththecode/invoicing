@@ -1,14 +1,27 @@
 # Documentation
 
-| Area | Location | Description |
-|------|----------|-------------|
-| **Database** | [database/schema.md](database/schema.md) | Tables, enums, indexes |
-| | [database/diagram.md](database/diagram.md) | ER-style Mermaid diagram |
-| **Tech stack** | [tech-stack.md](tech-stack.md) | Languages, frameworks, data stores |
-| **API** | [api/review.md](api/review.md) | High-level API review (auth, routing, conventions) |
-| | [api/reference.md](api/reference.md) | Full endpoint reference |
-| **Backend** | [backend/overview.md](backend/overview.md) | Express app, jobs, middleware, diagram |
-| **Frontend** | [frontend/overview.md](frontend/overview.md) | SPA structure, routing, diagram |
-| **Getting started** | [getting-started.md](getting-started.md) | Local setup and PM2 |
+Project docs for developers. **Deployment** (Docker, nginx, production env) lives in the top-level [`deployment/`](../deployment/README.md) folder.
 
-**Deployment** (separate top-level folder): [`/deployment`](../deployment/README.md).
+## Contents
+
+| Topic | Document |
+|--------|----------|
+| **Index** | You are here |
+| **Getting started** | [getting-started.md](getting-started.md) — databases via Docker, PM2, full Compose |
+| **Tech stack** | [tech-stack.md](tech-stack.md) |
+| **Database** | [database/schema.md](database/schema.md) · [database/diagram.md](database/diagram.md) |
+| **API** | [api/review.md](api/review.md) · [api/reference.md](api/reference.md) |
+| **Backend** | [backend/overview.md](backend/overview.md) |
+| **Frontend** | [frontend/overview.md](frontend/overview.md) |
+
+## Deployment (separate folder)
+
+| Document | Description |
+|----------|-------------|
+| [deployment/README.md](../deployment/README.md) | Deployment index |
+| [deployment/guide.md](../deployment/guide.md) | Docker Compose, env vars, nginx, manual deploy |
+| [deployment/diagram.md](../deployment/diagram.md) | Service topology diagram |
+
+## Root README
+
+[README.md](../README.md) — repository overview, quick start, and links into this tree.

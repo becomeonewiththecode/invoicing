@@ -1,9 +1,11 @@
 # Getting Started
 
+See the [root README](../README.md) for clone, `npm install`, and a minimal local run. Below: database via Docker, then PM2 or manual dev servers, then full Docker Compose.
+
 ## Prerequisites
 
 - Node.js 18+
-- Docker and Docker Compose (for PostgreSQL and Redis)
+- Docker and Docker Compose (for PostgreSQL and Redis in these flows)
 
 ## Quick Start
 
@@ -24,13 +26,9 @@ cp .env.example .env
 
 Edit `.env` if you need to change ports or credentials. Default values work with the Docker setup.
 
-### 3. Install dependencies
+### 3. Install dependencies (if needed)
 
-```bash
-# From the project root
-cd backend && npm install
-cd ../frontend && npm install
-```
+From the repo root: `cd backend && npm install` and `cd ../frontend && npm install` (same as the [README quick start](../README.md#quick-start)).
 
 ### 4. Start the applications
 
@@ -80,8 +78,4 @@ To run everything in containers (including backend and frontend):
 docker compose up
 ```
 
-This starts all services:
-- PostgreSQL on port 5432
-- Redis on port 6379
-- Backend API on port **3001** (see `docker-compose.yml`)
-- Frontend (via nginx) on port 80
+Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**.

@@ -1,19 +1,19 @@
 # Invoicing
 
-Web app for **freelancers and small businesses** to create invoices, manage clients, track revenue, and export PDFs. Stack: **React + Vite** frontend, **Express + PostgreSQL + Redis** backend.
+Web app for **freelancers and small businesses** to create invoices, manage clients, track revenue, and export PDFs. **React + Vite** frontend, **Express + PostgreSQL + Redis** backend.
 
 ---
 
 ## Features
 
-- **Invoices** — Draft → Sent → Paid; **Late** when 30+ days after sent (`sent_at`); line items as **description + hours** with company hourly rate from Settings  
-- **Clients** — Customer numbers, default discount codes  
+- **Invoices** — Draft → Sent → Paid; **Late** when past the late rule after `sent_at`; line items use **description + hours** and the default hourly rate from Settings  
+- **Clients** — Customer numbers, optional default discount codes  
 - **Discounts** — Percent or fixed codes  
-- **Company profile** — Tax rate, address, logo, optional **company email** for invoice copy emails  
+- **Company profile** — Tax rate, address, logo, optional company email for invoice copy emails  
 - **Dashboard** — Revenue stats (cached in Redis)  
-- **PDF** — Generate invoice PDFs in the browser (jsPDF)  
-- **Email** — Optional **“Email to company”** on an invoice (requires SMTP or API-configured mail on the server)  
-- **Jobs** — Daily cron: sent invoices past 30 days → late; recurring invoice drafts  
+- **PDF** — Client-side invoice PDFs (jsPDF)  
+- **Email** — Optional “email to company” on an invoice (SMTP on the server)  
+- **Jobs** — Daily cron for late invoices and recurring drafts  
 
 ---
 
@@ -22,157 +22,77 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | Path | Purpose |
 |------|---------|
 | `frontend/` | React SPA (Vite, Tailwind, React Query, React Router) |
-| `backend/` | REST API (`/api`), PostgreSQL, Redis, cron jobs |
-| `backend/migrations/` | SQL migrations for existing databases (run manually or via CI) |
-| `backend/src/models/schema.sql` | Full schema for fresh installs / Docker init |
-| `docs/` | [Documentation index](docs/README.md) (database, API, backend, frontend) |
-| `deployment/` | [Deployment guides](deployment/README.md) (Docker, nginx, diagrams) |
+| `backend/` | REST API under `/api`, PostgreSQL, Redis, cron jobs |
+| `backend/migrations/` | SQL migrations for existing databases |
+| `backend/src/models/schema.sql` | Schema for fresh installs / Docker init |
+| [`docs/`](docs/README.md) | Project documentation (database, API, stack, guides) |
+| [`deployment/`](deployment/README.md) | Deployment guides and diagrams |
 | `docker-compose.yml` | Postgres, Redis, backend, frontend |
 
 ---
 
-## Prerequisites
+## Documentation
 
-- **Node.js 18+**
-- **PostgreSQL 16** (or compatible)
-- **Redis** (rate limits + revenue cache)
+### [`docs/`](docs/README.md)
+
+| Document | Description |
+|----------|----------------|
+| [docs/README.md](docs/README.md) | Documentation index |
+| [docs/getting-started.md](docs/getting-started.md) | Local setup, PM2, full Docker stack |
+| [docs/tech-stack.md](docs/tech-stack.md) | Languages, frameworks, data stores |
+| [docs/database/schema.md](docs/database/schema.md) | Tables, enums, indexes |
+| [docs/database/diagram.md](docs/database/diagram.md) | Database ER diagram (Mermaid) |
+| [docs/api/review.md](docs/api/review.md) | API design (auth, routing, conventions) |
+| [docs/api/reference.md](docs/api/reference.md) | Endpoint reference |
+| [docs/backend/overview.md](docs/backend/overview.md) | Backend architecture and diagram |
+| [docs/frontend/overview.md](docs/frontend/overview.md) | Frontend architecture and diagram |
+
+### [`deployment/`](deployment/README.md)
+
+| Document | Description |
+|----------|----------------|
+| [deployment/README.md](deployment/README.md) | Deployment documentation index |
+| [deployment/guide.md](deployment/guide.md) | Docker Compose, environment variables, nginx, manual builds |
+| [deployment/diagram.md](deployment/diagram.md) | Deployment topology (Mermaid) |
 
 ---
 
-## Quick start (local)
-
-### 1. Clone and install
+## Quick start
 
 ```bash
 git clone <repo-url> invoicing
 cd invoicing
-cd backend && npm install
-cd ../frontend && npm install
-```
-
-### 2. Environment
-
-**Backend** — copy and edit:
-
-```bash
+cd backend && npm install && cd ../frontend && npm install
 cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env   # optional; set VITE_API_URL to match API port + /api
 ```
 
-Set at least `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`. See [Environment variables](#environment-variables).
+Configure `DATABASE_URL`, `REDIS_URL`, and `JWT_SECRET` in `backend/.env`. Apply schema: `psql "$DATABASE_URL" -f backend/src/models/schema.sql` (or start Postgres via Docker as in [docs/getting-started.md](docs/getting-started.md)).
 
-**Frontend** — optional; defaults assume API at `http://localhost:3001/api`:
+**Run locally:** `cd backend && npm run dev` and `cd frontend && npm run dev` (UI usually [http://localhost:5173](http://localhost:5173)).
 
-```bash
-cp frontend/.env.example frontend/.env
-# Set VITE_API_URL if your API differs (include /api suffix)
-```
+**Docker (full stack):** `docker compose up -d` — see [deployment/guide.md](deployment/guide.md) for ports and env.
 
-### 3. Database
-
-Point `DATABASE_URL` at an empty database, then either:
-
-- **Fresh schema:**  
-  `psql "$DATABASE_URL" -f backend/src/models/schema.sql`
-
-- **Existing DB:** run migrations in `backend/migrations/` in order (see files `002`–`007`, etc.), or rely on `ensureSchema()` in `backend/src/config/database.ts` for a subset of columns.
-
-### 4. Run
-
-Terminal 1 — API (default port from `backend/.env`, often `3001` or `3002`):
-
-```bash
-cd backend && npm run dev
-```
-
-Terminal 2 — UI:
-
-```bash
-cd frontend && npm run dev
-```
-
-Open the URL Vite prints (usually `http://localhost:5173`). Register a user, then use the app.
-
----
-
-## Docker Compose
-
-From the repo root:
-
-```bash
-docker compose up -d
-```
-
-Typical ports: **Postgres 5432**, **Redis 6379**, **backend 3001**, **frontend 80**. The backend container uses `DATABASE_URL` pointing at the `postgres` service. Set `SMTP_*` in the shell or a root `.env` if you use **Email to company**.
+More detail: [docs/getting-started.md](docs/getting-started.md).
 
 ---
 
 ## Environment variables
 
-### Backend (`backend/.env`)
+Full tables and production notes: **[deployment/guide.md](deployment/guide.md)**.
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | HTTP port for the API |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `REDIS_URL` | Redis connection string |
-| `JWT_SECRET` | Secret for signing JWTs (**change in production**) |
-| `JWT_EXPIRES_IN` | Token lifetime (e.g. `7d`) |
-| `SMTP_HOST` | If set, enables server-side email (e.g. invoice copy). Empty = email endpoint returns 503 |
-| `SMTP_PORT` | Usually `587` or `465` |
-| `SMTP_USER` / `SMTP_PASS` | SMTP credentials when required |
-| `SMTP_FROM` | Optional `From` address (defaults toward `SMTP_USER`) |
+**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email.
 
-### Frontend (`frontend/.env`)
-
-| Variable | Description |
-|----------|-------------|
-| `VITE_API_URL` | Base URL for the API **including `/api`** (e.g. `http://localhost:3002/api`) |
+**Frontend:** `VITE_API_URL` — base URL **including `/api`**; must match the API port you run (e.g. Docker backend **3001**, or PM2/Vite proxy **3002**).
 
 ---
 
 ## NPM scripts
 
-### Backend (`cd backend`)
-
-| Script | Command |
-|--------|---------|
-| `npm run dev` | Dev server with hot reload (`tsx watch`) |
-| `npm run build` | Compile to `dist/` |
-| `npm start` | Run production build |
-| `npm run lint` | `tsc --noEmit` |
-| `npm test` | Jest |
-
-### Frontend (`cd frontend`)
-
-| Script | Command |
-|--------|---------|
-| `npm run dev` | Vite dev server |
-| `npm run build` | Typecheck + production bundle |
-| `npm run preview` | Preview production build |
-
----
-
-## API overview
-
-All JSON routes are under **`/api`** (axios `baseURL` should end with `/api`).
-
-- **Auth** — `POST /auth/register`, `POST /auth/login`  
-- **Clients** — CRUD under `/clients`  
-- **Invoices** — List/create/update, status, PDF-related data, stats, CSV export, optional `POST /invoices/:id/send-to-company`  
-- **Settings** — Company profile and defaults  
-- **Discounts** — Discount codes  
-
-Deployment and nginx: [deployment/guide.md](deployment/guide.md). Full documentation index: [docs/README.md](docs/README.md).
-
----
-
-## Tech stack
-
-| Layer | Technologies |
-|-------|----------------|
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Zustand, React Hook Form, Zod, jsPDF |
-| Backend | Express 5, TypeScript, `pg`, `ioredis`, JWT, Zod, `node-cron`, `nodemailer` (optional SMTP) |
-| Data | PostgreSQL, Redis |
+| Location | Useful commands |
+|----------|-----------------|
+| `backend/` | `npm run dev`, `npm run build`, `npm start`, `npm run lint`, `npm test` |
+| `frontend/` | `npm run dev`, `npm run build`, `npm run preview` |
 
 ---
 
