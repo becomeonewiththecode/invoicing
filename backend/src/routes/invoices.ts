@@ -5,7 +5,6 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import {
   createInvoiceSchema,
-  updateInvoiceSchema,
   updateInvoiceStatusSchema,
   paginationSchema,
 } from '../models/validation';
@@ -42,20 +41,42 @@ async function invalidateRevenueCache(userId: string) {
   if (keys.length > 0) await redis.del(...keys);
 }
 
-// List invoices
+// List invoices (optional ?clientId= to filter by client)
 router.get('/', validate(paginationSchema, 'query'), async (req: AuthRequest, res: Response) => {
   try {
-    const { page, limit } = req.query as unknown as { page: number; limit: number };
+    const { page, limit, clientId } = req.validatedQuery as {
+      page: number;
+      limit: number;
+      clientId?: string;
+    };
     const offset = (page - 1) * limit;
+
+    if (clientId) {
+      const check = await pool.query('SELECT 1 FROM clients WHERE id = $1 AND user_id = $2', [
+        clientId,
+        req.userId,
+      ]);
+      if (check.rows.length === 0) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+    }
+
+    const filterParam = clientId || null;
 
     const [invoices, countResult] = await Promise.all([
       pool.query(
-        `SELECT i.*, c.name as client_name, c.email as client_email
+        `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company,
+                c.customer_number as client_customer_number
          FROM invoices i JOIN clients c ON i.client_id = c.id
-         WHERE i.user_id = $1 ORDER BY i.created_at DESC LIMIT $2 OFFSET $3`,
-        [req.userId, limit, offset]
+         WHERE i.user_id = $1 AND ($2::uuid IS NULL OR i.client_id = $2::uuid)
+         ORDER BY i.created_at DESC LIMIT $3 OFFSET $4`,
+        [req.userId, filterParam, limit, offset]
       ),
-      pool.query('SELECT COUNT(*) FROM invoices WHERE user_id = $1', [req.userId]),
+      pool.query(
+        `SELECT COUNT(*) FROM invoices i
+         WHERE i.user_id = $1 AND ($2::uuid IS NULL OR i.client_id = $2::uuid)`,
+        [req.userId, filterParam]
+      ),
     ]);
 
     res.json({
@@ -73,7 +94,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const [invoiceResult, itemsResult] = await Promise.all([
       pool.query(
-        `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address
+        `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
+                c.customer_number as client_customer_number
          FROM invoices i JOIN clients c ON i.client_id = c.id
          WHERE i.id = $1 AND i.user_id = $2`,
         [req.params.id, req.userId]
@@ -98,18 +120,19 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
   try {
     await client.query('BEGIN');
 
-    const { clientId, issueDate, dueDate, taxRate, discountCode, notes, isRecurring, recurrenceInterval, items } =
-      req.body;
+    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items } = req.body;
 
-    // Verify client belongs to user
-    const clientCheck = await client.query('SELECT id FROM clients WHERE id = $1 AND user_id = $2', [
-      clientId,
-      req.userId,
-    ]);
+    // Verify client belongs to user and read default discount from client profile
+    const clientCheck = await client.query<{ discount_code: string | null }>(
+      'SELECT discount_code FROM clients WHERE id = $1 AND user_id = $2',
+      [clientId, req.userId]
+    );
     if (clientCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Client not found' });
     }
+
+    const effectiveCode = (clientCheck.rows[0].discount_code || '').trim() || null;
 
     const invoiceNumber = await generateInvoiceNumber(req.userId!);
 
@@ -118,7 +141,7 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
       (sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice,
       0
     );
-    const discountAmount = discountCode ? await applyDiscount(req.userId!, discountCode, subtotal) : 0;
+    const discountAmount = effectiveCode ? await applyDiscount(req.userId!, effectiveCode, subtotal) : 0;
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = (taxableAmount * (taxRate || 0)) / 100;
     const total = taxableAmount + taxAmount;
@@ -135,7 +158,7 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
         subtotal,
         taxRate || 0,
         taxAmount,
-        discountCode || null,
+        effectiveCode,
         discountAmount,
         total,
         notes || null,
@@ -164,6 +187,118 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+// Update invoice (draft only — same payload shape as create)
+router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: Response) => {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+
+    const lock = await db.query(
+      "SELECT id FROM invoices WHERE id = $1 AND user_id = $2 AND status = 'draft' FOR UPDATE",
+      [req.params.id, req.userId]
+    );
+    if (lock.rows.length === 0) {
+      await db.query('ROLLBACK');
+      return res.status(404).json({
+        error: 'Invoice not found or cannot be edited (only draft invoices can be updated)',
+      });
+    }
+
+    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items } = req.body;
+
+    const clientCheck = await db.query<{ discount_code: string | null }>(
+      'SELECT discount_code FROM clients WHERE id = $1 AND user_id = $2',
+      [clientId, req.userId]
+    );
+    if (clientCheck.rows.length === 0) {
+      await db.query('ROLLBACK');
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const effectiveCode = (clientCheck.rows[0].discount_code || '').trim() || null;
+
+    const subtotal = items.reduce(
+      (sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice,
+      0
+    );
+    const discountAmount = effectiveCode ? await applyDiscount(req.userId!, effectiveCode, subtotal) : 0;
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = (taxableAmount * (taxRate || 0)) / 100;
+    const total = taxableAmount + taxAmount;
+
+    await db.query('DELETE FROM invoice_items WHERE invoice_id = $1', [req.params.id]);
+
+    await db.query(
+      `UPDATE invoices SET
+        client_id = $1,
+        issue_date = $2,
+        due_date = $3,
+        subtotal = $4,
+        tax_rate = $5,
+        tax_amount = $6,
+        discount_code = $7,
+        discount_amount = $8,
+        total = $9,
+        notes = $10,
+        is_recurring = $11,
+        recurrence_interval = $12,
+        updated_at = NOW()
+      WHERE id = $13 AND user_id = $14`,
+      [
+        clientId,
+        issueDate,
+        dueDate,
+        subtotal,
+        taxRate || 0,
+        taxAmount,
+        effectiveCode,
+        discountAmount,
+        total,
+        notes || null,
+        isRecurring,
+        recurrenceInterval || null,
+        req.params.id,
+        req.userId,
+      ]
+    );
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const amount = item.quantity * item.unitPrice;
+      await db.query(
+        'INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, amount, sort_order) VALUES ($1, $2, $3, $4, $5, $6)',
+        [req.params.id, item.description, item.quantity, item.unitPrice, amount, i]
+      );
+    }
+
+    await db.query('COMMIT');
+  } catch (err) {
+    await db.query('ROLLBACK').catch(() => {});
+    console.error('Update invoice error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    db.release();
+  }
+
+  try {
+    await invalidateRevenueCache(req.userId!);
+    const [invoiceResult, itemsResult] = await Promise.all([
+      pool.query(
+        `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
+                c.customer_number as client_customer_number
+         FROM invoices i JOIN clients c ON i.client_id = c.id
+         WHERE i.id = $1 AND i.user_id = $2`,
+        [req.params.id, req.userId]
+      ),
+      pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]),
+    ]);
+    res.json({ ...invoiceResult.rows[0], items: itemsResult.rows });
+  } catch (err) {
+    console.error('Update invoice fetch error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -238,17 +373,19 @@ router.get('/stats/revenue', async (req: AuthRequest, res: Response) => {
 router.get('/export/csv', async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT i.invoice_number, i.status, i.issue_date, i.due_date, i.subtotal, i.tax_amount, i.discount_amount, i.total, c.name as client_name
+      `SELECT i.invoice_number, i.status, i.issue_date, i.due_date, i.subtotal, i.tax_amount, i.discount_amount, i.total,
+              c.customer_number as client_customer_number, c.name as client_name
        FROM invoices i JOIN clients c ON i.client_id = c.id
        WHERE i.user_id = $1 ORDER BY i.issue_date DESC`,
       [req.userId]
     );
 
-    const headers = 'Invoice Number,Client,Status,Issue Date,Due Date,Subtotal,Tax,Discount,Total\n';
+    const headers =
+      'Invoice Number,Customer #,Client,Status,Issue Date,Due Date,Subtotal,Tax,Discount,Total\n';
     const rows = result.rows
       .map(
         (r) =>
-          `${r.invoice_number},"${r.client_name}",${r.status},${r.issue_date},${r.due_date},${r.subtotal},${r.tax_amount},${r.discount_amount},${r.total}`
+          `${r.invoice_number},${r.client_customer_number},"${r.client_name}",${r.status},${r.issue_date},${r.due_date},${r.subtotal},${r.tax_amount},${r.discount_amount},${r.total}`
       )
       .join('\n');
 

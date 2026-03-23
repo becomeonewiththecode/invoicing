@@ -1,18 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { getInvoices, deleteInvoice, exportInvoicesCsv } from '../api/invoices';
+import { getInvoices, getInvoice, deleteInvoice, exportInvoicesCsv } from '../api/invoices';
+import { getClient } from '../api/clients';
+import { getSettings } from '../api/settings';
+import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { formatClientLabel, formatInvoiceClientLabel } from '../utils/clientDisplay';
 
 export function InvoicesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const clientIdFilter = searchParams.get('clientId') || undefined;
+
   const [page, setPage] = useState(1);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page],
-    queryFn: () => getInvoices(page),
+  useEffect(() => {
+    setPage(1);
+  }, [clientIdFilter]);
+
+  const clientQuery = useQuery({
+    queryKey: ['client', clientIdFilter],
+    queryFn: () => getClient(clientIdFilter!),
+    enabled: !!clientIdFilter,
+    retry: false,
+  });
+  const filterClient = clientQuery.data;
+  const filterClientMissing = clientQuery.isError;
+
+  const {
+    data,
+    isPending: invoicesPending,
+    isError: invoicesError,
+  } = useQuery({
+    queryKey: ['invoices', page, clientIdFilter],
+    queryFn: () => getInvoices(page, 20, clientIdFilter),
+    enabled: !clientIdFilter || clientQuery.isSuccess,
+    retry: false,
+  });
+
+  const showLoading = (clientIdFilter && clientQuery.isPending) || invoicesPending;
+
+  const { data: previewInvoice } = useQuery({
+    queryKey: ['invoice', previewId],
+    queryFn: () => getInvoice(previewId!),
+    enabled: !!previewId,
+  });
+
+  const { data: previewSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: getSettings,
+    enabled: !!previewId,
   });
 
   const deleteMutation = useMutation({
@@ -40,6 +81,12 @@ export function InvoicesPage() {
 
   const totalPages = data ? Math.ceil(data.pagination.total / data.pagination.limit) : 0;
 
+  const clearClientFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('clientId');
+    setSearchParams(next, { replace: true });
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -49,10 +96,35 @@ export function InvoicesPage() {
             Export CSV
           </button>
           <Link to="/invoices/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            New Invoice
+            Create invoice
           </Link>
         </div>
       </div>
+
+      {clientIdFilter && filterClientMissing && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-800">
+          <span>That client could not be found.</span>
+          <button type="button" onClick={clearClientFilter} className="font-medium underline hover:no-underline">
+            Clear filter
+          </button>
+        </div>
+      )}
+
+      {clientIdFilter && filterClient && !filterClientMissing && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg text-sm">
+          <p className="text-gray-800">
+            Showing invoices for{' '}
+            <span className="font-semibold">{formatClientLabel(filterClient)}</span>
+          </p>
+          <button
+            type="button"
+            onClick={clearClientFilter}
+            className="text-blue-700 font-medium hover:underline"
+          >
+            Show all invoices
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="w-full">
@@ -67,7 +139,9 @@ export function InvoicesPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading ? (
+            {invoicesError ? (
+              <tr><td colSpan={6} className="text-center py-8 text-red-600">Could not load invoices.</td></tr>
+            ) : showLoading ? (
               <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
             ) : data?.data.length === 0 ? (
               <tr><td colSpan={6} className="text-center py-8 text-gray-400">No invoices found</td></tr>
@@ -75,21 +149,48 @@ export function InvoicesPage() {
               data?.data.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/invoices/${invoice.id}`)}>
                   <td className="px-6 py-4 font-medium">{invoice.invoice_number}</td>
-                  <td className="px-6 py-4 text-gray-600">{invoice.client_name}</td>
+                  <td className="px-6 py-4 text-gray-600">{formatInvoiceClientLabel(invoice)}</td>
                   <td className="px-6 py-4"><StatusBadge status={invoice.status} /></td>
                   <td className="px-6 py-4 text-gray-600">{invoice.due_date}</td>
                   <td className="px-6 py-4 text-right font-medium">${Number(invoice.total).toFixed(2)}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right space-x-3 whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewId(invoice.id);
+                      }}
+                      className="text-gray-700 hover:text-gray-900 text-sm font-medium"
+                    >
+                      Preview
+                    </button>
                     {invoice.status === 'draft' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm('Delete this draft invoice?')) deleteMutation.mutate(invoice.id);
-                        }}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Delete
-                      </button>
+                      <>
+                        <Link
+                          to="/invoices/new"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Create invoice
+                        </Link>
+                        <Link
+                          to={`/invoices/${invoice.id}/edit`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Delete this draft invoice?')) deleteMutation.mutate(invoice.id);
+                          }}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -118,6 +219,15 @@ export function InvoicesPage() {
           </div>
         )}
       </div>
+
+      <InvoicePreviewModal
+        open={!!previewId}
+        onClose={() => setPreviewId(null)}
+        invoice={previewInvoice ?? null}
+        company={previewSettings ?? null}
+        variant="saved"
+        title="Invoice preview"
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { getRevenueStats } from '../api/invoices';
 import { getInvoices } from '../api/invoices';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { formatInvoiceClientLabel } from '../utils/clientDisplay';
 
 export function DashboardPage() {
   const { data: stats } = useQuery({ queryKey: ['revenue-stats'], queryFn: getRevenueStats });
@@ -73,7 +74,7 @@ export function DashboardPage() {
               >
                 <div>
                   <p className="font-medium">{invoice.invoice_number}</p>
-                  <p className="text-sm text-gray-500">{invoice.client_name}</p>
+                  <p className="text-sm text-gray-500">{formatInvoiceClientLabel(invoice)}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-medium">${Number(invoice.total).toFixed(2)}</p>

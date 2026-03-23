@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { getDiscounts, createDiscount, deleteDiscount } from '../api/discounts';
+import { getDiscounts, createDiscount, deleteDiscount, generateDiscountCode } from '../api/discounts';
 
 interface DiscountFormData {
   code: string;
   description: string;
   type: 'percent' | 'fixed';
-  value: number;
+  value: number | undefined;
 }
 
 export function DiscountsPage() {
@@ -20,9 +20,36 @@ export function DiscountsPage() {
     queryFn: getDiscounts,
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<DiscountFormData>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<DiscountFormData>({
     defaultValues: { type: 'percent' },
   });
+
+  useEffect(() => {
+    if (!showForm) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { code } = await generateDiscountCode();
+        if (cancelled) return;
+        reset({ code, type: 'percent', description: '', value: undefined });
+        setValue('code', code);
+      } catch {
+        if (!cancelled) toast.error('Could not generate a discount code');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showForm, reset, setValue]);
+
+  const regenerateCode = async () => {
+    try {
+      const { code } = await generateDiscountCode();
+      setValue('code', code);
+    } catch {
+      toast.error('Could not generate a new code');
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: createDiscount,
@@ -45,8 +72,9 @@ export function DiscountsPage() {
 
   const onSubmit = (data: DiscountFormData) => {
     createMutation.mutate({
-      ...data,
+      code: data.code,
       value: Number(data.value),
+      type: data.type,
       description: data.description || undefined,
     });
   };
@@ -67,8 +95,25 @@ export function DiscountsPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
-              <input {...register('code', { required: 'Code is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  {...register('code', { required: 'Code is required' })}
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 font-mono text-sm"
+                  aria-describedby="discount-code-hint"
+                />
+                <button
+                  type="button"
+                  onClick={regenerateCode}
+                  className="shrink-0 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  New code
+                </button>
+              </div>
+              <p id="discount-code-hint" className="text-xs text-gray-500 mt-1">
+                Generated automatically. Use “New code” if you want a different one before saving.
+              </p>
               {errors.code && <p className="text-red-500 text-sm mt-1">{errors.code.message}</p>}
             </div>
             <div>

@@ -4,15 +4,32 @@ export interface User {
   businessName?: string;
 }
 
+/** Company profile & defaults from GET/PUT /api/settings */
+export interface UserSettings {
+  businessName: string | null;
+  defaultTaxRate: number;
+  businessPhone: string | null;
+  businessWebsite: string | null;
+  businessAddress: string | null;
+  taxId: string | null;
+  defaultHourlyRate: number | null;
+  businessFax: string | null;
+  logoUrl: string | null;
+}
+
 export interface Client {
   id: string;
   user_id: string;
+  /** Set after DB migration 003; may be absent on unmigrated DBs */
+  customer_number?: string;
   name: string;
   email: string;
   phone?: string;
   company?: string;
   address?: string;
   notes?: string;
+  /** Default discount for invoices; must match an active discount code */
+  discount_code?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +67,7 @@ export interface Invoice {
   client_email?: string;
   client_company?: string;
   client_address?: string;
+  client_customer_number?: string;
   items?: InvoiceItem[];
   created_at: string;
   updated_at: string;
