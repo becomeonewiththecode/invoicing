@@ -25,7 +25,8 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | `backend/` | REST API (`/api`), PostgreSQL, Redis, cron jobs |
 | `backend/migrations/` | SQL migrations for existing databases (run manually or via CI) |
 | `backend/src/models/schema.sql` | Full schema for fresh installs / Docker init |
-| `docs/` | Extra notes (e.g. `deployment.md`) |
+| `docs/` | [Documentation index](docs/README.md) (database, API, backend, frontend) |
+| `deployment/` | [Deployment guides](deployment/README.md) (Docker, nginx, diagrams) |
 | `docker-compose.yml` | Postgres, Redis, backend, frontend |
 
 ---
@@ -161,7 +162,7 @@ All JSON routes are under **`/api`** (axios `baseURL` should end with `/api`).
 - **Settings** — Company profile and defaults  
 - **Discounts** — Discount codes  
 
-Detailed deployment and nginx notes: [`docs/deployment.md`](docs/deployment.md).
+Deployment and nginx: [deployment/guide.md](deployment/guide.md). Full documentation index: [docs/README.md](docs/README.md).
 
 ---
 

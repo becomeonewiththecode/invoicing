@@ -1,8 +1,13 @@
 # API Reference
 
-Base URL: `http://localhost:3002/api`
+**Base URL:** Use the host and port where your API listens, with the `/api` prefix. Examples:
 
-All endpoints except auth routes require a JWT token in the `Authorization` header:
+- `http://localhost:3001/api` — matches Docker Compose (`backend` maps **3001**).
+- `http://localhost:3002/api` — matches PM2 `ecosystem.config.js` and the default Vite dev proxy in `vite.config.ts`.
+
+Paths below are relative to that base (e.g. `/auth/register` → `POST /api/auth/register`).
+
+**Authentication:** All endpoints except `/auth/*` and `/invoices/share/:token` require a JWT in the `Authorization` header:
 
 ```
 Authorization: Bearer <token>
@@ -251,7 +256,7 @@ Update invoice status.
 }
 ```
 
-Valid transitions: `draft` → `sent` → `paid`, or `overdue` → `paid`.
+Valid status values: `draft`, `sent`, `paid`, `late`. Typical flow: `draft` → `sent` → `paid`; **`late`** is set by scheduled jobs when the invoice is unpaid past the late rule (see backend jobs).
 
 ### DELETE /invoices/:id
 
@@ -267,12 +272,14 @@ Get revenue summary statistics. Results are cached in Redis for 5 minutes.
 {
   "paid_count": "5",
   "total_revenue": "15000.00",
-  "overdue_count": "2",
-  "overdue_amount": "3000.00",
+  "late_count": "2",
+  "late_amount": "3000.00",
   "pending_count": "3",
   "pending_amount": "4500.00"
 }
 ```
+
+(`pending_*` counts invoices with status `sent`.)
 
 ### GET /invoices/export/csv
 
@@ -313,6 +320,54 @@ Create a new discount code.
 ### DELETE /discounts/:id
 
 Delete a discount code.
+
+### GET /discounts/generate-code
+
+Returns a suggested random discount code string for the authenticated user.
+
+---
+
+## Settings (authenticated)
+
+### GET /settings
+
+Returns company profile and defaults: `businessName`, `defaultTaxRate`, `businessPhone`, `businessWebsite`, `businessAddress`, `taxId`, `defaultHourlyRate`, `businessFax`, `businessEmail`, `logoUrl`.
+
+### PUT /settings
+
+Update company fields. Body fields match the GET response shape (camelCase); optional fields can be omitted or set to empty string to clear.
+
+### POST /settings/logo
+
+`multipart/form-data` with field name **`logo`** (JPEG, PNG, WebP, or GIF; max 2MB). Returns updated settings JSON including `logoUrl`.
+
+### DELETE /settings/logo
+
+Removes the stored logo file and clears `logoUrl`.
+
+---
+
+## Public invoice share (no JWT)
+
+### GET /invoices/share/:token
+
+**`token`** must be 64 characters. Returns invoice header fields, line items as `items`, and business/client display fields. **404** if invalid or unknown.
+
+---
+
+## Invoice share & email (authenticated)
+
+### POST /invoices/:id/share
+
+Creates or returns a share token for the invoice (public link).
+
+### DELETE /invoices/:id/share
+
+Revokes the share token.
+
+### POST /invoices/:id/send-to-company
+
+Sends a copy of the invoice to the company email (requires SMTP configured on the server). Rate limited.
 
 ---
 
