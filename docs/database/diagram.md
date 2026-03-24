@@ -18,6 +18,10 @@ erDiagram
     decimal default_hourly_rate
     string logo_url
     int client_counter
+    string smtp_host
+    int smtp_port
+    string smtp_user
+    string smtp_pass
   }
 
   clients {
@@ -37,6 +41,11 @@ erDiagram
     invoice_status status "draft sent paid late cancelled"
     date issue_date
     date due_date
+    decimal subtotal
+    decimal tax_rate
+    decimal tax_amount
+    string discount_code
+    decimal discount_amount
     decimal total
     timestamptz sent_at
     string share_token UK
@@ -49,14 +58,17 @@ erDiagram
     decimal quantity
     decimal unit_price
     decimal amount
+    int sort_order
   }
 
   discount_codes {
     uuid id PK
     uuid user_id FK
     string code
-    string type
+    string description
+    string type "percent or fixed"
     decimal value
+    boolean is_active
   }
 
   payment_reminders {

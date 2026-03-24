@@ -17,10 +17,10 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/invoices.ts` | Invoices, `GET /stats/revenue`, `GET /stats/by-client/:clientId`, CSV, share tokens, send-to-company email |
 | `routes/share.ts` | Public invoice by token: read-only view + mark as paid |
 | `routes/discounts.ts` | Discount codes |
-| `routes/settings.ts` | Company profile, defaults, logo upload/delete |
+| `routes/settings.ts` | Company profile, defaults, logo upload/delete, SMTP config (GET/PUT), SMTP test email |
 | `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore; numeric fields use `z.coerce.number()` to accept both numbers and DB string decimals; validation failures logged to console |
 | `services/dataPort.ts` | Builds export payload (batched queries); transactional replace on import with strict Zod validation, referential integrity, and duplicate-ID checks |
-| `services/mail.ts` | Nodemailer SMTP transport (optional; used by send-to-company) |
+| `services/mail.ts` | Nodemailer SMTP transport; resolves config from per-user DB settings then env vars as fallback; used by send-to-company and SMTP test |
 | `services/invoiceEmailHtml.ts` | HTML + plain-text email templates for invoice summaries |
 | `middleware/auth.ts` | JWT verification |
 | `middleware/validate.ts` | Zod validation |
@@ -39,7 +39,7 @@ flowchart LR
     SH["/api/invoices/share\n(public: view + mark paid)"]
     INV["/api/invoices"]
     DISC["/api/discounts"]
-    SET["/api/settings"]
+    SET["/api/settings\n+ SMTP config & test"]
     DATA["/api/data\nexport · import"]
     ST["/api/uploads static"]
     HL["/api/health"]
@@ -80,6 +80,7 @@ flowchart LR
   MAIL --> SMTP
   DISC --> PG
   SET --> PG
+  SET --> MAIL
   DATA --> PG
   DATA --> RD
   J1 --> PG

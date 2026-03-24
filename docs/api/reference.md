@@ -372,6 +372,31 @@ Update company fields. Body fields match the GET response shape (camelCase); opt
 
 Removes the stored logo file and clears `logoUrl`.
 
+### GET /settings/smtp
+
+Returns the user's SMTP configuration: `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`. Credentials are returned as-is (not masked).
+
+### PUT /settings/smtp
+
+Update SMTP configuration.
+
+**Request body:**
+
+```json
+{
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "user@gmail.com",
+  "smtpPass": "app-password"
+}
+```
+
+All fields are optional — empty or missing values clear the field (`smtpPort` defaults to 587).
+
+### POST /settings/smtp/test
+
+Send a test email to the authenticated user's login email address using their saved SMTP configuration. Returns `{ "message": "Test email sent to user@example.com" }` on success or a **400** with `{ "error": "..." }` containing the SMTP error message on failure.
+
 ---
 
 ## Data backup (authenticated)
