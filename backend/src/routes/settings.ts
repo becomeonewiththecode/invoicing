@@ -251,7 +251,7 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
 router.get('/smtp', async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
-      'SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM users WHERE id = $1',
+      'SELECT smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from FROM users WHERE id = $1',
       [req.userId]
     );
     if (result.rows.length === 0) {
@@ -263,6 +263,7 @@ router.get('/smtp', async (req: AuthRequest, res: Response) => {
       smtpPort: r.smtp_port != null ? Number(r.smtp_port) : 587,
       smtpUser: (r.smtp_user as string | null) ?? '',
       smtpPass: (r.smtp_pass as string | null) ?? '',
+      smtpFrom: (r.smtp_from as string | null) ?? '',
     });
   } catch (err) {
     console.error('Get SMTP settings error:', err);
@@ -272,17 +273,18 @@ router.get('/smtp', async (req: AuthRequest, res: Response) => {
 
 router.put('/smtp', async (req: AuthRequest, res: Response) => {
   try {
-    const { smtpHost, smtpPort, smtpUser, smtpPass } = req.body;
+    const { smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom } = req.body;
     const host = typeof smtpHost === 'string' ? smtpHost.trim() || null : null;
     const port = Number(smtpPort) || 587;
     const user = typeof smtpUser === 'string' ? smtpUser.trim() || null : null;
     const pass = typeof smtpPass === 'string' ? smtpPass || null : null;
+    const from = typeof smtpFrom === 'string' ? smtpFrom.trim() || null : null;
 
     const result = await pool.query(
-      `UPDATE users SET smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4, updated_at = NOW()
-       WHERE id = $5
-       RETURNING smtp_host, smtp_port, smtp_user, smtp_pass`,
-      [host, port, user, pass, req.userId]
+      `UPDATE users SET smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4, smtp_from = $5, updated_at = NOW()
+       WHERE id = $6
+       RETURNING smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from`,
+      [host, port, user, pass, from, req.userId]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -293,6 +295,7 @@ router.put('/smtp', async (req: AuthRequest, res: Response) => {
       smtpPort: r.smtp_port != null ? Number(r.smtp_port) : 587,
       smtpUser: (r.smtp_user as string | null) ?? '',
       smtpPass: (r.smtp_pass as string | null) ?? '',
+      smtpFrom: (r.smtp_from as string | null) ?? '',
     });
   } catch (err) {
     console.error('Update SMTP settings error:', err);

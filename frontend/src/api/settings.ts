@@ -51,6 +51,7 @@ export interface SmtpSettings {
   smtpPort: number;
   smtpUser: string;
   smtpPass: string;
+  smtpFrom: string;
 }
 
 export async function getSmtpSettings(): Promise<SmtpSettings> {

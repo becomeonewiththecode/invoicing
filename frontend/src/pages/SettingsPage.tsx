@@ -150,7 +150,7 @@ export function SettingsPage() {
     reset: resetSmtp,
     formState: { errors: smtpErrors },
   } = useForm<SmtpSettings>({
-    defaultValues: { smtpHost: '', smtpPort: 587, smtpUser: '', smtpPass: '' },
+    defaultValues: { smtpHost: '', smtpPort: 587, smtpUser: '', smtpPass: '', smtpFrom: '' },
   });
 
   useEffect(() => {
@@ -184,6 +184,7 @@ export function SettingsPage() {
       smtpPort: Number(data.smtpPort) || 587,
       smtpUser: data.smtpUser.trim(),
       smtpPass: data.smtpPass,
+      smtpFrom: data.smtpFrom.trim(),
     });
   };
 
@@ -507,6 +508,17 @@ export function SettingsPage() {
                   autoComplete="off"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">From address</label>
+              <input
+                type="email"
+                {...registerSmtp('smtpFrom')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="noreply@yourdomain.com"
+                autoComplete="off"
+              />
+              <p className="text-xs text-gray-500 mt-1">The sender address on outgoing emails. Defaults to your login email if blank.</p>
             </div>
             <div className="flex justify-end gap-2">
               {smtpQuery.data?.smtpHost?.trim() && (
