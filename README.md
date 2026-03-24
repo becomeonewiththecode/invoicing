@@ -60,45 +60,6 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 
 ---
 
-## Quick start
-
-```bash
-git clone <repo-url> invoicing
-cd invoicing
-cd backend && npm install && cd ../frontend && npm install
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env   # optional; set VITE_API_URL to match API port + /api
-```
-
-Configure `DATABASE_URL`, `REDIS_URL`, and `JWT_SECRET` in `backend/.env`. Apply schema: `psql "$DATABASE_URL" -f backend/src/models/schema.sql` (or start Postgres via Docker as in [docs/getting-started.md](docs/getting-started.md)).
-
-**Run locally:** `cd backend && npm run dev` and `cd frontend && npm run dev` (UI usually [http://localhost:5173](http://localhost:5173)).
-
-**Docker (full stack):** `docker compose up -d` — see [deployment/guide.md](deployment/guide.md) for ports and env.
-
-More detail: [docs/getting-started.md](docs/getting-started.md).
-
----
-
-## Environment variables
-
-Full tables and production notes: **[deployment/guide.md](deployment/guide.md)**.
-
-**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email.
-
-**Frontend:** `VITE_API_URL` — base URL **including `/api`**; must match the API port you run (e.g. Docker backend **3001**, or PM2/Vite proxy **3002**).
-
----
-
-## NPM scripts
-
-| Location | Useful commands |
-|----------|-----------------|
-| `backend/` | `npm run dev`, `npm run build`, `npm start`, `npm run lint`, `npm test` |
-| `frontend/` | `npm run dev`, `npm run build`, `npm run preview` |
-
----
-
 ## License
 
 See repository metadata (e.g. `package.json`); add a `LICENSE` file if you need an explicit license.
