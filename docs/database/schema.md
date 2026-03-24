@@ -47,6 +47,7 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 | smtp_port | INTEGER | Default 587 |
 | smtp_user | VARCHAR(255) | SMTP username |
 | smtp_pass | VARCHAR(255) | SMTP password / app password |
+| smtp_from | VARCHAR(255) | Sender address for outgoing emails; defaults to user login email if blank |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 

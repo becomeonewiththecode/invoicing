@@ -22,6 +22,7 @@ erDiagram
     int smtp_port
     string smtp_user
     string smtp_pass
+    string smtp_from
   }
 
   clients {
