@@ -374,7 +374,7 @@ Removes the stored logo file and clears `logoUrl`.
 
 ### GET /settings/smtp
 
-Returns the user's SMTP configuration: `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`. Credentials are returned as-is (not masked).
+Returns the user's SMTP configuration: `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`. Credentials are returned as-is (not masked).
 
 ### PUT /settings/smtp
 
@@ -387,11 +387,12 @@ Update SMTP configuration.
   "smtpHost": "smtp.gmail.com",
   "smtpPort": 587,
   "smtpUser": "user@gmail.com",
-  "smtpPass": "app-password"
+  "smtpPass": "app-password",
+  "smtpFrom": "noreply@yourdomain.com"
 }
 ```
 
-All fields are optional — empty or missing values clear the field (`smtpPort` defaults to 587).
+All fields are optional — empty or missing values clear the field (`smtpPort` defaults to 587). `smtpFrom` sets the sender address; if blank, the user's login email is used.
 
 ### POST /settings/smtp/test
 

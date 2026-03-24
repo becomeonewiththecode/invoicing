@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineHome, HiOutlineTag, HiOutlineLogout, HiOutlineCog } from 'react-icons/hi';
+import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineHome, HiOutlineLogout, HiOutlineCog } from 'react-icons/hi';
 import { useAuthStore } from '../../stores/authStore';
 
 const linkBase = 'flex items-center gap-3 px-3 py-2 rounded-lg mb-1 transition-colors';
@@ -45,14 +45,6 @@ export function Sidebar() {
             >
               <HiOutlineDocumentText className="w-4 h-4 shrink-0" />
               Invoices
-            </NavLink>
-            <NavLink
-              to="/discounts"
-              end
-              className={({ isActive }) => `${subLinkBase} ${isActive ? subLinkActive : subLinkInactive}`}
-            >
-              <HiOutlineTag className="w-4 h-4 shrink-0" />
-              Discounts
             </NavLink>
           </div>
         </div>
