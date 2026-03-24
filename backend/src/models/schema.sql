@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   smtp_port INTEGER DEFAULT 587,
   smtp_user VARCHAR(255),
   smtp_pass VARCHAR(255),
+  smtp_from VARCHAR(255),
   client_counter INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
