@@ -447,7 +447,10 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 
 **500** on database or server errors (the import runs inside a transaction and rolls back on failure). All validation failures are logged to the server console with a `Data import validation error:` prefix.
 
-**Notes:** Import does not upload logo files; only `logo_url` (or equivalent profile field) is restored if present. Revenue cache in Redis is invalidated after a successful import.
+**Notes:**
+
+- Before the import transaction, the server runs **`ensureSchema()`** (same as on API startup) so missing `invoices` columns such as `sent_at` and `share_token` are added when possible. See [database schema — Runtime schema upgrades](../database/schema.md#runtime-schema-upgrades).
+- Import does not upload logo files; only `logo_url` (or equivalent profile field) is restored if present. Revenue cache in Redis is invalidated after a successful import.
 
 ---
 

@@ -148,7 +148,7 @@ export function SettingsPage() {
     register: registerSmtp,
     handleSubmit: handleSmtpSubmit,
     reset: resetSmtp,
-    formState: { errors: smtpErrors },
+    formState: { errors: _smtpErrors },
   } = useForm<SmtpSettings>({
     defaultValues: { smtpHost: '', smtpPort: 587, smtpUser: '', smtpPass: '', smtpFrom: '' },
   });

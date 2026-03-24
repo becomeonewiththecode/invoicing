@@ -13,9 +13,14 @@ erDiagram
     string email UK
     string password_hash
     string business_name
+    string business_address
+    string business_phone
     string business_email
+    string tax_id
     decimal default_tax_rate
     decimal default_hourly_rate
+    string business_website
+    string business_fax
     string logo_url
     int client_counter
     string smtp_host
@@ -23,6 +28,8 @@ erDiagram
     string smtp_user
     string smtp_pass
     string smtp_from
+    timestamptz created_at
+    timestamptz updated_at
   }
 
   clients {
@@ -31,7 +38,13 @@ erDiagram
     string customer_number
     string name
     string email
+    string phone
+    string company
+    string address
+    text notes
     string discount_code
+    timestamptz created_at
+    timestamptz updated_at
   }
 
   invoices {
@@ -48,8 +61,14 @@ erDiagram
     string discount_code
     decimal discount_amount
     decimal total
-    timestamptz sent_at
-    string share_token UK
+    text notes
+    boolean is_recurring
+    string recurrence_interval
+    date next_recurrence_date
+    timestamptz sent_at "sent late logic"
+    string share_token "nullable unique public link"
+    timestamptz created_at
+    timestamptz updated_at
   }
 
   invoice_items {
@@ -60,6 +79,7 @@ erDiagram
     decimal unit_price
     decimal amount
     int sort_order
+    timestamptz created_at
   }
 
   discount_codes {
@@ -70,14 +90,17 @@ erDiagram
     string type "percent or fixed"
     decimal value
     boolean is_active
+    timestamptz created_at
   }
 
   payment_reminders {
     uuid id PK
     uuid invoice_id FK
-    timestamptz sent_at
+    timestamptz sent_at "reminder log time"
     string reminder_type
   }
 ```
 
-Mermaid `erDiagram` is supported on GitHub and many Markdown viewers; for strict PostgreSQL types, see [schema.md](schema.md).
+Mermaid `erDiagram` is supported on GitHub and many Markdown viewers; for strict PostgreSQL types, column defaults, and indexes, see [schema.md](schema.md).
+
+**Note:** `payment_reminders.sent_at` is the time a reminder was logged, not the same field as `invoices.sent_at` (when the invoice was marked sent).

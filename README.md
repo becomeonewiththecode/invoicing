@@ -40,7 +40,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | Document | Description |
 |----------|----------------|
 | [docs/README.md](docs/README.md) | Documentation index |
-| [docs/getting-started.md](docs/getting-started.md) | Local setup, PM2, full Docker stack |
+| [docs/getting-started.md](docs/getting-started.md) | Local setup, PM2, full Docker stack, [troubleshooting](docs/getting-started.md#troubleshooting) |
 | [docs/tech-stack.md](docs/tech-stack.md) | Languages, frameworks, data stores |
 | [docs/database/schema.md](docs/database/schema.md) | Tables, enums, indexes |
 | [docs/database/diagram.md](docs/database/diagram.md) | Database ER diagram (Mermaid) |

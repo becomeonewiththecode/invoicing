@@ -44,13 +44,14 @@ export function SharedInvoicePage() {
 
   const canMarkPaid = invoice.status === 'sent' || invoice.status === 'late';
 
+  const inv = invoice as unknown as Record<string, unknown>;
   const company = {
-    businessName: (invoice as Record<string, unknown>).business_name as string | null,
-    businessPhone: (invoice as Record<string, unknown>).business_phone as string | null,
-    businessWebsite: (invoice as Record<string, unknown>).business_website as string | null,
-    businessAddress: (invoice as Record<string, unknown>).business_address as string | null,
-    businessFax: (invoice as Record<string, unknown>).business_fax as string | null,
-    logoUrl: (invoice as Record<string, unknown>).logo_url as string | null,
+    businessName: inv.business_name as string | null,
+    businessPhone: inv.business_phone as string | null,
+    businessWebsite: inv.business_website as string | null,
+    businessAddress: inv.business_address as string | null,
+    businessFax: inv.business_fax as string | null,
+    logoUrl: inv.logo_url as string | null,
   };
 
   return (
