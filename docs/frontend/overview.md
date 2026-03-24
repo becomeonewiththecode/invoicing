@@ -15,7 +15,7 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 
 ## Routing
 
-Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings`. Unknown paths redirect to `/`.
+Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup). Unknown paths redirect to `/`.
 
 See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`), and deep links.
 

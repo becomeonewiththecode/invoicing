@@ -43,6 +43,10 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 | business_fax | VARCHAR(50) | |
 | logo_url | TEXT | Public URL path under `/api/uploads/logos/…` when uploaded |
 | client_counter | INTEGER | NOT NULL, default 0 — used for `customer_number` sequencing |
+| smtp_host | VARCHAR(255) | SMTP server hostname (per-user, optional) |
+| smtp_port | INTEGER | Default 587 |
+| smtp_user | VARCHAR(255) | SMTP username |
+| smtp_pass | VARCHAR(255) | SMTP password / app password |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 

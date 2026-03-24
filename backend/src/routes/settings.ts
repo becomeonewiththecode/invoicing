@@ -246,4 +246,89 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
   }
 });
 
+// --- SMTP settings (separate from main settings to avoid exposing credentials) ---
+
+router.get('/smtp', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      'SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM users WHERE id = $1',
+      [req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const r = result.rows[0];
+    res.json({
+      smtpHost: (r.smtp_host as string | null) ?? '',
+      smtpPort: r.smtp_port != null ? Number(r.smtp_port) : 587,
+      smtpUser: (r.smtp_user as string | null) ?? '',
+      smtpPass: (r.smtp_pass as string | null) ?? '',
+    });
+  } catch (err) {
+    console.error('Get SMTP settings error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/smtp', async (req: AuthRequest, res: Response) => {
+  try {
+    const { smtpHost, smtpPort, smtpUser, smtpPass } = req.body;
+    const host = typeof smtpHost === 'string' ? smtpHost.trim() || null : null;
+    const port = Number(smtpPort) || 587;
+    const user = typeof smtpUser === 'string' ? smtpUser.trim() || null : null;
+    const pass = typeof smtpPass === 'string' ? smtpPass || null : null;
+
+    const result = await pool.query(
+      `UPDATE users SET smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4, updated_at = NOW()
+       WHERE id = $5
+       RETURNING smtp_host, smtp_port, smtp_user, smtp_pass`,
+      [host, port, user, pass, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const r = result.rows[0];
+    res.json({
+      smtpHost: (r.smtp_host as string | null) ?? '',
+      smtpPort: r.smtp_port != null ? Number(r.smtp_port) : 587,
+      smtpUser: (r.smtp_user as string | null) ?? '',
+      smtpPass: (r.smtp_pass as string | null) ?? '',
+    });
+  } catch (err) {
+    console.error('Update SMTP settings error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- SMTP test email ---
+
+router.post('/smtp/test', async (req: AuthRequest, res: Response) => {
+  try {
+    const { sendMail } = await import('../services/mail');
+    const result = await pool.query(
+      'SELECT email, smtp_host FROM users WHERE id = $1',
+      [req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const { email, smtp_host } = result.rows[0];
+    if (!smtp_host?.trim()) {
+      return res.status(400).json({ error: 'SMTP is not configured. Save your SMTP settings first.' });
+    }
+    await sendMail({
+      to: email,
+      subject: 'SMTP Test — Invoicing App',
+      html: '<p>Your SMTP configuration is working correctly.</p>',
+      text: 'Your SMTP configuration is working correctly.',
+      userId: req.userId,
+    });
+    res.json({ message: `Test email sent to ${email}` });
+  } catch (err: unknown) {
+    console.error('SMTP test error:', err);
+    const msg = err instanceof Error ? err.message : 'Failed to send test email';
+    res.status(400).json({ error: msg });
+  }
+});
+
 export default router;

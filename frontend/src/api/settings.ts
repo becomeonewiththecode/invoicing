@@ -45,3 +45,25 @@ export async function deleteLogo(): Promise<UserSettings> {
   const { data } = await api.delete<UserSettings>('/settings/logo');
   return data;
 }
+
+export interface SmtpSettings {
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPass: string;
+}
+
+export async function getSmtpSettings(): Promise<SmtpSettings> {
+  const { data } = await api.get<SmtpSettings>('/settings/smtp');
+  return data;
+}
+
+export async function updateSmtpSettings(body: SmtpSettings): Promise<SmtpSettings> {
+  const { data } = await api.put<SmtpSettings>('/settings/smtp', body);
+  return data;
+}
+
+export async function sendSmtpTest(): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>('/settings/smtp/test');
+  return data;
+}

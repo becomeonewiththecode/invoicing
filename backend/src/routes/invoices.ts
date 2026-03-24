@@ -248,10 +248,10 @@ router.delete('/:id/share', async (req: AuthRequest, res: Response) => {
 /** Email invoice summary to the company address (business email or account email). */
 router.post('/:id/send-to-company', rateLimit({ windowMs: 60_000, max: 5 }), async (req: AuthRequest, res: Response) => {
   try {
-    if (!isSmtpConfigured()) {
+    if (!(await isSmtpConfigured(req.userId))) {
       return res.status(503).json({
         error:
-          'Email is not configured. Set SMTP_HOST (and typically SMTP_PORT, SMTP_USER, SMTP_PASS) on the server.',
+          'Email is not configured. Set SMTP settings in Settings or configure SMTP_HOST on the server.',
       });
     }
 
@@ -292,7 +292,7 @@ router.post('/:id/send-to-company', rateLimit({ windowMs: 60_000, max: 5 }), asy
     const html = buildInvoiceEmailHtml(inv, items);
     const text = buildInvoiceEmailText(inv, items);
 
-    await sendMail({ to, subject, html, text });
+    await sendMail({ to, subject, html, text, userId: req.userId });
     res.json({ ok: true, sentTo: to });
   } catch (err) {
     console.error('Send invoice email error:', err);

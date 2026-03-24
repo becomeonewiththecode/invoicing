@@ -15,7 +15,7 @@ SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`,
 | `/clients/:clientId` | **Client profile** | See below |
 | `/clients/:clientId/stats` | — | **Redirects** to `/clients/:clientId#invoice-status` |
 | `/discounts` | Discount codes | |
-| `/settings` | Company settings | Includes **Data backup**: download JSON export, import backup (replaces account business data) |
+| `/settings` | Company settings | Tabbed layout: **General** (business info, logo), **Discounts** (link to manage codes), **Email** (SMTP config, test button, company email), **Backup** (export/import JSON) |
 
 ## Client profile (`/clients/:clientId`)
 
