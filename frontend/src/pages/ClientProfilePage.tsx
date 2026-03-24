@@ -108,7 +108,7 @@ export function ClientProfilePage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ invoiceCount: number } | null>(null);
 
   const deleteMutation = useMutation({
-    mutationFn: (force = false) => deleteClient(clientId!, force),
+    mutationFn: (force?: boolean) => deleteClient(clientId!, force ?? false),
     onSuccess: () => {
       setDeleteConfirm(null);
       queryClient.invalidateQueries({ queryKey: ['clients'] });

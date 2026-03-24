@@ -27,7 +27,7 @@ flowchart TB
     subgraph Router["React Router"]
       PUB["/login · /register"]
       SHARE["/share/:token\n(view + mark paid)"]
-      PROT["Protected: / invoices clients settings"]
+      PROT["Protected: / invoices clients …\n/settings (incl. Backup)"]
     end
 
     subgraph State["State"]

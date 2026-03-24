@@ -79,3 +79,19 @@ docker compose up
 ```
 
 Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**.
+
+## Troubleshooting
+
+### `column "sent_at" of relation "invoices" does not exist`
+
+The app expects `invoices.sent_at` and `share_token` (see [schema](database/schema.md) and [Runtime schema upgrades](database/schema.md#runtime-schema-upgrades)). They are added automatically when the API starts (`ensureSchema()` in `backend/src/config/database.ts`). Backup import also runs `ensureSchema()` before applying data. If your database was created from an older `schema.sql` and the server has not been restarted since, **restart the backend** so `ensureSchema` runs.
+
+To fix the database without a restart, apply the same changes manually:
+
+```bash
+psql "$DATABASE_URL" -f backend/migrations/005_invoice_late_sent_at.sql
+psql "$DATABASE_URL" -f backend/migrations/007_share_token.sql
+psql "$DATABASE_URL" -f backend/migrations/008_cancelled_status.sql
+```
+
+Or run the `ALTER` statements from those files by hand. After that, backup import and status updates that touch `sent_at` will work.

@@ -7,7 +7,7 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 | Topic | Document |
 |--------|----------|
 | **Index** | You are here |
-| **Getting started** | [getting-started.md](getting-started.md) — databases via Docker, PM2, full Compose |
+| **Getting started** | [getting-started.md](getting-started.md) — databases via Docker, PM2, full Compose, [troubleshooting](getting-started.md#troubleshooting) |
 | **Tech stack** | [tech-stack.md](tech-stack.md) |
 | **Database** | [database/schema.md](database/schema.md) · [database/diagram.md](database/diagram.md) |
 | **API** | [api/review.md](api/review.md) · [api/reference.md](api/reference.md) |

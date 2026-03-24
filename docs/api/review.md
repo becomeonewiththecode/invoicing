@@ -28,6 +28,7 @@ Order matters for Express:
 
 ## Conventions
 
+- **PostgreSQL upgrades:** `ensureSchema()` in `config/database.ts` runs before the server listens and again before **`POST /api/data/import`**, applying idempotent `ALTER`s for older databases. See [Runtime schema upgrades](../database/schema.md#runtime-schema-upgrades).
 - **Pagination:** List endpoints accept `page` and `limit` query params where implemented.
 - **Validation:** Invalid input returns **400** with Zod-style `details` when applicable.
 - **Rate limits:** Auth routes and sensitive actions use Redis-backed limits (fail-open if Redis is down).

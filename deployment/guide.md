@@ -17,7 +17,16 @@ docker compose up -d
 | backend | **3001** | Express API (`PORT=3001` in the container) |
 | frontend | 80 | nginx serving the React SPA |
 
-For existing databases, apply SQL files in `backend/migrations/` in numeric order after the base schema, or rely on `ensureSchema()` where implemented.
+**Code changes and `docker compose restart`:** Restarting containers does **not** rebuild images. The frontend and backend Dockerfiles run `npm run build` at **image build** time; the running containers keep whatever was last baked in. After you change source files, rebuild and recreate:
+
+```bash
+cd deployment
+docker compose up -d --build
+```
+
+Use `docker compose build --no-cache` first if you suspect a stale layer. To wipe Postgres data (destructive), remove the `pgdata` volume — see volume notes below.
+
+For existing databases, apply SQL files in `backend/migrations/` in numeric order after the base schema, or rely on **`ensureSchema()`** on API startup (and before backup import). Details: [Runtime schema upgrades](../docs/database/schema.md#runtime-schema-upgrades).
 
 ### Environment variables
 

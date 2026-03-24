@@ -2,6 +2,19 @@
 
 PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sql` (Docker Compose mounts it for init). **Existing** databases may need SQL in `backend/migrations/` applied in order (`002`–`008`, etc.).
 
+## Runtime schema upgrades
+
+`backend/src/config/database.ts` exports **`ensureSchema()`**, which applies idempotent `ALTER`s so older databases gain columns and enum values that the app expects:
+
+- `clients.discount_code`, `invoices.sent_at`, `invoices.share_token`, `users.business_email`, and enum value `invoice_status.cancelled` (see source for the exact statements).
+
+It runs in two places:
+
+1. **API startup** — `server.ts` awaits `ensureSchema()` before `listen`; failure exits the process.
+2. **Backup import** — `services/dataPort.ts` calls `await ensureSchema()` immediately before `POST /api/data/import` begins its transaction, so imports succeed even if the process had not applied upgrades yet (e.g. long-lived worker).
+
+Fresh installs from current `schema.sql` already include these definitions; `ensureSchema()` is a no-op when columns and enum values exist.
+
 ## Entity relationships (text)
 
 ```
@@ -140,4 +153,6 @@ cd backend
 npm run db:init
 ```
 
-Requires `DATABASE_URL`. Alternatively: `psql "$DATABASE_URL" -f backend/src/models/schema.sql`, then run migrations as needed.
+Requires `DATABASE_URL`. Alternatively: `psql "$DATABASE_URL" -f backend/src/models/schema.sql`.
+
+`schema.sql` includes `invoices.sent_at`, `share_token`, and the `cancelled` status value (aligned with migrations `005`–`008`). Older databases may still need those migrations or a backend restart so `ensureSchema()` can apply `ALTER`s.

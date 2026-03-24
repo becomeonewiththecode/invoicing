@@ -1,4 +1,4 @@
-import pool from '../config/database';
+import pool, { ensureSchema } from '../config/database';
 import redis from '../config/redis';
 
 export const DATA_EXPORT_VERSION = 1 as const;
@@ -141,6 +141,7 @@ function normStatus(s: string): string {
  * Does not change password or email.
  */
 export async function importUserDataReplace(userId: string, data: DataExportV1): Promise<void> {
+  await ensureSchema();
   const c = await pool.connect();
   try {
     await c.query('BEGIN');

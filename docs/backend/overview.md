@@ -19,14 +19,14 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/discounts.ts` | Discount codes |
 | `routes/settings.ts` | Company profile, defaults, logo upload/delete, SMTP config (GET/PUT), SMTP test email |
 | `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore; numeric fields use `z.coerce.number()` to accept both numbers and DB string decimals; validation failures logged to console |
-| `services/dataPort.ts` | Builds export payload (batched queries); transactional replace on import with strict Zod validation, referential integrity, and duplicate-ID checks |
+| `services/dataPort.ts` | Builds export payload (batched queries); calls `ensureSchema()` then transactional replace on import with strict Zod validation, referential integrity, and duplicate-ID checks |
 | `services/mail.ts` | Nodemailer SMTP transport; resolves config from per-user DB settings then env vars as fallback; used by send-to-company and SMTP test |
 | `services/invoiceEmailHtml.ts` | HTML + plain-text email templates for invoice summaries |
 | `middleware/auth.ts` | JWT verification |
 | `middleware/validate.ts` | Zod validation |
 | `middleware/rateLimit.ts` | Redis sliding windows / counters |
 | `jobs/reminders.ts` | Cron: late invoices, reminders, recurring drafts |
-| `config/database.ts` | `pg` pool, optional schema ensure |
+| `config/database.ts` | `pg` pool; **`ensureSchema()`** — idempotent `ALTER`s on startup (and before backup import) so older databases match expected columns/enums; see [schema doc](../database/schema.md#runtime-schema-upgrades) |
 
 ## Backend diagram
 
@@ -86,6 +86,8 @@ flowchart LR
   J1 --> PG
   J2 --> PG
 ```
+
+On process start, **`ensureSchema()`** runs in `server.ts` before the HTTP server listens; **`POST /api/data/import`** also invokes it before the import transaction. Both hit PostgreSQL via the shared pool. See [Runtime schema upgrades](../database/schema.md#runtime-schema-upgrades).
 
 ## Related docs
 
