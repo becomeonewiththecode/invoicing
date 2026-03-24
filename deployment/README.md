@@ -8,6 +8,7 @@ Production and container deployment for the invoicing app.
 
 | File | Description |
 |------|-------------|
+| [docker-compose.yml](docker-compose.yml) | Docker Compose service definitions (Postgres, Redis, backend, frontend) |
 | [guide.md](guide.md) | Docker Compose, environment variables, manual builds, nginx, port notes |
 | [diagram.md](diagram.md) | Mermaid diagram of services and traffic |
 
@@ -27,7 +28,7 @@ Configure `DATABASE_URL`, `REDIS_URL`, and `JWT_SECRET` in `backend/.env`. Apply
 
 **Run locally:** `cd backend && npm run dev` and `cd frontend && npm run dev` (UI usually [http://localhost:5173](http://localhost:5173)).
 
-**Docker (full stack):** `docker compose up -d` — see [guide.md](guide.md) for ports and env.
+**Docker (full stack):** `cd deployment && docker compose up -d` — see [guide.md](guide.md) for ports and env.
 
 More detail: [docs/getting-started.md](../docs/getting-started.md).
 

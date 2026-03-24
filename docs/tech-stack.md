@@ -33,7 +33,7 @@ All JSON APIs are under **`/api`**. The SPA should use a base URL ending in **`/
 
 | Context | API port | Notes |
 |---------|----------|--------|
-| Docker Compose | 3001 | `docker-compose.yml` maps `3001:3001` |
+| Docker Compose | 3001 | `deployment/docker-compose.yml` maps `3001:3001` |
 | `backend/.env.example` | 3001 | Default for local `npm run dev` |
 | PM2 `ecosystem.config.js` | 3002 | Matches `frontend/vite.config.ts` proxy target |
 
