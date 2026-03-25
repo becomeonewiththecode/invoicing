@@ -359,21 +359,72 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   doc.line(totalsBoxRight, totalsTopY, totalsBoxRight, totalsBottomY);
   y += 4;
 
-  // —— Notes / terms ——
-  if (invoice.notes?.trim()) {
-    if (y > pageH - M - 35) {
+  /** Space reserved at bottom for thank-you line, status, and page number (avoid clipping notes / Pay to). */
+  const FOOTER_RESERVE_MM = 32;
+  const contentMaxY = pageH - FOOTER_RESERVE_MM;
+  /** Line spacing for wrapped body text (mm); keep in sync with splitTextToSize output. */
+  const BODY_LINE_MM = 4.5;
+
+  function ensureBlockFits(blockHeightMm: number) {
+    if (y + blockHeightMm > contentMaxY) {
       doc.addPage();
       y = M;
     }
+  }
+
+  // —— Notes / terms ——
+  if (invoice.notes?.trim()) {
+    const noteLines = doc.splitTextToSize(invoice.notes.trim(), contentW);
+    const noteBlockH = 8 + noteLines.length * BODY_LINE_MM + 6;
+    ensureBlockFits(noteBlockH);
     doc.setFontSize(8);
     doc.setTextColor(...gray.label);
     doc.text('NOTES', M, y);
     y += 5;
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
-    const noteLines = doc.splitTextToSize(invoice.notes.trim(), contentW);
     doc.text(noteLines, M, y);
-    y += noteLines.length * 4 + 4;
+    y += noteLines.length * BODY_LINE_MM + 4;
+  }
+
+  // —— Pay to (company settings) ——
+  const payable = company?.payableText?.trim();
+  if (payable) {
+    const payableLines = doc.splitTextToSize(payable, contentW);
+    const headerH = 13;
+    let lineIdx = 0;
+    while (lineIdx < payableLines.length) {
+      const roomBelow = contentMaxY - y;
+      const linesThisPage = Math.max(
+        0,
+        Math.floor((roomBelow - (lineIdx === 0 ? headerH : 0)) / BODY_LINE_MM)
+      );
+      if (linesThisPage < 1) {
+        doc.addPage();
+        y = M;
+        continue;
+      }
+      const chunk = payableLines.slice(lineIdx, lineIdx + Math.min(linesThisPage, payableLines.length - lineIdx));
+      if (lineIdx === 0) {
+        doc.setFontSize(8);
+        doc.setTextColor(...gray.label);
+        doc.text('Pay to', M, y);
+        y += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+      } else {
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+      }
+      doc.text(chunk, M, y);
+      y += chunk.length * BODY_LINE_MM;
+      lineIdx += chunk.length;
+      if (lineIdx < payableLines.length) {
+        doc.addPage();
+        y = M;
+      }
+    }
+    y += 6;
   }
 
   // —— Footer ——

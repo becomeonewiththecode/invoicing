@@ -1,5 +1,8 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
+# Same-origin /api is proxied by nginx in Compose — do not rely on localhost:3002 inside the browser
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 COPY package*.json ./
 RUN npm ci
 COPY . .

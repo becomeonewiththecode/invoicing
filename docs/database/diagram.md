@@ -28,6 +28,7 @@ erDiagram
     string smtp_user
     string smtp_pass
     string smtp_from
+    text payable_text
     timestamptz created_at
     timestamptz updated_at
   }

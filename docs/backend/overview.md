@@ -19,7 +19,7 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/discounts.ts` | Discount codes |
 | `routes/settings.ts` | Company profile, defaults, logo upload/delete, SMTP config (GET/PUT), SMTP test email |
 | `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore; numeric fields use `z.coerce.number()` to accept both numbers and DB string decimals; validation failures logged to console |
-| `services/dataPort.ts` | Builds export payload (batched queries); calls `ensureSchema()` then transactional replace on import with strict Zod validation, referential integrity, and duplicate-ID checks |
+| `services/dataPort.ts` | Builds export payload (batched queries); calls `ensureSchema()` then transactional replace on import with strict Zod validation, referential integrity, duplicate-ID checks, and cross-account ID collision removal |
 | `services/mail.ts` | Nodemailer SMTP transport; resolves config from per-user DB settings then env vars as fallback; used by send-to-company and SMTP test |
 | `services/invoiceEmailHtml.ts` | HTML + plain-text email templates for invoice summaries |
 | `middleware/auth.ts` | JWT verification |

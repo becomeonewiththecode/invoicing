@@ -350,6 +350,13 @@ export function InvoiceDetailPage() {
             <p className="text-gray-600">{invoice.notes}</p>
           </div>
         )}
+
+        {companySettings?.payableText?.trim() && (
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Pay to</h3>
+            <p className="text-gray-700 whitespace-pre-line">{companySettings.payableText.trim()}</p>
+          </div>
+        )}
       </div>
 
       <InvoicePreviewModal

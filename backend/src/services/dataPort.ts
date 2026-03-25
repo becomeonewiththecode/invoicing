@@ -24,6 +24,8 @@ export type ExportedProfile = {
   business_website: string | null;
   business_fax: string | null;
   logo_url: string | null;
+  /** Present in exports v1; older backups may omit */
+  payable_text?: string | null;
   client_counter: number;
 };
 
@@ -46,7 +48,7 @@ export async function exportUserData(userId: string): Promise<DataExportV1> {
   try {
     const u = await client.query(
       `SELECT business_name, business_address, business_phone, business_email, tax_id,
-              default_hourly_rate, default_tax_rate, business_website, business_fax, logo_url, client_counter
+              default_hourly_rate, default_tax_rate, business_website, business_fax, logo_url, payable_text, client_counter
        FROM users WHERE id = $1`,
       [userId]
     );
@@ -63,6 +65,7 @@ export async function exportUserData(userId: string): Promise<DataExportV1> {
       business_website: row.business_website,
       business_fax: row.business_fax,
       logo_url: row.logo_url,
+      payable_text: row.payable_text != null ? String(row.payable_text) : null,
       client_counter: Number(row.client_counter) || 0,
     };
 
@@ -146,9 +149,24 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
   try {
     await c.query('BEGIN');
 
+    // Delete current user's data
     await c.query('DELETE FROM invoices WHERE user_id = $1', [userId]);
     await c.query('DELETE FROM clients WHERE user_id = $1', [userId]);
     await c.query('DELETE FROM discount_codes WHERE user_id = $1', [userId]);
+
+    // Also remove any rows whose IDs collide with the backup (e.g. backup from another account)
+    const backupClientIds = data.clients.map((r) => r.id);
+    const backupDiscountIds = data.discount_codes.map((r) => r.id);
+    const backupInvoiceIds = data.invoices.map((r) => r.id);
+    if (backupInvoiceIds.length > 0) {
+      await c.query('DELETE FROM invoices WHERE id = ANY($1)', [backupInvoiceIds]);
+    }
+    if (backupClientIds.length > 0) {
+      await c.query('DELETE FROM clients WHERE id = ANY($1)', [backupClientIds]);
+    }
+    if (backupDiscountIds.length > 0) {
+      await c.query('DELETE FROM discount_codes WHERE id = ANY($1)', [backupDiscountIds]);
+    }
 
     const p = data.profile;
     await c.query(
@@ -163,9 +181,10 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
         business_website = $8,
         business_fax = $9,
         logo_url = $10,
-        client_counter = $11,
+        payable_text = $11,
+        client_counter = $12,
         updated_at = NOW()
-      WHERE id = $12`,
+      WHERE id = $13`,
       [
         p.business_name,
         p.business_address,
@@ -177,6 +196,7 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
         p.business_website,
         p.business_fax,
         p.logo_url,
+        p.payable_text ?? null,
         p.client_counter,
         userId,
       ]

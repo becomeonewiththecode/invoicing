@@ -358,7 +358,7 @@ Returns a suggested random discount code string for the authenticated user.
 
 ### GET /settings
 
-Returns company profile and defaults: `businessName`, `defaultTaxRate`, `businessPhone`, `businessWebsite`, `businessAddress`, `taxId`, `defaultHourlyRate`, `businessFax`, `businessEmail`, `logoUrl`.
+Returns company profile and defaults: `businessName`, `defaultTaxRate`, `businessPhone`, `businessWebsite`, `businessAddress`, `taxId`, `defaultHourlyRate`, `businessFax`, `businessEmail`, `logoUrl`, `payableText`.
 
 ### PUT /settings
 
@@ -450,6 +450,7 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 **Notes:**
 
 - Before the import transaction, the server runs **`ensureSchema()`** (same as on API startup) so missing `invoices` columns such as `sent_at` and `share_token` are added when possible. See [database schema — Runtime schema upgrades](../database/schema.md#runtime-schema-upgrades).
+- The import handles **cross-account ID collisions**: if the backup's UUIDs already exist in the database (e.g. restoring a backup exported from a different account), those rows are deleted by ID before inserting the backup data.
 - Import does not upload logo files; only `logo_url` (or equivalent profile field) is restored if present. Revenue cache in Redis is invalidated after a successful import.
 
 ---

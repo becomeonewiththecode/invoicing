@@ -6,7 +6,6 @@ const config: Config = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
-  transformIgnorePatterns: ['node_modules/(?!uuid/)'],
   transform: {
     '^.+\\.ts$': 'ts-jest',
     '^.+\\.js$': ['ts-jest', { useESM: false }],

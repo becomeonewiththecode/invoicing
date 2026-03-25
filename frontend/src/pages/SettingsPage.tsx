@@ -21,6 +21,7 @@ interface SettingsForm {
   businessFax: string;
   businessEmail: string;
   logoUrl: string;
+  payableText: string;
 }
 
 type SettingsTab = 'general' | 'discounts' | 'email' | 'backup';
@@ -60,6 +61,7 @@ export function SettingsPage() {
       businessFax: '',
       businessEmail: '',
       logoUrl: '',
+      payableText: '',
     },
   });
 
@@ -77,6 +79,7 @@ export function SettingsPage() {
       businessFax: settings.businessFax ?? '',
       businessEmail: settings.businessEmail ?? '',
       logoUrl: settings.logoUrl ?? '',
+      payableText: settings.payableText ?? '',
     });
   }, [settings, reset]);
 
@@ -201,6 +204,7 @@ export function SettingsPage() {
       businessFax: data.businessFax.trim() || undefined,
       businessEmail: data.businessEmail.trim() || undefined,
       logoUrl: data.logoUrl.trim() || undefined,
+      payableText: data.payableText.trim() || undefined,
     });
   };
 
@@ -235,7 +239,8 @@ export function SettingsPage() {
         <>
           <p className="text-gray-600 text-sm mb-6">
             Company name, tax rate, phone, and website are required and appear on invoices. Tax rate is the default
-            percentage applied to new invoices (before discounts).
+            percentage applied to new invoices (before discounts). Use <strong>Pay to</strong> below for payment
+            instructions shown at the bottom of every invoice (PDF, shared link, and email).
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-sm p-8 space-y-6">
@@ -300,6 +305,22 @@ export function SettingsPage() {
             <div>
               <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Optional</h2>
               <div className="space-y-4">
+                <div>
+                  <label htmlFor="settings-pay-to" className="block text-sm font-medium text-gray-700 mb-1">
+                    Pay to
+                  </label>
+                  <textarea
+                    id="settings-pay-to"
+                    {...register('payableText')}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Who and how to pay (e.g. legal payee name, bank account, e-transfer) …"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Appears at the bottom of every invoice: PDF download, public share link, and &quot;email to
+                    company&quot;.
+                  </p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Default hourly rate</label>
                   <input
@@ -570,6 +591,7 @@ export function SettingsPage() {
                     businessFax: vals.businessFax.trim() || undefined,
                     businessEmail: vals.businessEmail.trim() || undefined,
                     logoUrl: vals.logoUrl.trim() || undefined,
+                    payableText: vals.payableText.trim() || undefined,
                   });
                 }}
                 disabled={mutation.isPending}

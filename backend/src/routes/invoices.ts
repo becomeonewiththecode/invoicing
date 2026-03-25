@@ -274,8 +274,11 @@ router.post('/:id/send-to-company', rateLimit({ windowMs: 60_000, max: 5 }), asy
     const [invoiceResult, itemsResult] = await Promise.all([
       pool.query(
         `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
-                c.customer_number as client_customer_number
-         FROM invoices i JOIN clients c ON i.client_id = c.id
+                c.customer_number as client_customer_number,
+                u.payable_text
+         FROM invoices i
+         JOIN clients c ON i.client_id = c.id
+         JOIN users u ON i.user_id = u.id
          WHERE i.id = $1 AND i.user_id = $2`,
         [req.params.id, req.userId]
       ),
