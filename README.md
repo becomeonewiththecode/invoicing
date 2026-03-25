@@ -47,16 +47,15 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | [docs/api/review.md](docs/api/review.md) | API design (auth, routing, conventions) |
 | [docs/api/reference.md](docs/api/reference.md) | Endpoint reference |
 | [docs/frontend/routes.md](docs/frontend/routes.md) | App routes, client profile, deep links |
-| [docs/backend/overview.md](docs/backend/overview.md) | Backend architecture and diagram |
-| [docs/frontend/overview.md](docs/frontend/overview.md) | Frontend architecture and diagram |
+| [docs/architecture.md](docs/architecture.md) | System architecture: Docker stack, startup, request flow |
+| [docs/backend/overview.md](docs/backend/overview.md) | Backend architecture and diagrams |
+| [docs/frontend/overview.md](docs/frontend/overview.md) | Frontend architecture and diagrams |
 
 ### [`deployment/`](deployment/README.md)
 
 | Document | Description |
 |----------|----------------|
-| [deployment/README.md](deployment/README.md) | Deployment documentation index |
 | [deployment/guide.md](deployment/guide.md) | Docker Compose, environment variables, nginx, manual builds |
-| [deployment/diagram.md](deployment/diagram.md) | Deployment topology (Mermaid) |
 
 ---
 

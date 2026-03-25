@@ -10,7 +10,7 @@ Production and container deployment for the invoicing app.
 |------|-------------|
 | [docker-compose.yml](docker-compose.yml) | Docker Compose service definitions (Postgres, Redis, backend, frontend) |
 | [guide.md](guide.md) | Docker Compose, environment variables, manual builds, nginx, port notes |
-| [diagram.md](diagram.md) | Mermaid diagram of services and traffic |
+| [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow) |
 
 ---
 

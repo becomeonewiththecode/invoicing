@@ -19,39 +19,177 @@ Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested 
 
 See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`), and deep links.
 
-## Frontend diagram
+## Frontend diagrams
+
+### Component architecture
 
 ```mermaid
 flowchart TB
-  subgraph Browser
+  subgraph Browser["Browser"]
     subgraph Router["React Router"]
-      PUB["/login · /register"]
-      SHARE["/share/:token\n(view + mark paid)"]
-      PROT["Protected: / invoices clients …\n/settings (incl. Backup)"]
+      direction TB
+      subgraph Public["Public routes"]
+        LOGIN["/login\nLoginPage"]
+        REG["/register\nRegisterPage"]
+        SHARE["/share/:token\nSharedInvoicePage"]
+      end
+      subgraph Protected["Protected routes (AppLayout)"]
+        DASH["/ DashboardPage\nrevenue stats · chart · recent invoices"]
+        INV_LIST["/invoices\nInvoicesPage\npaginated · filter by client · CSV export"]
+        INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview"]
+        INV_EDIT["/invoices/:id/edit\nNewInvoicePage (edit mode)"]
+        INV_DET["/invoices/:id\nInvoiceDetailPage\nPDF · share · email · status"]
+        CL_LIST["/clients\nClientsPage\npaginated · quick edit"]
+        CL_PROF["/clients/:clientId\nClientProfilePage\n#details · #invoice-status · #invoices"]
+        DISC["/discounts\nDiscountsPage"]
+        SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup"]
+      end
     end
 
-    subgraph State["State"]
-      RQ["TanStack Query\nAPI cache"]
-      ZS["Zustand\nauth + storage"]
+    subgraph Layout["Layout components"]
+      APPL["AppLayout\nsidebar + header + auth guard"]
+      SIDE["Sidebar\nnav links · user info"]
     end
 
-    subgraph IO["I/O"]
-      AX["Axios (authenticated)\nJWT header"]
-      AXPUB["Axios (public)\nno auth"]
-      PDF["jsPDF\ninvoice PDF"]
+    subgraph UI["UI components"]
+      BADGE["StatusBadge\ncolor-coded invoice status"]
+      PREVIEW["InvoicePreviewModal\nPDF iframe + download"]
     end
 
-    PROT --> RQ
-    PROT --> ZS
-    SHARE --> RQ
-    RQ --> AX
-    RQ --> AXPUB
-    PROT --> PDF
+    subgraph State["State management"]
+      RQ["TanStack React Query\nserver state · 30s stale time\nauto cache invalidation"]
+      ZS["Zustand AuthStore\nuser · token · localStorage"]
+    end
+
+    subgraph API["API modules (Axios)"]
+      direction LR
+      AUTH_API["auth.ts\nlogin · register"]
+      INV_API["invoices.ts\nCRUD · stats · CSV\nshare · email"]
+      CL_API["clients.ts\nCRUD · pagination"]
+      DISC_API["discounts.ts\nCRUD · generate"]
+      SET_API["settings.ts\nprofile · logo · SMTP"]
+      DATA_API["data.ts\nexport · import"]
+    end
+
+    subgraph Utils["Utilities"]
+      PDF["pdf.ts\njsPDF invoice generation\nlogo · multi-page · CAD"]
+      PREV_U["invoicePreview.ts\nbuild preview from form\ntax · discount calc"]
+      CLDISP["clientDisplay.ts\nlabel formatting"]
+      RESOLVE["resolveApiUrl.ts\nasset URL resolution"]
+    end
   end
 
-  API["Backend /api"]
-  AX -->|authenticated routes| API
-  AXPUB -->|share + mark paid| API
+  BACKEND["Backend /api\nnginx proxy or direct"]
+
+  %% Layout
+  Protected --> APPL
+  APPL --> SIDE
+
+  %% State flow
+  Protected --> RQ
+  Protected --> ZS
+  SHARE --> RQ
+  LOGIN --> ZS
+  REG --> ZS
+  RQ --> API
+
+  %% API → Backend
+  API --> BACKEND
+
+  %% Page → Component usage
+  INV_DET --> BADGE
+  INV_LIST --> BADGE
+  INV_NEW --> PREVIEW
+  INV_DET --> PDF
+  CL_PROF --> BADGE
+```
+
+### Page → API module mapping
+
+```mermaid
+flowchart LR
+  subgraph Pages
+    DASH["DashboardPage"]
+    INV["InvoicesPage"]
+    INVD["InvoiceDetailPage"]
+    INVN["NewInvoicePage"]
+    CL["ClientsPage"]
+    CLP["ClientProfilePage"]
+    DISC["DiscountsPage"]
+    SETT["SettingsPage"]
+    SHARE["SharedInvoicePage"]
+    LOGIN["LoginPage"]
+  end
+
+  subgraph APIs["API modules"]
+    A_AUTH["auth.ts"]
+    A_INV["invoices.ts"]
+    A_CL["clients.ts"]
+    A_DISC["discounts.ts"]
+    A_SET["settings.ts"]
+    A_DATA["data.ts"]
+  end
+
+  LOGIN --> A_AUTH
+  DASH --> A_INV
+  INV --> A_INV
+  INV --> A_CL
+  INVD --> A_INV
+  INVD --> A_SET
+  INVN --> A_INV
+  INVN --> A_CL
+  INVN --> A_DISC
+  INVN --> A_SET
+  CL --> A_CL
+  CLP --> A_CL
+  CLP --> A_INV
+  DISC --> A_DISC
+  SETT --> A_SET
+  SETT --> A_DISC
+  SETT --> A_DATA
+  SHARE --> A_INV
+```
+
+### Data flow
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant P as Page component
+  participant RQ as React Query
+  participant AX as Axios client
+  participant LS as localStorage
+  participant API as Backend /api
+
+  Note over U,API: Authentication flow
+  U->>P: Submit login form
+  P->>AX: POST /auth/login
+  AX->>API: { email, password }
+  API-->>AX: { user, token }
+  AX-->>P: Response
+  P->>LS: Store token + user (Zustand persist)
+
+  Note over U,API: Authenticated data flow
+  U->>P: Navigate to /invoices
+  P->>RQ: useQuery(['invoices', page])
+  RQ->>AX: GET /invoices?page=1
+  AX->>AX: Inject Bearer token from localStorage
+  AX->>API: Authenticated request
+  API-->>AX: { data, pagination }
+  AX-->>RQ: Cache response (30s stale)
+  RQ-->>P: Render data
+
+  Note over U,API: Mutation with cache invalidation
+  U->>P: Delete invoice
+  P->>RQ: useMutation(deleteInvoice)
+  RQ->>AX: DELETE /invoices/:id
+  AX->>API: Authenticated request
+  API-->>AX: 204
+  RQ->>RQ: Invalidate ['invoices'] + ['revenue-stats']
+  RQ->>AX: Re-fetch stale queries
+  AX->>API: GET /invoices + GET /stats/revenue
+  API-->>RQ: Fresh data
+  RQ-->>P: Re-render
 ```
 
 **Dev server:** Vite serves on port **5173** and can proxy `/api` to the backend (see `vite.config.ts`).

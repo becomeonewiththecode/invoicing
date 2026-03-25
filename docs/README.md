@@ -11,6 +11,7 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 | **Tech stack** | [tech-stack.md](tech-stack.md) |
 | **Database** | [database/schema.md](database/schema.md) · [database/diagram.md](database/diagram.md) |
 | **API** | [api/review.md](api/review.md) · [api/reference.md](api/reference.md) |
+| **Architecture** | [architecture.md](architecture.md) — Docker Compose stack, startup sequence, request flow, backup import |
 | **Backend** | [backend/overview.md](backend/overview.md) |
 | **Frontend** | [frontend/overview.md](frontend/overview.md) · [frontend/routes.md](frontend/routes.md) (routes, client profile) |
 
@@ -18,9 +19,7 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 
 | Document | Description |
 |----------|-------------|
-| [deployment/README.md](../deployment/README.md) | Deployment index |
 | [deployment/guide.md](../deployment/guide.md) | Docker Compose, env vars, nginx, manual deploy |
-| [deployment/diagram.md](../deployment/diagram.md) | Service topology diagram |
 
 ## Root README
 
