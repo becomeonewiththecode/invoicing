@@ -6,7 +6,7 @@ PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sq
 
 `backend/src/config/database.ts` exports **`ensureSchema()`**, which applies idempotent `ALTER`s so older databases gain columns and enum values that the app expects:
 
-- `clients.discount_code`, `invoices.sent_at`, `invoices.share_token`, `users.business_email`, and enum value `invoice_status.cancelled` (see source for the exact statements).
+- `clients.discount_code`, `invoices.sent_at`, `invoices.share_token`, `users.business_email`, `users.payable_text`, and enum value `invoice_status.cancelled` (see source for the exact statements).
 
 It runs in two places:
 
@@ -55,6 +55,7 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 | business_website | VARCHAR(500) | |
 | business_fax | VARCHAR(50) | |
 | logo_url | TEXT | Public URL path under `/api/uploads/logos/…` when uploaded |
+| payable_text | TEXT | Footer text shown on invoices (PDF, shared view, email) |
 | client_counter | INTEGER | NOT NULL, default 0 — used for `customer_number` sequencing |
 | smtp_host | VARCHAR(255) | SMTP server hostname (per-user, optional) |
 | smtp_port | INTEGER | Default 587 |

@@ -24,6 +24,8 @@ export type InvoiceEmailRow = {
   notes?: string | null;
   client_name?: string;
   client_email?: string;
+  /** From users.payable_text — invoice footer */
+  payable_text?: string | null;
 };
 
 export type InvoiceItemEmailRow = {
@@ -57,6 +59,9 @@ export function buildInvoiceEmailText(inv: InvoiceEmailRow, items: InvoiceItemEm
   lines.push(`Total: $${n(inv.total).toFixed(2)}`);
   if (inv.notes?.trim()) {
     lines.push('', `Notes: ${inv.notes.trim()}`);
+  }
+  if (inv.payable_text?.trim()) {
+    lines.push('', `Pay to: ${inv.payable_text.trim()}`);
   }
   return lines.join('\n');
 }
@@ -108,5 +113,10 @@ export function buildInvoiceEmailHtml(inv: InvoiceEmailRow, items: InvoiceItemEm
     <tr><td style="padding:8px 8px 4px 0;font-weight:bold;">Total</td><td style="padding:8px 0;text-align:right;font-weight:bold;">$${n(inv.total).toFixed(2)}</td></tr>
   </table>
   ${inv.notes?.trim() ? `<p style="margin-top:16px;"><strong>Notes</strong><br>${escapeHtml(inv.notes.trim()).replace(/\n/g, '<br>')}</p>` : ''}
+  ${
+    inv.payable_text?.trim()
+      ? `<p style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e5e5;color:#333;"><strong>Pay to</strong><br>${escapeHtml(inv.payable_text.trim()).replace(/\n/g, '<br>')}</p>`
+      : ''
+  }
 </body></html>`;
 }

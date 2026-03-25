@@ -80,4 +80,6 @@ export const settingsSchema = z.object({
   logoUrl: z.string().max(2000).optional(),
   /** Company inbox for invoice copy emails; empty string clears */
   businessEmail: z.union([z.string().email(), z.literal('')]).optional(),
+  /** Shown at bottom of invoices/PDFs/shared view; empty clears */
+  payableText: z.string().max(5000).optional(),
 });

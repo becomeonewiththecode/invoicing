@@ -17,6 +17,7 @@ export type SettingsUpdatePayload = {
   businessFax?: string;
   businessEmail?: string;
   logoUrl?: string;
+  payableText?: string;
 };
 
 export async function updateSettings(body: SettingsUpdatePayload): Promise<UserSettings> {

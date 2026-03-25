@@ -196,6 +196,13 @@ export function SharedInvoicePage() {
             <p className="text-gray-600 whitespace-pre-line">{invoice.notes}</p>
           </div>
         )}
+
+        {invoice.payable_text?.trim() && (
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Pay to</h3>
+            <p className="text-gray-700 whitespace-pre-line">{invoice.payable_text.trim()}</p>
+          </div>
+        )}
       </div>
     </div>
   );

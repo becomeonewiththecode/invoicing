@@ -17,6 +17,8 @@ export interface UserSettings {
   /** Optional; invoice copies use this, otherwise the account login email */
   businessEmail: string | null;
   logoUrl: string | null;
+  /** Footer text on invoices (PDF, shared link, email) */
+  payableText: string | null;
 }
 
 export interface Client {
@@ -77,6 +79,8 @@ export interface Invoice {
   sent_at?: string | null;
   /** Non-null when a shareable public link has been generated */
   share_token?: string | null;
+  /** From company settings; included on shared invoice view */
+  payable_text?: string | null;
 }
 
 export interface RevenueStats {

@@ -17,7 +17,7 @@ router.get('/:token', async (req: Request, res: Response) => {
               c.name AS client_name, c.email AS client_email, c.company AS client_company,
               c.address AS client_address, c.customer_number AS client_customer_number,
               u.business_name, u.business_phone, u.business_website, u.business_address,
-              u.business_fax, u.business_email AS company_email, u.logo_url
+              u.business_fax, u.business_email AS company_email, u.logo_url, u.payable_text
        FROM invoices i
        JOIN clients c ON i.client_id = c.id
        JOIN users u ON i.user_id = u.id

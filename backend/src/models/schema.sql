@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   smtp_pass VARCHAR(255),
   smtp_from VARCHAR(255),
   client_counter INTEGER NOT NULL DEFAULT 0,
+  payable_text TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

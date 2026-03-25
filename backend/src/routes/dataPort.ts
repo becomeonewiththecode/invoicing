@@ -86,6 +86,7 @@ const exportV1Schema: z.ZodType<DataExportV1> = z.object({
     business_website: z.string().nullable(),
     business_fax: z.string().nullable(),
     logo_url: z.string().nullable(),
+    payable_text: z.string().nullable().optional(),
     client_counter: z.coerce.number().int().nonnegative(),
   }),
   clients: z.array(clientSchema),

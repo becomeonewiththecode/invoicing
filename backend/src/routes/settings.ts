@@ -1,8 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { Router, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
@@ -61,7 +61,7 @@ const storage = multer.diskStorage({
       file.mimetype === 'application/octet-stream' || !file.mimetype?.trim()
         ? fromName ?? fromMime
         : fromMime;
-    cb(null, `${uuidv4()}${ext}`);
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
 
@@ -97,6 +97,7 @@ function rowToJson(row: Record<string, unknown>) {
     businessFax: row.business_fax as string | null,
     businessEmail: (row.business_email as string | null) ?? null,
     logoUrl: row.logo_url as string | null,
+    payableText: (row.payable_text as string | null) ?? null,
   };
 }
 
@@ -104,7 +105,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT business_name, default_tax_rate, business_phone, business_website, business_address,
-              tax_id, default_hourly_rate, business_fax, logo_url
+              tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text
        FROM users WHERE id = $1`,
       [req.userId]
     );
@@ -143,7 +144,7 @@ router.post(
       const result = await pool.query(
         `UPDATE users SET logo_url = $1, updated_at = NOW() WHERE id = $2
          RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
-                   tax_id, default_hourly_rate, business_fax, business_email, logo_url`,
+                   tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text`,
         [publicPath, req.userId]
       );
 
@@ -168,7 +169,7 @@ router.delete('/logo', async (req: AuthRequest, res: Response) => {
     const result = await pool.query(
       `UPDATE users SET logo_url = NULL, updated_at = NOW() WHERE id = $1
        RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
-                 tax_id, default_hourly_rate, business_fax, business_email, logo_url`,
+                 tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text`,
       [req.userId]
     );
     if (result.rows.length === 0) {
@@ -194,6 +195,7 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
       businessFax,
       businessEmail,
       logoUrl,
+      payableText,
     } = req.body;
 
     const emptyToNull = (s: string | undefined) => (s === '' || s === undefined ? null : s);
@@ -217,10 +219,11 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
         business_fax = $8,
         business_email = $9,
         logo_url = $10,
+        payable_text = $11,
         updated_at = NOW()
-      WHERE id = $11
+      WHERE id = $12
       RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
-                tax_id, default_hourly_rate, business_fax, business_email, logo_url`,
+                tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text`,
       [
         businessName,
         defaultTaxRate,
@@ -232,6 +235,7 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
         emptyToNull(businessFax),
         emptyToNull(businessEmail),
         newUrl,
+        emptyToNull(payableText as string | undefined),
         req.userId,
       ]
     );
