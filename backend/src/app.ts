@@ -12,6 +12,9 @@ import shareRoutes from './routes/share';
 import discountRoutes from './routes/discounts';
 import settingsRoutes from './routes/settings';
 import dataPortRoutes from './routes/dataPort';
+import adminRoutes from './routes/admin/index';
+import ticketRoutes from './routes/tickets';
+import { requestLogger } from './middleware/requestLogger';
 
 dotenv.config();
 
@@ -24,6 +27,8 @@ app.use('/api/data', express.json({ limit: '15mb' }), dataPortRoutes);
 app.use(express.json());
 app.use('/api/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+app.use(requestLogger);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
@@ -31,6 +36,8 @@ app.use('/api/invoices/share', shareRoutes); // public — must be before authen
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/tickets', ticketRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

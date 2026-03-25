@@ -2,6 +2,7 @@ export interface User {
   id: string;
   email: string;
   businessName?: string;
+  role?: string;
 }
 
 /** Company profile & defaults from GET/PUT /api/settings */

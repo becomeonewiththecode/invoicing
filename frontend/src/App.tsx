@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout/AppLayout';
+import { AdminLayout } from './components/layout/AdminLayout';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -12,6 +13,16 @@ import { ClientProfilePage } from './pages/ClientProfilePage';
 import { DiscountsPage } from './pages/DiscountsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SharedInvoicePage } from './pages/SharedInvoicePage';
+import { SupportPage } from './pages/SupportPage';
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { AdminUsersPage } from './pages/admin/AdminUsersPage';
+import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage';
+import { AdminModerationPage } from './pages/admin/AdminModerationPage';
+import { AdminTicketsPage } from './pages/admin/AdminTicketsPage';
+import { AdminTicketDetailPage } from './pages/admin/AdminTicketDetailPage';
+import { AdminHealthPage } from './pages/admin/AdminHealthPage';
+import { AdminBackupsPage } from './pages/admin/AdminBackupsPage';
+import { AdminRateLimitsPage } from './pages/admin/AdminRateLimitsPage';
 
 function RedirectClientStatsToProfile() {
   const { clientId } = useParams();
@@ -46,6 +57,18 @@ export default function App() {
             <Route path="clients" element={<ClientsPage />} />
             <Route path="discounts" element={<DiscountsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="support" element={<SupportPage />} />
+          </Route>
+          <Route element={<AdminLayout />}>
+            <Route path="admin" element={<AdminDashboardPage />} />
+            <Route path="admin/users" element={<AdminUsersPage />} />
+            <Route path="admin/users/:id" element={<AdminUserDetailPage />} />
+            <Route path="admin/moderation" element={<AdminModerationPage />} />
+            <Route path="admin/tickets" element={<AdminTicketsPage />} />
+            <Route path="admin/tickets/:id" element={<AdminTicketDetailPage />} />
+            <Route path="admin/health" element={<AdminHealthPage />} />
+            <Route path="admin/backups" element={<AdminBackupsPage />} />
+            <Route path="admin/rate-limits" element={<AdminRateLimitsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

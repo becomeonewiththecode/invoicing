@@ -4,13 +4,15 @@ import type { User } from '../types';
 interface AuthState {
   user: User | null;
   token: string | null;
+  isAdmin: () => boolean;
   setAuth: (user: User, token: string) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: JSON.parse(localStorage.getItem('user') || 'null'),
   token: localStorage.getItem('token'),
+  isAdmin: () => get().user?.role === 'admin',
   setAuth: (user, token) => {
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('token', token);

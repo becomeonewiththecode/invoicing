@@ -20,6 +20,7 @@ export async function ensureSchema(): Promise<void> {
   await pool.query('ALTER TABLE invoices ADD COLUMN IF NOT EXISTS share_token VARCHAR(64) UNIQUE');
   await pool.query("ALTER TYPE invoice_status ADD VALUE IF NOT EXISTS 'cancelled'");
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS payable_text TEXT');
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user'");
 }
 
 export default pool;
