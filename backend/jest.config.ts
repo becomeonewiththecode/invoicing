@@ -6,6 +6,10 @@ const config: Config = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
+  transform: {
+    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.js$': ['ts-jest', { useESM: false }],
+  },
 };
 
 export default config;

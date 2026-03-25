@@ -1,8 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { Router, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
@@ -61,7 +61,7 @@ const storage = multer.diskStorage({
       file.mimetype === 'application/octet-stream' || !file.mimetype?.trim()
         ? fromName ?? fromMime
         : fromMime;
-    cb(null, `${uuidv4()}${ext}`);
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
 
@@ -95,7 +95,9 @@ function rowToJson(row: Record<string, unknown>) {
     defaultHourlyRate:
       row.default_hourly_rate != null ? Number(row.default_hourly_rate) : null,
     businessFax: row.business_fax as string | null,
+    businessEmail: (row.business_email as string | null) ?? null,
     logoUrl: row.logo_url as string | null,
+    payableText: (row.payable_text as string | null) ?? null,
   };
 }
 
@@ -103,7 +105,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT business_name, default_tax_rate, business_phone, business_website, business_address,
-              tax_id, default_hourly_rate, business_fax, logo_url
+              tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text
        FROM users WHERE id = $1`,
       [req.userId]
     );
@@ -142,7 +144,7 @@ router.post(
       const result = await pool.query(
         `UPDATE users SET logo_url = $1, updated_at = NOW() WHERE id = $2
          RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
-                   tax_id, default_hourly_rate, business_fax, logo_url`,
+                   tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text`,
         [publicPath, req.userId]
       );
 
@@ -167,7 +169,7 @@ router.delete('/logo', async (req: AuthRequest, res: Response) => {
     const result = await pool.query(
       `UPDATE users SET logo_url = NULL, updated_at = NOW() WHERE id = $1
        RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
-                 tax_id, default_hourly_rate, business_fax, logo_url`,
+                 tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text`,
       [req.userId]
     );
     if (result.rows.length === 0) {
@@ -191,7 +193,9 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
       taxId,
       defaultHourlyRate,
       businessFax,
+      businessEmail,
       logoUrl,
+      payableText,
     } = req.body;
 
     const emptyToNull = (s: string | undefined) => (s === '' || s === undefined ? null : s);
@@ -213,11 +217,13 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
         tax_id = $6,
         default_hourly_rate = $7,
         business_fax = $8,
-        logo_url = $9,
+        business_email = $9,
+        logo_url = $10,
+        payable_text = $11,
         updated_at = NOW()
-      WHERE id = $10
+      WHERE id = $12
       RETURNING business_name, default_tax_rate, business_phone, business_website, business_address,
-                tax_id, default_hourly_rate, business_fax, logo_url`,
+                tax_id, default_hourly_rate, business_fax, business_email, logo_url, payable_text`,
       [
         businessName,
         defaultTaxRate,
@@ -227,7 +233,9 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
         emptyToNull(taxId),
         defaultHourlyRate === null || defaultHourlyRate === undefined ? null : defaultHourlyRate,
         emptyToNull(businessFax),
+        emptyToNull(businessEmail),
         newUrl,
+        emptyToNull(payableText as string | undefined),
         req.userId,
       ]
     );
@@ -239,6 +247,94 @@ router.put('/', validate(settingsSchema), async (req: AuthRequest, res: Response
   } catch (err) {
     console.error('Update settings error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- SMTP settings (separate from main settings to avoid exposing credentials) ---
+
+router.get('/smtp', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await pool.query(
+      'SELECT smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from FROM users WHERE id = $1',
+      [req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const r = result.rows[0];
+    res.json({
+      smtpHost: (r.smtp_host as string | null) ?? '',
+      smtpPort: r.smtp_port != null ? Number(r.smtp_port) : 587,
+      smtpUser: (r.smtp_user as string | null) ?? '',
+      smtpPass: (r.smtp_pass as string | null) ?? '',
+      smtpFrom: (r.smtp_from as string | null) ?? '',
+    });
+  } catch (err) {
+    console.error('Get SMTP settings error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/smtp', async (req: AuthRequest, res: Response) => {
+  try {
+    const { smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom } = req.body;
+    const host = typeof smtpHost === 'string' ? smtpHost.trim() || null : null;
+    const port = Number(smtpPort) || 587;
+    const user = typeof smtpUser === 'string' ? smtpUser.trim() || null : null;
+    const pass = typeof smtpPass === 'string' ? smtpPass || null : null;
+    const from = typeof smtpFrom === 'string' ? smtpFrom.trim() || null : null;
+
+    const result = await pool.query(
+      `UPDATE users SET smtp_host = $1, smtp_port = $2, smtp_user = $3, smtp_pass = $4, smtp_from = $5, updated_at = NOW()
+       WHERE id = $6
+       RETURNING smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from`,
+      [host, port, user, pass, from, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const r = result.rows[0];
+    res.json({
+      smtpHost: (r.smtp_host as string | null) ?? '',
+      smtpPort: r.smtp_port != null ? Number(r.smtp_port) : 587,
+      smtpUser: (r.smtp_user as string | null) ?? '',
+      smtpPass: (r.smtp_pass as string | null) ?? '',
+      smtpFrom: (r.smtp_from as string | null) ?? '',
+    });
+  } catch (err) {
+    console.error('Update SMTP settings error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- SMTP test email ---
+
+router.post('/smtp/test', async (req: AuthRequest, res: Response) => {
+  try {
+    const { sendMail } = await import('../services/mail');
+    const result = await pool.query(
+      'SELECT email, smtp_host FROM users WHERE id = $1',
+      [req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const { email, smtp_host } = result.rows[0];
+    if (!smtp_host?.trim()) {
+      return res.status(400).json({ error: 'SMTP is not configured. Save your SMTP settings first.' });
+    }
+    await sendMail({
+      to: email,
+      subject: 'SMTP Test — Invoicing App',
+      html: '<p>Your SMTP configuration is working correctly.</p>',
+      text: 'Your SMTP configuration is working correctly.',
+      userId: req.userId,
+    });
+    res.json({ message: `Test email sent to ${email}` });
+  } catch (err: unknown) {
+    console.error('SMTP test error:', err);
+    const msg = err instanceof Error ? err.message : 'Failed to send test email';
+    res.status(400).json({ error: msg });
   }
 });
 

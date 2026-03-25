@@ -14,7 +14,11 @@ export interface UserSettings {
   taxId: string | null;
   defaultHourlyRate: number | null;
   businessFax: string | null;
+  /** Optional; invoice copies use this, otherwise the account login email */
+  businessEmail: string | null;
   logoUrl: string | null;
+  /** Footer text on invoices (PDF, shared link, email) */
+  payableText: string | null;
 }
 
 export interface Client {
@@ -34,7 +38,7 @@ export interface Client {
   updated_at: string;
 }
 
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'late';
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'late' | 'cancelled';
 
 export interface InvoiceItem {
   id?: string;
@@ -73,6 +77,10 @@ export interface Invoice {
   updated_at: string;
   /** Set when invoice is marked sent; late status after 30 days from this time */
   sent_at?: string | null;
+  /** Non-null when a shareable public link has been generated */
+  share_token?: string | null;
+  /** From company settings; included on shared invoice view */
+  payable_text?: string | null;
 }
 
 export interface RevenueStats {
@@ -82,6 +90,20 @@ export interface RevenueStats {
   late_amount: string;
   pending_count: string;
   pending_amount: string;
+}
+
+/** GET /invoices/stats/by-client/:clientId — per-client counts and totals by status */
+export interface ClientInvoiceStats {
+  draft_count: string;
+  sent_count: string;
+  paid_count: string;
+  late_count: string;
+  draft_total: string;
+  sent_total: string;
+  paid_total: string;
+  late_total: string;
+  total_revenue: string;
+  total_tax: string;
 }
 
 export interface DiscountCode {

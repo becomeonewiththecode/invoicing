@@ -89,9 +89,9 @@ export function InvoicesPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold">Invoices</h1>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button onClick={handleExport} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             Export CSV
           </button>
@@ -116,13 +116,21 @@ export function InvoicesPage() {
             Showing invoices for{' '}
             <span className="font-semibold">{formatClientLabel(filterClient)}</span>
           </p>
-          <button
-            type="button"
-            onClick={clearClientFilter}
-            className="text-blue-700 font-medium hover:underline"
-          >
-            Show all invoices
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to={`/clients/${encodeURIComponent(clientIdFilter)}#invoice-status`}
+              className="text-blue-700 font-medium hover:underline"
+            >
+              Client profile
+            </Link>
+            <button
+              type="button"
+              onClick={clearClientFilter}
+              className="text-blue-700 font-medium hover:underline"
+            >
+              Show all invoices
+            </button>
+          </div>
         </div>
       )}
 

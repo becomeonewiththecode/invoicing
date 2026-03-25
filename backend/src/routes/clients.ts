@@ -186,15 +186,64 @@ router.put('/:id', validate(updateClientSchema), async (req: AuthRequest, res: R
 });
 
 // Delete client
+// ?force=true — cancels non-draft invoices and deletes drafts before removing the client
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const result = await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2 RETURNING id', [
-      req.params.id,
+    const clientId = req.params.id;
+    const force = req.query.force === 'true';
+
+    // Verify client exists
+    const clientCheck = await pool.query('SELECT id FROM clients WHERE id = $1 AND user_id = $2', [
+      clientId,
       req.userId,
     ]);
-    if (result.rows.length === 0) {
+    if (clientCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Client not found' });
     }
+
+    // Check for existing invoices
+    const invoiceCount = await pool.query(
+      'SELECT COUNT(*)::int AS total FROM invoices WHERE client_id = $1 AND user_id = $2',
+      [clientId, req.userId]
+    );
+    const total = invoiceCount.rows[0].total;
+
+    if (total > 0 && !force) {
+      return res.status(409).json({
+        error: `Client has ${total} invoice(s). Use force delete to remove them.`,
+        invoiceCount: total,
+      });
+    }
+
+    if (total > 0 && force) {
+      // Hard-delete drafts, cancel sent/late, then delete cancelled — leaves paid invoices
+      await pool.query(
+        "DELETE FROM invoices WHERE client_id = $1 AND user_id = $2 AND status = 'draft'",
+        [clientId, req.userId]
+      );
+      await pool.query(
+        `UPDATE invoices SET status = 'cancelled'::invoice_status, share_token = NULL, updated_at = NOW()
+         WHERE client_id = $1 AND user_id = $2 AND status IN ('sent', 'late')`,
+        [clientId, req.userId]
+      );
+      // Delete cancelled invoices (including the ones we just cancelled)
+      await pool.query(
+        "DELETE FROM invoices WHERE client_id = $1 AND user_id = $2 AND status = 'cancelled'",
+        [clientId, req.userId]
+      );
+      // Delete paid invoices last
+      await pool.query(
+        "DELETE FROM invoices WHERE client_id = $1 AND user_id = $2",
+        [clientId, req.userId]
+      );
+
+      // Invalidate revenue cache
+      const redis = (await import('../config/redis')).default;
+      const keys = await redis.keys(`revenue:${req.userId}:*`);
+      if (keys.length > 0) await redis.del(...keys);
+    }
+
+    await pool.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [clientId, req.userId]);
     res.status(204).send();
   } catch (err) {
     console.error('Delete client error:', err);

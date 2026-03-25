@@ -1,5 +1,8 @@
+import axios from 'axios';
 import api from './client';
-import type { Invoice, PaginatedResponse, RevenueStats } from '../types';
+import type { Invoice, PaginatedResponse, RevenueStats, ClientInvoiceStats } from '../types';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
 
 export async function getInvoices(
   page = 1,
@@ -48,8 +51,39 @@ export async function deleteInvoice(id: string): Promise<void> {
   await api.delete(`/invoices/${id}`);
 }
 
+export async function sendInvoiceToCompanyEmail(id: string): Promise<{ ok: boolean; sentTo: string }> {
+  const { data } = await api.post<{ ok: boolean; sentTo: string }>(`/invoices/${id}/send-to-company`);
+  return data;
+}
+
+export async function createShareLink(id: string): Promise<{ token: string }> {
+  const { data } = await api.post<{ token: string }>(`/invoices/${id}/share`);
+  return data;
+}
+
+export async function revokeShareLink(id: string): Promise<void> {
+  await api.delete(`/invoices/${id}/share`);
+}
+
+/** Fetches a shared invoice — public, no auth required. */
+export async function getSharedInvoice(token: string): Promise<Invoice> {
+  const { data } = await axios.get(`${API_BASE}/invoices/share/${token}`);
+  return data;
+}
+
+/** Marks a shared invoice as paid — public, no auth required. */
+export async function markSharedInvoicePaid(token: string): Promise<{ invoice_number: string; status: string }> {
+  const { data } = await axios.patch(`${API_BASE}/invoices/share/${token}/status`, { status: 'paid' });
+  return data;
+}
+
 export async function getRevenueStats(): Promise<RevenueStats> {
   const { data } = await api.get('/invoices/stats/revenue');
+  return data;
+}
+
+export async function getClientInvoiceStats(clientId: string): Promise<ClientInvoiceStats> {
+  const { data } = await api.get<ClientInvoiceStats>(`/invoices/stats/by-client/${clientId}`);
   return data;
 }
 

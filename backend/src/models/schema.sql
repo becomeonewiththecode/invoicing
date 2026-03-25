@@ -13,7 +13,13 @@ CREATE TABLE IF NOT EXISTS users (
   business_website VARCHAR(500),
   business_fax VARCHAR(50),
   logo_url TEXT,
+  smtp_host VARCHAR(255),
+  smtp_port INTEGER DEFAULT 587,
+  smtp_user VARCHAR(255),
+  smtp_pass VARCHAR(255),
+  smtp_from VARCHAR(255),
   client_counter INTEGER NOT NULL DEFAULT 0,
+  payable_text TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -37,10 +43,10 @@ CREATE TABLE IF NOT EXISTS clients (
 
 CREATE INDEX idx_clients_user_id ON clients(user_id);
 
--- Invoice status enum (late = unpaid, 30+ days after sent_at; set by daily job)
-CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid', 'late');
+-- Invoice status enum (late = unpaid, 30+ days after sent_at; cancelled = soft-delete)
+CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid', 'late', 'cancelled');
 
--- Invoices table
+-- Invoices table (sent_at / share_token align with migrations 005, 007 and ensureSchema())
 CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -59,6 +65,8 @@ CREATE TABLE IF NOT EXISTS invoices (
   is_recurring BOOLEAN DEFAULT FALSE,
   recurrence_interval VARCHAR(20), -- 'weekly', 'monthly', 'quarterly', 'yearly'
   next_recurrence_date DATE,
+  sent_at TIMESTAMPTZ,
+  share_token VARCHAR(64) UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, invoice_number)

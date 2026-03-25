@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -26,6 +26,8 @@ interface InvoiceFormData {
 
 export function NewInvoicePage() {
   const { id } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
+  const preselectedClientId = searchParams.get('clientId') || '';
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -59,14 +61,21 @@ export function NewInvoicePage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
 
-  const { register, handleSubmit, control, watch, reset, formState: { errors } } = useForm<InvoiceFormData>({
+  const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<InvoiceFormData>({
     defaultValues: {
+      clientId: preselectedClientId,
       issueDate: today,
       dueDate: format(new Date(Date.now() + 30 * 86400000), 'yyyy-MM-dd'),
       isRecurring: false,
       items: [{ description: '', hours: 1 }],
     },
   });
+
+  useEffect(() => {
+    if (!isEdit && preselectedClientId && clientsData?.data.some((c) => c.id === preselectedClientId)) {
+      setValue('clientId', preselectedClientId);
+    }
+  }, [isEdit, preselectedClientId, clientsData, setValue]);
 
   useEffect(() => {
     if (!isEdit || !existingInvoice) return;
@@ -240,7 +249,17 @@ export function NewInvoicePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1">
+              <label className="text-sm font-medium text-gray-700">Client</label>
+              {selectedClient && (
+                <Link
+                  to={`/clients/${encodeURIComponent(selectedClient.id)}#details`}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  View / edit client
+                </Link>
+              )}
+            </div>
             <select
               {...register('clientId', { required: 'Client is required' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"

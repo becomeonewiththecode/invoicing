@@ -49,7 +49,7 @@ export const createInvoiceSchema = z.object({
 export const updateInvoiceSchema = createInvoiceSchema.partial();
 
 export const updateInvoiceStatusSchema = z.object({
-  status: z.enum(['draft', 'sent', 'paid', 'late']),
+  status: z.enum(['draft', 'sent', 'paid', 'late', 'cancelled']),
 });
 
 // Discount code (code optional on create — server generates if omitted)
@@ -78,4 +78,8 @@ export const settingsSchema = z.object({
   defaultHourlyRate: z.union([z.number().min(0), z.null()]).optional(),
   businessFax: z.string().max(50).optional(),
   logoUrl: z.string().max(2000).optional(),
+  /** Company inbox for invoice copy emails; empty string clears */
+  businessEmail: z.union([z.string().email(), z.literal('')]).optional(),
+  /** Shown at bottom of invoices/PDFs/shared view; empty clears */
+  payableText: z.string().max(5000).optional(),
 });

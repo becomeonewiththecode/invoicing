@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineHome, HiOutlineTag, HiOutlineLogout, HiOutlineCog } from 'react-icons/hi';
+import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineHome, HiOutlineCog } from 'react-icons/hi';
 import { useAuthStore } from '../../stores/authStore';
 
 const linkBase = 'flex items-center gap-3 px-3 py-2 rounded-lg mb-1 transition-colors';
@@ -11,7 +11,7 @@ const subLinkActive = 'bg-blue-600 text-white';
 const subLinkInactive = 'text-gray-300 hover:bg-gray-800';
 
 export function Sidebar() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
 
   return (
     <aside className="flex flex-col w-64 bg-gray-900 text-white min-h-screen">
@@ -46,14 +46,6 @@ export function Sidebar() {
               <HiOutlineDocumentText className="w-4 h-4 shrink-0" />
               Invoices
             </NavLink>
-            <NavLink
-              to="/discounts"
-              end
-              className={({ isActive }) => `${subLinkBase} ${isActive ? subLinkActive : subLinkInactive}`}
-            >
-              <HiOutlineTag className="w-4 h-4 shrink-0" />
-              Discounts
-            </NavLink>
           </div>
         </div>
 
@@ -65,16 +57,6 @@ export function Sidebar() {
           Settings
         </NavLink>
       </nav>
-      <div className="p-3 border-t border-gray-700">
-        <button
-          type="button"
-          onClick={logout}
-          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-gray-300 hover:bg-gray-800 transition-colors"
-        >
-          <HiOutlineLogout className="w-5 h-5" />
-          Sign Out
-        </button>
-      </div>
     </aside>
   );
 }
