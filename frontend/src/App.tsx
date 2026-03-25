@@ -22,6 +22,7 @@ import { AdminTicketsPage } from './pages/admin/AdminTicketsPage';
 import { AdminTicketDetailPage } from './pages/admin/AdminTicketDetailPage';
 import { AdminBackupsPage } from './pages/admin/AdminBackupsPage';
 import { AdminRateLimitsPage } from './pages/admin/AdminRateLimitsPage';
+import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
 
 function RedirectClientStatsToProfile() {
   const { clientId } = useParams();
@@ -67,6 +68,7 @@ export default function App() {
             <Route path="admin/tickets/:id" element={<AdminTicketDetailPage />} />
             <Route path="admin/backups" element={<AdminBackupsPage />} />
             <Route path="admin/rate-limits" element={<AdminRateLimitsPage />} />
+            <Route path="admin/settings" element={<AdminSettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

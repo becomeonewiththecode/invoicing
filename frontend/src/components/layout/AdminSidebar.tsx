@@ -6,6 +6,7 @@ import {
   HiOutlineTicket,
   HiOutlineDatabase,
   HiOutlineLightningBolt,
+  HiOutlineCog,
 } from 'react-icons/hi';
 
 const linkBase = 'flex items-center gap-3 px-3 py-2 rounded-lg mb-1 transition-colors';
@@ -67,6 +68,14 @@ export function AdminSidebar() {
         >
           <HiOutlineLightningBolt className="w-5 h-5 shrink-0" />
           Rate Limits
+        </NavLink>
+
+        <NavLink
+          to="/admin/settings"
+          className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+        >
+          <HiOutlineCog className="w-5 h-5 shrink-0" />
+          Settings
         </NavLink>
       </nav>
 

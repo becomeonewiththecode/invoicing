@@ -8,6 +8,7 @@ import ticketsRoutes from './tickets';
 import healthRoutes from './health';
 import backupsRoutes from './backups';
 import rateLimitRoutes from './rateLimit';
+import accountRoutes from './account';
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use('/tickets', ticketsRoutes);
 router.use('/health', healthRoutes);
 router.use('/backups', backupsRoutes);
 router.use('/rate-limits', rateLimitRoutes);
+router.use('/account', accountRoutes);
 
 export default router;

@@ -73,3 +73,7 @@ export const updateRateLimitConfig = (id: string, data: Partial<RateLimitConfig>
   api.put<RateLimitConfig>(`/admin/rate-limits/${id}`, data).then((r) => r.data);
 export const getRateLimitAnalytics = (hours = 24) =>
   api.get<RateLimitAnalytics>('/admin/rate-limits/analytics', { params: { hours } }).then((r) => r.data);
+
+// Account
+export const resetAdminPassword = (currentPassword: string, newPassword: string) =>
+  api.put('/admin/account/password', { currentPassword, newPassword }).then((r) => r.data);

@@ -24,6 +24,13 @@ export function requestLogger(req: AuthRequest, res: Response, next: NextFunctio
           req.userId || null,
         ]
       )
+      .then(() =>
+        pool.query(
+          `DELETE FROM system_logs WHERE id NOT IN (
+             SELECT id FROM system_logs ORDER BY created_at DESC LIMIT 600
+           )`
+        )
+      )
       .catch(() => {});
   });
 
