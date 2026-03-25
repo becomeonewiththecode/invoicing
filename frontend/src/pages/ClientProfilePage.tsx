@@ -180,6 +180,12 @@ export function ClientProfilePage() {
           >
             Full invoice list
           </Link>
+          <Link
+            to={`/invoices/new?clientId=${encodeURIComponent(clientId)}`}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+          >
+            Create invoice
+          </Link>
           <button
             type="button"
             onClick={() => {

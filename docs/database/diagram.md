@@ -17,17 +17,17 @@ erDiagram
     string business_phone
     string business_email
     string tax_id
-    decimal default_tax_rate
     decimal default_hourly_rate
+    decimal default_tax_rate
     string business_website
     string business_fax
     string logo_url
-    int client_counter
     string smtp_host
     int smtp_port
     string smtp_user
     string smtp_pass
     string smtp_from
+    int client_counter
     text payable_text
     timestamptz created_at
     timestamptz updated_at

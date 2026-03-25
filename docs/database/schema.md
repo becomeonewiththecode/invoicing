@@ -1,6 +1,6 @@
 # Database schema
 
-PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sql` (Docker Compose mounts it for init). **Existing** databases may need SQL in `backend/migrations/` applied in order (`002`–`008`, etc.).
+PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sql` (Docker Compose mounts it for init). **Existing** databases may need SQL in `backend/migrations/` applied in order (`002`–`010`, etc.).
 
 ## Runtime schema upgrades
 
@@ -55,13 +55,13 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 | business_website | VARCHAR(500) | |
 | business_fax | VARCHAR(50) | |
 | logo_url | TEXT | Public URL path under `/api/uploads/logos/…` when uploaded |
-| payable_text | TEXT | Footer text shown on invoices (PDF, shared view, email) |
-| client_counter | INTEGER | NOT NULL, default 0 — used for `customer_number` sequencing |
 | smtp_host | VARCHAR(255) | SMTP server hostname (per-user, optional) |
 | smtp_port | INTEGER | Default 587 |
 | smtp_user | VARCHAR(255) | SMTP username |
 | smtp_pass | VARCHAR(255) | SMTP password / app password |
 | smtp_from | VARCHAR(255) | Sender address for outgoing emails; defaults to user login email if blank |
+| client_counter | INTEGER | NOT NULL, default 0 — used for `customer_number` sequencing |
+| payable_text | TEXT | Footer text shown on invoices (PDF, shared view, email) |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 
@@ -156,4 +156,4 @@ npm run db:init
 
 Requires `DATABASE_URL`. Alternatively: `psql "$DATABASE_URL" -f backend/src/models/schema.sql`.
 
-`schema.sql` includes `invoices.sent_at`, `share_token`, and the `cancelled` status value (aligned with migrations `005`–`008`). Older databases may still need those migrations or a backend restart so `ensureSchema()` can apply `ALTER`s.
+`schema.sql` includes `invoices.sent_at`, `share_token`, `users.payable_text`, and the `cancelled` status value (aligned with migrations `005`–`010`). Older databases may still need those migrations or a backend restart so `ensureSchema()` can apply `ALTER`s.

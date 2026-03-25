@@ -1,0 +1,180 @@
+# Architecture diagram
+
+## Docker Compose stack
+
+```mermaid
+flowchart TB
+    Browser["Browser\n(user)"]
+
+    subgraph Docker["Docker Compose network"]
+        subgraph FE["frontend  :80"]
+            NGINX["nginx\n· serves React SPA\n· proxies /api → backend:3001\n· Docker DNS re-resolution"]
+        end
+
+        subgraph BE["backend  :3001"]
+            direction TB
+            EXPRESS["Express API\nhelmet · cors · morgan · JSON parser"]
+
+            subgraph Routes["Routes"]
+                AUTH_R["/api/auth\nregister · login"]
+                CLIENT_R["/api/clients\nCRUD"]
+                INV_R["/api/invoices\nCRUD · stats · CSV\nshare · send email"]
+                SHARE_R["/api/invoices/share/:token\npublic view · mark paid"]
+                DISC_R["/api/discounts\nCRUD"]
+                SET_R["/api/settings\nprofile · logo · SMTP"]
+                DATA_R["/api/data\nexport · import"]
+                HEALTH_R["/api/health"]
+            end
+
+            subgraph MW["Middleware"]
+                JWT["JWT auth"]
+                RL["Rate limit\n(Redis)"]
+                ZOD["Zod validation"]
+            end
+
+            subgraph SVC["Services"]
+                MAIL["mail.ts\nnodemailer"]
+                TMPL["invoiceEmailHtml.ts\nemail templates"]
+                DP["dataPort.ts\nbackup export/import"]
+            end
+
+            subgraph JOBS["Scheduled jobs (node-cron)"]
+                J1["Daily: mark late\n+ send reminders"]
+                J2["Daily: create\nrecurring invoices"]
+            end
+
+            SCHEMA["ensureSchema()\nidempotent ALTERs\non startup + import"]
+        end
+
+        subgraph PG["postgres  :5432"]
+            PGDB[("PostgreSQL 16\ninvoicing DB\npgdata volume")]
+        end
+
+        subgraph RD["redis  :6379"]
+            REDIS[("Redis 7\nrate limits · cache")]
+        end
+    end
+
+    SMTP_EXT["External SMTP\n(optional)"]
+
+    %% Browser → Frontend
+    Browser -- "HTTP :80\nSPA assets + /api proxy" --> NGINX
+
+    %% Frontend → Backend
+    NGINX -- "/api/*\nreverse proxy" --> EXPRESS
+
+    %% Express → Routes
+    EXPRESS --> Routes
+
+    %% Routes → Middleware
+    Routes -. "per-route" .-> MW
+
+    %% Routes → Services
+    INV_R --> MAIL
+    SET_R --> MAIL
+    DATA_R --> DP
+    MAIL --> TMPL
+
+    %% Backend → PostgreSQL
+    Routes -- "pg pool" --> PGDB
+    JOBS -- "pg pool" --> PGDB
+    DP -- "transactional\nimport/export" --> PGDB
+    SCHEMA -- "ALTER TABLE\nADD COLUMN" --> PGDB
+
+    %% Backend → Redis
+    RL -- "sliding window\ncounters" --> REDIS
+    INV_R -- "revenue cache\n(5 min TTL)" --> REDIS
+    DP -- "invalidate\nrevenue cache" --> REDIS
+
+    %% Backend → External SMTP
+    MAIL -- "nodemailer\nSMTP transport" --> SMTP_EXT
+```
+
+## Startup sequence
+
+```mermaid
+sequenceDiagram
+    participant DC as Docker Compose
+    participant PG as PostgreSQL
+    participant RD as Redis
+    participant BE as Backend (Express)
+    participant FE as Frontend (nginx)
+
+    DC->>PG: Start container
+    DC->>RD: Start container
+    PG-->>DC: Healthcheck passes (pg_isready)
+    RD-->>DC: Healthcheck passes (redis-cli ping)
+    DC->>BE: Start container (depends_on: postgres, redis healthy)
+    BE->>PG: ensureSchema() — idempotent ALTERs
+    BE->>BE: Start node-cron jobs
+    BE->>BE: Listen on 0.0.0.0:3001
+    BE-->>DC: Healthcheck passes (GET /api/health)
+    DC->>FE: Start container (depends_on: backend healthy)
+    FE->>FE: nginx listens on :80
+    Note over FE,BE: Browser → nginx :80 → /api proxy → backend:3001
+```
+
+## Request flow
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant N as nginx (:80)
+    participant E as Express (:3001)
+    participant PG as PostgreSQL
+    participant RD as Redis
+
+    B->>N: GET / (SPA)
+    N-->>B: index.html + JS/CSS bundles
+
+    B->>N: POST /api/auth/login
+    N->>E: proxy_pass → backend:3001
+    E->>PG: Verify credentials
+    PG-->>E: User row
+    E-->>N: JWT token
+    N-->>B: 200 { token }
+
+    B->>N: GET /api/invoices (Authorization: Bearer ...)
+    N->>E: proxy_pass
+    E->>E: JWT verify + rate limit
+    E->>PG: SELECT invoices
+    PG-->>E: Rows
+    E-->>N: 200 { data, pagination }
+    N-->>B: JSON response
+
+    B->>N: GET /api/invoices/stats/revenue
+    N->>E: proxy_pass
+    E->>RD: Check cache
+    alt Cache hit
+        RD-->>E: Cached stats
+    else Cache miss
+        E->>PG: Aggregate query
+        PG-->>E: Stats
+        E->>RD: SET cache (5 min TTL)
+    end
+    E-->>N: 200 { stats }
+    N-->>B: JSON response
+```
+
+## Data flow: backup import
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant E as Express
+    participant PG as PostgreSQL
+    participant RD as Redis
+
+    B->>E: POST /api/data/import { data, confirmReplace: true }
+    E->>E: Zod schema validation
+    E->>E: Referential integrity + duplicate ID checks
+    E->>PG: ensureSchema()
+    E->>PG: BEGIN transaction
+    E->>PG: DELETE user's invoices, clients, discount_codes
+    E->>PG: DELETE colliding IDs (cross-account)
+    E->>PG: UPDATE user profile
+    E->>PG: INSERT clients, discount_codes, invoices, items, reminders
+    E->>PG: COMMIT
+    E->>RD: Invalidate revenue cache
+    E-->>B: 200 { ok: true }
+```
