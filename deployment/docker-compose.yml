@@ -45,6 +45,8 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@invoicing.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-4BS2GRnF4mbUsEIg8oI6}
     depends_on:
       postgres:
         condition: service_healthy

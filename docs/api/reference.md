@@ -7,7 +7,7 @@
 
 Paths below are relative to that base (e.g. `/auth/register` → `POST /api/auth/register`).
 
-**Authentication:** All endpoints except `/auth/*` and `/invoices/share/:token` require a JWT in the `Authorization` header:
+**Authentication:** All endpoints except `/auth/*` and `/invoices/share/:token` require a JWT in the `Authorization` header. Admin endpoints (`/admin/*`) additionally require `role = 'admin'`.
 
 ```
 Authorization: Bearer <token>
@@ -46,7 +46,8 @@ Create a new user account.
   "user": {
     "id": "uuid",
     "email": "user@example.com",
-    "businessName": "My Business"
+    "businessName": "My Business",
+    "role": "user"
   },
   "token": "jwt-token"
 }
@@ -54,7 +55,7 @@ Create a new user account.
 
 ### POST /auth/login
 
-Authenticate and receive a JWT token.
+Authenticate and receive a JWT token. The response includes the user's `role` (`user` or `admin`).
 
 **Rate limit:** 10 requests per minute per IP.
 
@@ -74,7 +75,8 @@ Authenticate and receive a JWT token.
   "user": {
     "id": "uuid",
     "email": "user@example.com",
-    "businessName": "My Business"
+    "businessName": "My Business",
+    "role": "user"
   },
   "token": "jwt-token"
 }
@@ -508,6 +510,148 @@ Returns server status.
 
 ---
 
+## Support Tickets (authenticated)
+
+### POST /tickets
+
+Create a support ticket.
+
+**Request body:**
+
+```json
+{
+  "subject": "Issue with invoice PDF",
+  "body": "The PDF won't generate for invoice INV-0005...",
+  "priority": "normal"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| subject | string | Yes | 1-255 characters |
+| body | string | Yes | 1-10000 characters |
+| priority | string | No | `low`, `normal` (default), `high`, `urgent` |
+
+### GET /tickets
+
+List the authenticated user's support tickets with pagination.
+
+### GET /tickets/:id
+
+Get a single ticket with messages.
+
+### POST /tickets/:id/reply
+
+Add a message to a ticket.
+
+---
+
+## Admin Panel (admin role required)
+
+All `/admin/*` endpoints require JWT authentication **and** `role = 'admin'`. Non-admin users receive **403**.
+
+### GET /admin/dashboard/stats
+
+Platform-wide statistics: total users, active users (30d), open tickets, pending moderation flags, total invoices, platform revenue.
+
+### GET /admin/dashboard/user-growth
+
+User registration counts by day. Query: `?days=30` (max 365).
+
+### GET /admin/users
+
+Paginated user list with invoice counts. Query: `?page=1&limit=20&search=`.
+
+### GET /admin/users/:id
+
+User detail: profile, client/invoice counts, total revenue.
+
+### PUT /admin/users/:id/role
+
+Update a user's role. Body: `{ "role": "admin" }` or `{ "role": "user" }`.
+
+### GET /admin/moderation
+
+Content flag queue. Query: `?status=pending&page=1&limit=20`.
+
+### PUT /admin/moderation/:id
+
+Review a flag. Body: `{ "decision": "approved" }` or `{ "decision": "rejected" }`.
+
+### POST /admin/moderation/bulk
+
+Bulk review flags. Body: `{ "flagIds": ["uuid", ...], "decision": "approved" }`.
+
+### GET /admin/tickets
+
+All support tickets (across all users). Query: `?page=1&limit=20&status=open&priority=normal&search=`.
+
+### GET /admin/tickets/:id
+
+Ticket detail with full message thread.
+
+### POST /admin/tickets/:id/reply
+
+Admin reply to a ticket. Body: `{ "body": "..." }`.
+
+### PUT /admin/tickets/:id/status
+
+Update ticket status. Body: `{ "status": "open" }` — values: `open`, `in_progress`, `closed`.
+
+### GET /admin/health
+
+System health checks: database, Redis, frontend, backend service status with response times. Also returns error rate, avg response time, and requests in the last hour.
+
+### GET /admin/health/logs
+
+Paginated system logs. Query: `?page=1&limit=20&level=error&source=`.
+
+### GET /admin/backups
+
+Paginated backup snapshots. Query: `?page=1&limit=20&userId=`.
+
+### POST /admin/backups/:userId
+
+Trigger a manual backup for a user.
+
+### POST /admin/backups/:snapshotId/restore
+
+Restore a backup snapshot.
+
+### POST /admin/backups/:snapshotId/verify
+
+Verify a backup snapshot integrity.
+
+### DELETE /admin/backups/:snapshotId
+
+Delete a backup snapshot.
+
+### GET /admin/backups/policies
+
+List backup policies.
+
+### PUT /admin/backups/policies/:id
+
+Update a backup policy. Body fields: `retention_days`, `max_snapshots`, `is_enabled`, `cron_expression`.
+
+### GET /admin/rate-limits
+
+List all rate limit configurations.
+
+### POST /admin/rate-limits
+
+Create a rate limit config. Body: `{ "route_pattern": "/api/auth/login", "window_ms": 60000, "max_requests": 10, "is_enabled": true }`.
+
+### PUT /admin/rate-limits/:id
+
+Update a rate limit config.
+
+### GET /admin/rate-limits/analytics
+
+Rate limit analytics. Query: `?hours=24` (max 720).
+
+---
+
 ## Error Responses
 
 **Validation error (400):**
@@ -526,6 +670,14 @@ Returns server status.
 ```json
 {
   "error": "Authentication required"
+}
+```
+
+**Forbidden (403):**
+
+```json
+{
+  "error": "Admin access required"
 }
 ```
 

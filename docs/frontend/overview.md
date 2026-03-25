@@ -6,16 +6,19 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 
 | Area | Role |
 |------|------|
-| `src/App.tsx` | `BrowserRouter`, route table, public vs protected layout |
-| `src/layouts/AppLayout.tsx` | Sidebar + outlet for authenticated pages |
-| `src/api/` | Axios instance (`client.ts`) + resource modules (`settings`, `data` backup helpers, …); base URL from `VITE_API_URL` |
-| `src/store/` | Zustand auth store (persisted) |
+| `src/App.tsx` | `BrowserRouter`, route table, public vs protected vs admin layout |
+| `src/components/layout/AppLayout.tsx` | Sidebar + outlet for authenticated user pages |
+| `src/components/layout/AdminLayout.tsx` | Admin sidebar + outlet; shows admin login if not authenticated as admin |
+| `src/components/layout/AdminSidebar.tsx` | Admin navigation links |
+| `src/api/` | Axios instance (`client.ts`) + resource modules (`settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
+| `src/stores/` | Zustand auth store (persisted); `isAdmin()` helper for role check |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
+| `src/pages/admin/` | Admin panel pages (dashboard, users, moderation, tickets, backups, rate limits, login) |
 | `src/utils/pdf.ts` | jsPDF invoice generation |
 
 ## Routing
 
-Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup). Unknown paths redirect to `/`.
+Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup), `/support`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
 
 See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`), and deep links.
 
@@ -43,12 +46,24 @@ flowchart TB
         CL_PROF["/clients/:clientId\nClientProfilePage\n#details · #invoice-status · #invoices"]
         DISC["/discounts\nDiscountsPage"]
         SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup"]
+        SUPPORT["/support\nSupportPage\nuser ticket submission"]
+      end
+      subgraph Admin["Admin routes (AdminLayout)"]
+        ADM_LOGIN["/admin\nAdminLoginPage\n(if not admin)"]
+        ADM_DASH["/admin\nAdminDashboardPage\nstats · health · logs"]
+        ADM_USERS["/admin/users\nAdminUsersPage"]
+        ADM_MOD["/admin/moderation\nAdminModerationPage"]
+        ADM_TIX["/admin/tickets\nAdminTicketsPage"]
+        ADM_BACK["/admin/backups\nAdminBackupsPage"]
+        ADM_RL["/admin/rate-limits\nAdminRateLimitsPage"]
       end
     end
 
     subgraph Layout["Layout components"]
       APPL["AppLayout\nsidebar + header + auth guard"]
       SIDE["Sidebar\nnav links · user info"]
+      ADML["AdminLayout\nadmin sidebar + admin auth guard"]
+      ADMSIDE["AdminSidebar\nadmin nav links"]
     end
 
     subgraph UI["UI components"]
@@ -69,6 +84,8 @@ flowchart TB
       DISC_API["discounts.ts\nCRUD · generate"]
       SET_API["settings.ts\nprofile · logo · SMTP"]
       DATA_API["data.ts\nexport · import"]
+      ADM_API["admin.ts\ndashboard · users · moderation\ntickets · health · backups · rate limits"]
+      TIX_API["tickets.ts\nuser support tickets"]
     end
 
     subgraph Utils["Utilities"]
@@ -84,10 +101,14 @@ flowchart TB
   %% Layout
   Protected --> APPL
   APPL --> SIDE
+  Admin --> ADML
+  ADML --> ADMSIDE
 
   %% State flow
   Protected --> RQ
   Protected --> ZS
+  Admin --> RQ
+  Admin --> ZS
   SHARE --> RQ
   LOGIN --> ZS
   REG --> ZS
@@ -119,6 +140,17 @@ flowchart LR
     SETT["SettingsPage"]
     SHARE["SharedInvoicePage"]
     LOGIN["LoginPage"]
+    SUP["SupportPage"]
+  end
+
+  subgraph AdminPages["Admin Pages"]
+    ADASH["AdminDashboardPage"]
+    AUSERS["AdminUsersPage"]
+    AMOD["AdminModerationPage"]
+    ATIX["AdminTicketsPage"]
+    ABACK["AdminBackupsPage"]
+    ARL["AdminRateLimitsPage"]
+    ALOGIN["AdminLoginPage"]
   end
 
   subgraph APIs["API modules"]
@@ -128,9 +160,12 @@ flowchart LR
     A_DISC["discounts.ts"]
     A_SET["settings.ts"]
     A_DATA["data.ts"]
+    A_ADM["admin.ts"]
+    A_TIX["tickets.ts"]
   end
 
   LOGIN --> A_AUTH
+  ALOGIN --> A_AUTH
   DASH --> A_INV
   INV --> A_INV
   INV --> A_CL
@@ -148,6 +183,13 @@ flowchart LR
   SETT --> A_DISC
   SETT --> A_DATA
   SHARE --> A_INV
+  SUP --> A_TIX
+  ADASH --> A_ADM
+  AUSERS --> A_ADM
+  AMOD --> A_ADM
+  ATIX --> A_ADM
+  ABACK --> A_ADM
+  ARL --> A_ADM
 ```
 
 ### Data flow

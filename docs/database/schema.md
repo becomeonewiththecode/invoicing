@@ -6,14 +6,16 @@ PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sq
 
 `backend/src/config/database.ts` exports **`ensureSchema()`**, which applies idempotent `ALTER`s so older databases gain columns and enum values that the app expects:
 
-- `clients.discount_code`, `invoices.sent_at`, `invoices.share_token`, `users.business_email`, `users.payable_text`, and enum value `invoice_status.cancelled` (see source for the exact statements).
+- `clients.discount_code`, `invoices.sent_at`, `invoices.share_token`, `users.business_email`, `users.payable_text`, enum value `invoice_status.cancelled`, and `users.role` (see source for the exact statements).
+- Admin tables: `support_tickets`, `ticket_messages`, `content_flags`, `backup_snapshots`, `backup_policies`, `system_logs`, `rate_limit_configs`, `rate_limit_events` — all created with `CREATE TABLE IF NOT EXISTS`.
+- Default admin user seed: if `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars are set and no user with that email exists, an admin account is created automatically.
 
 It runs in two places:
 
 1. **API startup** — `server.ts` awaits `ensureSchema()` before `listen`; failure exits the process.
 2. **Backup import** — `services/dataPort.ts` calls `await ensureSchema()` immediately before `POST /api/data/import` begins its transaction, so imports succeed even if the process had not applied upgrades yet (e.g. long-lived worker).
 
-Fresh installs from current `schema.sql` already include these definitions; `ensureSchema()` is a no-op when columns and enum values exist.
+Fresh installs from current `schema.sql` already include these definitions; `ensureSchema()` is a no-op when columns, enum values, and tables exist.
 
 ## Entity relationships (text)
 
@@ -23,7 +25,12 @@ users
   │     └── invoices (1:many, ON DELETE RESTRICT)
   │           ├── invoice_items (1:many, ON DELETE CASCADE)
   │           └── payment_reminders (1:many, ON DELETE CASCADE)
-  └── discount_codes (1:many)
+  ├── discount_codes (1:many)
+  ├── support_tickets (1:many)
+  │     └── ticket_messages (1:many, ON DELETE CASCADE)
+  ├── content_flags (1:many)
+  ├── backup_snapshots (1:many)
+  └── backup_policies (1:many)
 ```
 
 See [diagram.md](diagram.md) for a Mermaid ER diagram.
@@ -62,6 +69,7 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 | smtp_from | VARCHAR(255) | Sender address for outgoing emails; defaults to user login email if blank |
 | client_counter | INTEGER | NOT NULL, default 0 — used for `customer_number` sequencing |
 | payable_text | TEXT | Footer text shown on invoices (PDF, shared view, email) |
+| role | VARCHAR(20) | NOT NULL, default `'user'`; `'admin'` grants admin panel access |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 
@@ -147,6 +155,107 @@ Indexes include `idx_invoices_user_id`, `idx_invoices_client_id`, `idx_invoices_
 | sent_at | TIMESTAMPTZ | |
 | reminder_type | VARCHAR(20) | Default `overdue` (label; status uses `late`) |
 
+### `support_tickets`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| user_id | UUID | FK → users, ON DELETE CASCADE |
+| subject | VARCHAR(255) | NOT NULL |
+| status | VARCHAR(20) | NOT NULL, default `'open'`; values: `open`, `in_progress`, `closed` |
+| priority | VARCHAR(20) | NOT NULL, default `'normal'`; values: `low`, `normal`, `high`, `urgent` |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+### `ticket_messages`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| ticket_id | UUID | FK → support_tickets, ON DELETE CASCADE |
+| sender_id | UUID | FK → users, ON DELETE CASCADE |
+| body | TEXT | NOT NULL |
+| is_admin_reply | BOOLEAN | Default FALSE |
+| created_at | TIMESTAMPTZ | |
+
+### `content_flags`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| user_id | UUID | FK → users, ON DELETE CASCADE |
+| content_type | VARCHAR(50) | NOT NULL |
+| content_snippet | TEXT | NOT NULL |
+| reason | VARCHAR(255) | |
+| status | VARCHAR(20) | NOT NULL, default `'pending'`; values: `pending`, `approved`, `rejected` |
+| reviewed_by | UUID | FK → users |
+| reviewed_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | |
+
+### `backup_snapshots`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| user_id | UUID | FK → users, ON DELETE CASCADE |
+| file_path | TEXT | NOT NULL |
+| file_size_bytes | BIGINT | NOT NULL, default 0 |
+| is_automated | BOOLEAN | Default FALSE |
+| verified | BOOLEAN | Default FALSE |
+| verified_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | |
+
+### `backup_policies`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| user_id | UUID | FK → users, ON DELETE CASCADE |
+| retention_days | INTEGER | NOT NULL, default 30 |
+| max_snapshots | INTEGER | NOT NULL, default 10 |
+| is_enabled | BOOLEAN | Default TRUE |
+| cron_expression | VARCHAR(50) | Default `'0 2 * * *'` |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+### `system_logs`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| level | VARCHAR(10) | NOT NULL, default `'info'` |
+| source | VARCHAR(100) | NOT NULL |
+| method | VARCHAR(10) | HTTP method |
+| path | TEXT | Request path |
+| status_code | INTEGER | HTTP status |
+| response_time_ms | INTEGER | |
+| ip | VARCHAR(45) | Client IP |
+| user_id | UUID | Optional |
+| error_message | TEXT | |
+| metadata | JSONB | |
+| created_at | TIMESTAMPTZ | |
+
+### `rate_limit_configs`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| route_pattern | VARCHAR(255) | NOT NULL, UNIQUE |
+| window_ms | INTEGER | NOT NULL, default 60000 |
+| max_requests | INTEGER | NOT NULL, default 100 |
+| is_enabled | BOOLEAN | Default TRUE |
+| updated_at | TIMESTAMPTZ | |
+
+### `rate_limit_events`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| ip | VARCHAR(45) | NOT NULL |
+| path | TEXT | NOT NULL |
+| was_blocked | BOOLEAN | Default FALSE |
+| created_at | TIMESTAMPTZ | |
+
 ## Manual init
 
 ```bash
@@ -156,4 +265,4 @@ npm run db:init
 
 Requires `DATABASE_URL`. Alternatively: `psql "$DATABASE_URL" -f backend/src/models/schema.sql`.
 
-`schema.sql` includes `invoices.sent_at`, `share_token`, `users.payable_text`, and the `cancelled` status value (aligned with migrations `005`–`010`). Older databases may still need those migrations or a backend restart so `ensureSchema()` can apply `ALTER`s.
+`schema.sql` includes `invoices.sent_at`, `share_token`, `users.payable_text`, `users.role`, the `cancelled` status value, and all admin tables (support_tickets, ticket_messages, content_flags, backup_snapshots, backup_policies, system_logs, rate_limit_configs, rate_limit_events). Older databases may still need those migrations or a backend restart so `ensureSchema()` can apply `ALTER`s and create missing tables.

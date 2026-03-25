@@ -111,3 +111,110 @@ CREATE TABLE IF NOT EXISTS payment_reminders (
   sent_at TIMESTAMPTZ DEFAULT NOW(),
   reminder_type VARCHAR(20) DEFAULT 'overdue'
 );
+
+-- Support ticket system
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subject VARCHAR(255) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_tickets_user_id ON support_tickets(user_id);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
+
+CREATE TABLE IF NOT EXISTS ticket_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  is_admin_reply BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket_id ON ticket_messages(ticket_id);
+
+-- Content moderation flags
+CREATE TABLE IF NOT EXISTS content_flags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content_type VARCHAR(50) NOT NULL,
+  content_snippet TEXT NOT NULL,
+  reason VARCHAR(255),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  reviewed_by UUID REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_flags_status ON content_flags(status);
+CREATE INDEX IF NOT EXISTS idx_content_flags_user_id ON content_flags(user_id);
+
+-- Automated backup system
+CREATE TABLE IF NOT EXISTS backup_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  file_path TEXT NOT NULL,
+  file_size_bytes BIGINT NOT NULL DEFAULT 0,
+  is_automated BOOLEAN DEFAULT FALSE,
+  verified BOOLEAN DEFAULT FALSE,
+  verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_backup_snapshots_user_id ON backup_snapshots(user_id);
+
+CREATE TABLE IF NOT EXISTS backup_policies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  retention_days INTEGER NOT NULL DEFAULT 30,
+  max_snapshots INTEGER NOT NULL DEFAULT 10,
+  is_enabled BOOLEAN DEFAULT TRUE,
+  cron_expression VARCHAR(50) DEFAULT '0 2 * * *',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- System logging for health monitoring
+CREATE TABLE IF NOT EXISTS system_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  level VARCHAR(10) NOT NULL DEFAULT 'info',
+  source VARCHAR(100) NOT NULL,
+  method VARCHAR(10),
+  path TEXT,
+  status_code INTEGER,
+  response_time_ms INTEGER,
+  ip VARCHAR(45),
+  user_id UUID,
+  error_message TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
+CREATE INDEX IF NOT EXISTS idx_system_logs_source ON system_logs(source);
+
+-- Rate limit configuration and analytics
+CREATE TABLE IF NOT EXISTS rate_limit_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  route_pattern VARCHAR(255) NOT NULL UNIQUE,
+  window_ms INTEGER NOT NULL DEFAULT 60000,
+  max_requests INTEGER NOT NULL DEFAULT 100,
+  is_enabled BOOLEAN DEFAULT TRUE,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS rate_limit_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ip VARCHAR(45) NOT NULL,
+  path TEXT NOT NULL,
+  was_blocked BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_events_created_at ON rate_limit_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_events_ip ON rate_limit_events(ip);

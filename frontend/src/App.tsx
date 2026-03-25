@@ -20,7 +20,6 @@ import { AdminUserDetailPage } from './pages/admin/AdminUserDetailPage';
 import { AdminModerationPage } from './pages/admin/AdminModerationPage';
 import { AdminTicketsPage } from './pages/admin/AdminTicketsPage';
 import { AdminTicketDetailPage } from './pages/admin/AdminTicketDetailPage';
-import { AdminHealthPage } from './pages/admin/AdminHealthPage';
 import { AdminBackupsPage } from './pages/admin/AdminBackupsPage';
 import { AdminRateLimitsPage } from './pages/admin/AdminRateLimitsPage';
 
@@ -66,7 +65,6 @@ export default function App() {
             <Route path="admin/moderation" element={<AdminModerationPage />} />
             <Route path="admin/tickets" element={<AdminTicketsPage />} />
             <Route path="admin/tickets/:id" element={<AdminTicketDetailPage />} />
-            <Route path="admin/health" element={<AdminHealthPage />} />
             <Route path="admin/backups" element={<AdminBackupsPage />} />
             <Route path="admin/rate-limits" element={<AdminRateLimitsPage />} />
           </Route>

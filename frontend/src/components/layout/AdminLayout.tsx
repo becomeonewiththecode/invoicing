@@ -1,18 +1,20 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { AdminSidebar } from './AdminSidebar';
+import { AdminLoginPage } from '../../pages/admin/AdminLoginPage';
 import { useAuthStore } from '../../stores/authStore';
 import { Toaster } from 'react-hot-toast';
 
 export function AdminLayout() {
   const { token, logout, isAdmin } = useAuthStore();
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!isAdmin()) {
-    return <Navigate to="/" replace />;
+  if (!token || !isAdmin()) {
+    return (
+      <>
+        <AdminLoginPage />
+        <Toaster position="top-right" />
+      </>
+    );
   }
 
   return (

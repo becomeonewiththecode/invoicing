@@ -9,6 +9,7 @@ import {
   deleteBackup,
   getBackupPolicies,
   updateBackupPolicy,
+  getAdminUsers,
 } from '../../api/admin';
 
 export function AdminBackupsPage() {
@@ -16,6 +17,11 @@ export function AdminBackupsPage() {
   const [page, setPage] = useState(1);
   const [triggerUserId, setTriggerUserId] = useState('');
   const queryClient = useQueryClient();
+
+  const { data: users } = useQuery({
+    queryKey: ['admin-users-list'],
+    queryFn: () => getAdminUsers(1, 100),
+  });
 
   const { data: snapshots } = useQuery({
     queryKey: ['admin-backups', page],
@@ -92,13 +98,18 @@ export function AdminBackupsPage() {
       {activeTab === 'snapshots' && (
         <>
           <div className="flex items-center gap-3 mb-4">
-            <input
-              type="text"
-              placeholder="User ID to backup..."
+            <select
               value={triggerUserId}
               onChange={(e) => setTriggerUserId(e.target.value)}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
+            >
+              <option value="">Select a user...</option>
+              {users?.data.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.email}{u.business_name ? ` (${u.business_name})` : ''}
+                </option>
+              ))}
+            </select>
             <button
               onClick={() => triggerMutation.mutate(triggerUserId)}
               disabled={!triggerUserId || triggerMutation.isPending}

@@ -43,7 +43,7 @@ async function checkRedis(): Promise<ServiceCheck> {
 }
 
 async function checkFrontend(): Promise<ServiceCheck> {
-  const url = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const url = process.env.FRONTEND_URL || 'http://frontend:80';
   const start = Date.now();
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
