@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getHealthStatus, getSystemLogs } from '../../api/admin';
 
 const statusIcon: Record<string, { color: string; label: string }> = {
