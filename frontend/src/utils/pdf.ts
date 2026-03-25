@@ -29,6 +29,20 @@ function fmtMoney(amount: number): string {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
 }
 
+/**
+ * jsPDF measures strings for `align: 'right'` using built-in font metrics. Unicode minus (U+2212)
+ * and narrow/no-break spaces from Intl can break that and produce spaced-out glyphs ("$ 1 . 6 0").
+ * Use ASCII-only, normalized spaces for all currency drawn in tables.
+ */
+function fmtMoneyPdf(amount: number): string {
+  return fmtMoney(amount)
+    .replace(/\u2212/g, '-') // minus sign → hyphen
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function fmtDate(iso: string): string {
   try {
     const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
@@ -209,7 +223,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   const colAmt = right;
   const descTextW = vDescQty - M - 2;
   /** Inset (mm) so right-aligned figures sit off the vertical grid lines. */
-  const colPad = 1.5;
+  const colPad = 2.5;
   const qtyX = colQtyRight - colPad;
   const rateX = colRateRight - colPad;
   const amtX = colAmt - colPad;
@@ -269,9 +283,9 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
       doc.setFontSize(9);
       doc.text(descLines, colDesc + 1, y);
       // Same top baseline as first description line (avoids drifting down the cell)
-      doc.text(String(item.quantity), qtyX, y, { align: 'right' });
-      doc.text(fmtMoney(itemUnitPrice(item)), rateX, y, { align: 'right' });
-      doc.text(fmtMoney(n(item.amount)), amtX, y, { align: 'right' });
+      doc.text(n(item.quantity).toFixed(2), qtyX, y, { align: 'right' });
+      doc.text(fmtMoneyPdf(itemUnitPrice(item)), rateX, y, { align: 'right' });
+      doc.text(fmtMoneyPdf(n(item.amount)), amtX, y, { align: 'right' });
       y += rowHeight;
       doc.setDrawColor(...gray.line);
       doc.line(M, y, right, y);
@@ -299,7 +313,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
 
   doc.setFontSize(9);
   doc.text('Subtotal', labelLeftX, y);
-  doc.text(fmtMoney(n(invoice.subtotal)), amtX, y, { align: 'right' });
+  doc.text(fmtMoneyPdf(n(invoice.subtotal)), amtX, y, { align: 'right' });
   y += 6;
   doc.setDrawColor(...gray.line);
   doc.line(totalsBoxLeft, y, totalsBoxRight, y);
@@ -313,7 +327,8 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
       y
     );
     doc.setTextColor(0, 0, 0);
-    doc.text(`−${fmtMoney(n(invoice.discount_amount))}`, amtX, y, { align: 'right' });
+    // Negative amount via fmtMoney (not Unicode − + string) so jsPDF right-align width is correct
+    doc.text(fmtMoneyPdf(-n(invoice.discount_amount)), amtX, y, { align: 'right' });
     y += 6;
     doc.setDrawColor(...gray.line);
     doc.line(totalsBoxLeft, y, totalsBoxRight, y);
@@ -322,7 +337,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
 
   if (n(invoice.tax_amount) > 0) {
     doc.text(`Tax (${n(invoice.tax_rate)}%)`, labelLeftX, y);
-    doc.text(fmtMoney(n(invoice.tax_amount)), amtX, y, { align: 'right' });
+    doc.text(fmtMoneyPdf(n(invoice.tax_amount)), amtX, y, { align: 'right' });
     y += 6;
     doc.setDrawColor(...gray.line);
     doc.line(totalsBoxLeft, y, totalsBoxRight, y);
@@ -332,7 +347,7 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('Total', labelLeftX, y);
-  doc.text(fmtMoney(n(invoice.total)), amtX, y, { align: 'right' });
+  doc.text(fmtMoneyPdf(n(invoice.total)), amtX, y, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   y += 6;
   doc.setDrawColor(...gray.line);
@@ -344,21 +359,72 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
   doc.line(totalsBoxRight, totalsTopY, totalsBoxRight, totalsBottomY);
   y += 4;
 
-  // —— Notes / terms ——
-  if (invoice.notes?.trim()) {
-    if (y > pageH - M - 35) {
+  /** Space reserved at bottom for thank-you line, status, and page number (avoid clipping notes / Pay to). */
+  const FOOTER_RESERVE_MM = 32;
+  const contentMaxY = pageH - FOOTER_RESERVE_MM;
+  /** Line spacing for wrapped body text (mm); keep in sync with splitTextToSize output. */
+  const BODY_LINE_MM = 4.5;
+
+  function ensureBlockFits(blockHeightMm: number) {
+    if (y + blockHeightMm > contentMaxY) {
       doc.addPage();
       y = M;
     }
+  }
+
+  // —— Notes / terms ——
+  if (invoice.notes?.trim()) {
+    const noteLines = doc.splitTextToSize(invoice.notes.trim(), contentW);
+    const noteBlockH = 8 + noteLines.length * BODY_LINE_MM + 6;
+    ensureBlockFits(noteBlockH);
     doc.setFontSize(8);
     doc.setTextColor(...gray.label);
     doc.text('NOTES', M, y);
     y += 5;
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
-    const noteLines = doc.splitTextToSize(invoice.notes.trim(), contentW);
     doc.text(noteLines, M, y);
-    y += noteLines.length * 4 + 4;
+    y += noteLines.length * BODY_LINE_MM + 4;
+  }
+
+  // —— Pay to (company settings) ——
+  const payable = company?.payableText?.trim();
+  if (payable) {
+    const payableLines = doc.splitTextToSize(payable, contentW);
+    const headerH = 13;
+    let lineIdx = 0;
+    while (lineIdx < payableLines.length) {
+      const roomBelow = contentMaxY - y;
+      const linesThisPage = Math.max(
+        0,
+        Math.floor((roomBelow - (lineIdx === 0 ? headerH : 0)) / BODY_LINE_MM)
+      );
+      if (linesThisPage < 1) {
+        doc.addPage();
+        y = M;
+        continue;
+      }
+      const chunk = payableLines.slice(lineIdx, lineIdx + Math.min(linesThisPage, payableLines.length - lineIdx));
+      if (lineIdx === 0) {
+        doc.setFontSize(8);
+        doc.setTextColor(...gray.label);
+        doc.text('Pay to', M, y);
+        y += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+      } else {
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+      }
+      doc.text(chunk, M, y);
+      y += chunk.length * BODY_LINE_MM;
+      lineIdx += chunk.length;
+      if (lineIdx < payableLines.length) {
+        doc.addPage();
+        y = M;
+      }
+    }
+    y += 6;
   }
 
   // —— Footer ——

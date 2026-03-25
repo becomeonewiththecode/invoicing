@@ -2,19 +2,21 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getInvoice, deleteInvoice, updateInvoiceStatus } from '../api/invoices';
+import { getInvoice, deleteInvoice, updateInvoiceStatus, sendInvoiceToCompanyEmail, createShareLink, revokeShareLink } from '../api/invoices';
 import { getSettings } from '../api/settings';
 import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { generateInvoicePdf } from '../utils/pdf';
 import { formatInvoiceClientLabel } from '../utils/clientDisplay';
 import type { InvoiceStatus } from '../types';
+import axios from 'axios';
 
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   const { data: invoice, isPending } = useQuery({
     queryKey: ['invoice', id],
@@ -38,13 +40,51 @@ export function InvoiceDetailPage() {
     onError: () => toast.error('Failed to update status'),
   });
 
+  const emailToCompanyMutation = useMutation({
+    mutationFn: () => sendInvoiceToCompanyEmail(id!),
+    onSuccess: (data) => {
+      toast.success(`Invoice emailed to ${data.sentTo}`);
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err) ? (err.response?.data as { error?: string })?.error : undefined;
+      toast.error(msg || 'Failed to send email');
+    },
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: () => createShareLink(id!),
+    onSuccess: ({ token }) => {
+      const url = `${window.location.origin}/share/${token}`;
+      setShareUrl(url);
+      navigator.clipboard.writeText(url).then(
+        () => toast.success('Share link copied to clipboard'),
+        () => toast.success('Share link created')
+      );
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+    },
+    onError: () => toast.error('Failed to create share link'),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: () => revokeShareLink(id!),
+    onSuccess: () => {
+      setShareUrl(null);
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+      toast.success('Share link revoked');
+    },
+    onError: () => toast.error('Failed to revoke share link'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteInvoice,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
       queryClient.invalidateQueries({ queryKey: ['revenue-stats'] });
-      toast.success('Invoice deleted');
-      navigate('/invoices');
+      toast.success(invoice?.status === 'draft' ? 'Invoice deleted' : 'Invoice cancelled');
+      if (invoice?.status === 'draft') {
+        navigate('/invoices');
+      }
     },
     onError: () => toast.error('Failed to delete invoice'),
   });
@@ -67,20 +107,36 @@ export function InvoiceDetailPage() {
     (invoice.status as string) === 'overdue' ? 'late' : invoice.status;
   const nextAction = nextStatusMap[statusKey];
 
+  const publicShareDisplayUrl =
+    invoice.share_token != null && invoice.share_token !== ''
+      ? `${window.location.origin}/share/${invoice.share_token}`
+      : shareUrl;
+
   return (
     <div>
-      <button onClick={() => navigate('/invoices')} className="text-sm text-gray-500 hover:text-gray-700 mb-4">
-        &larr; Back to Invoices
-      </button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 text-sm">
+        <button type="button" onClick={() => navigate('/invoices')} className="text-gray-500 hover:text-gray-700">
+          &larr; Back to Invoices
+        </button>
+        <span className="text-gray-300" aria-hidden>
+          |
+        </span>
+        <Link
+          to={`/clients/${encodeURIComponent(invoice.client_id)}`}
+          className="text-blue-600 hover:text-blue-800 font-medium"
+        >
+          Client profile
+        </Link>
+      </div>
 
       <div className="bg-white rounded-xl shadow-sm p-8">
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-start mb-6">
           <div>
             <h1 className="text-2xl font-bold">{invoice.invoice_number}</h1>
             <StatusBadge status={invoice.status} />
           </div>
-          <div className="flex gap-3 flex-wrap justify-end">
+          <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto lg:justify-end">
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -103,15 +159,26 @@ export function InvoiceDetailPage() {
             >
               Generate PDF
             </button>
-            {invoice.status === 'draft' && (
+            <button
+              type="button"
+              disabled={emailToCompanyMutation.isPending}
+              onClick={() => emailToCompanyMutation.mutate()}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {emailToCompanyMutation.isPending ? 'Sending…' : 'Email to company'}
+            </button>
+            {['draft', 'sent', 'late'].includes(invoice.status) && (
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm('Delete this draft invoice?')) deleteMutation.mutate(invoice.id);
+                  const msg = invoice.status === 'draft'
+                    ? 'Delete this draft invoice? This cannot be undone.'
+                    : 'Cancel this invoice? It will be marked as cancelled and any share link will be revoked.';
+                  if (confirm(msg)) deleteMutation.mutate(invoice.id);
                 }}
                 className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
               >
-                Delete
+                {invoice.status === 'draft' ? 'Delete' : 'Cancel invoice'}
               </button>
             )}
             {nextAction && (
@@ -125,10 +192,64 @@ export function InvoiceDetailPage() {
           </div>
         </div>
 
+        {/* Public share link — separate block so it is not lost in the action row */}
+        <div className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <h2 className="text-sm font-semibold text-gray-900">Public share link</h2>
+          <p className="text-xs text-gray-600 mt-1 mb-3">
+            Create a link anyone can open to view this invoice (no login). Paste it into email or chat.
+          </p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              disabled={shareMutation.isPending}
+              onClick={() => {
+                if (invoice.share_token) {
+                  const url = `${window.location.origin}/share/${invoice.share_token}`;
+                  navigator.clipboard.writeText(url).then(
+                    () => toast.success('Share link copied to clipboard'),
+                    () => {
+                      setShareUrl(url);
+                      toast.success('Share link ready');
+                    }
+                  );
+                } else {
+                  shareMutation.mutate();
+                }
+              }}
+              className="px-4 py-2 border border-gray-300 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 text-sm font-medium"
+            >
+              {shareMutation.isPending ? 'Creating…' : invoice.share_token ? 'Copy share link' : 'Create share link'}
+            </button>
+            {publicShareDisplayUrl && (
+              <button
+                type="button"
+                disabled={revokeMutation.isPending}
+                onClick={() => revokeMutation.mutate()}
+                className="px-4 py-2 border border-orange-300 text-orange-700 bg-white rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-50 text-sm"
+              >
+                {revokeMutation.isPending ? 'Revoking…' : 'Revoke link'}
+              </button>
+            )}
+          </div>
+          {publicShareDisplayUrl && (
+            <p className="mt-3 text-xs font-mono text-gray-700 break-all bg-white border border-gray-200 rounded px-3 py-2">
+              {publicShareDisplayUrl}
+            </p>
+          )}
+        </div>
+
         {/* Details */}
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Bill To</h3>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+              <h3 className="text-sm font-medium text-gray-500">Bill To</h3>
+              <Link
+                to={`/clients?edit=${encodeURIComponent(invoice.client_id)}`}
+                className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Client profile
+              </Link>
+            </div>
             <p className="font-medium text-gray-900">{formatInvoiceClientLabel(invoice)}</p>
             {invoice.client_company?.trim() &&
               invoice.client_name?.trim() &&
@@ -147,7 +268,7 @@ export function InvoiceDetailPage() {
           </div>
         </div>
 
-        {/* Table cells use align-middle + same line-height so every row aligns the same */}
+        {/* Totals live in tfoot so columns align with line items (grid-cols-4 used equal widths and did not match the table). */}
         <table className="mb-8 w-full border-collapse border border-gray-300 text-sm">
           <thead>
             <tr className="bg-gray-50">
@@ -183,42 +304,57 @@ export function InvoiceDetailPage() {
               </tr>
             ))}
           </tbody>
+          <tfoot className="bg-gray-50/80">
+            <tr>
+              <td colSpan={2} className="border border-gray-300" aria-hidden />
+              <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-500">Subtotal</td>
+              <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+                ${Number(invoice.subtotal).toFixed(2)}
+              </td>
+            </tr>
+            {Number(invoice.discount_amount) > 0 && (
+              <tr>
+                <td colSpan={2} className="border border-gray-300" aria-hidden />
+                <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-500">
+                  Discount{invoice.discount_code && ` (${invoice.discount_code})`}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+                  -${Number(invoice.discount_amount).toFixed(2)}
+                </td>
+              </tr>
+            )}
+            {Number(invoice.tax_amount) > 0 && (
+              <tr>
+                <td colSpan={2} className="border border-gray-300" aria-hidden />
+                <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-500">
+                  Tax ({invoice.tax_rate}%)
+                </td>
+                <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+                  ${Number(invoice.tax_amount).toFixed(2)}
+                </td>
+              </tr>
+            )}
+            <tr className="font-bold text-base">
+              <td colSpan={2} className="border border-gray-300" aria-hidden />
+              <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-900">Total</td>
+              <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+                ${Number(invoice.total).toFixed(2)}
+              </td>
+            </tr>
+          </tfoot>
         </table>
-
-        {/* Totals — align with table: cols 1–2 span, label col 3, amount col 4 */}
-        <div className="w-full border border-gray-300 divide-y divide-gray-300">
-          <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-sm">
-            <div className="col-span-2 min-w-0" />
-            <div className="text-left text-gray-500">Subtotal</div>
-            <div className="text-right tabular-nums pl-2">${Number(invoice.subtotal).toFixed(2)}</div>
-          </div>
-          {Number(invoice.discount_amount) > 0 && (
-            <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-sm">
-              <div className="col-span-2 min-w-0" />
-              <div className="text-left text-gray-500">
-                Discount{invoice.discount_code && ` (${invoice.discount_code})`}
-              </div>
-              <div className="text-right tabular-nums pl-2">-${Number(invoice.discount_amount).toFixed(2)}</div>
-            </div>
-          )}
-          {Number(invoice.tax_amount) > 0 && (
-            <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-sm">
-              <div className="col-span-2 min-w-0" />
-              <div className="text-left text-gray-500">Tax ({invoice.tax_rate}%)</div>
-              <div className="text-right tabular-nums pl-2">${Number(invoice.tax_amount).toFixed(2)}</div>
-            </div>
-          )}
-          <div className="grid grid-cols-4 gap-x-4 gap-y-0 px-4 py-2 text-base font-bold">
-            <div className="col-span-2 min-w-0" />
-            <div className="text-left">Total</div>
-            <div className="text-right tabular-nums pl-2">${Number(invoice.total).toFixed(2)}</div>
-          </div>
-        </div>
 
         {invoice.notes && (
           <div className="mt-8 pt-6 border-t">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
             <p className="text-gray-600">{invoice.notes}</p>
+          </div>
+        )}
+
+        {companySettings?.payableText?.trim() && (
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Pay to</h3>
+            <p className="text-gray-700 whitespace-pre-line">{companySettings.payableText.trim()}</p>
           </div>
         )}
       </div>

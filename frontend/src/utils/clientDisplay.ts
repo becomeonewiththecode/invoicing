@@ -1,5 +1,3 @@
-import type { Client } from '../types';
-
 /** Company (or contact name if no company), with customer number — used wherever a client is referenced. */
 export function formatClientLabel(c: {
   name: string;

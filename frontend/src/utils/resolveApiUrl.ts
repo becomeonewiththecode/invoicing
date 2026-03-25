@@ -5,6 +5,11 @@ export function resolveApiAssetUrl(pathOrUrl: string | null | undefined): string
   if (!p) return '';
   if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('data:')) return p;
   const base = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
-  const origin = base.replace(/\/api\/?$/, '');
+  const origin =
+    typeof base === 'string' && base.startsWith('/')
+      ? typeof window !== 'undefined'
+        ? window.location.origin
+        : ''
+      : String(base).replace(/\/api\/?$/, '');
   return p.startsWith('/') ? `${origin}${p}` : `${origin}/${p}`;
 }

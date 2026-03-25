@@ -3,9 +3,12 @@
 .claude/settings.local.json
 .claude/memory/
 
-# Claude Code - shared files (DO NOT ignore)
-# CLAUDE.md
-# .claude/rules/
+# Local AI assistant docs (not tracked — keep copies outside the repo if needed)
+CLAUDE.md
+Claude.md
+.claude/CLAUDE.md
+CURSOR-RULES.md
+CURSOR_RULES.md
 
 # Cursor
 .ai/*

@@ -29,6 +29,6 @@ export async function updateClient(id: string, client: Partial<Client>): Promise
   return data;
 }
 
-export async function deleteClient(id: string): Promise<void> {
-  await api.delete(`/clients/${id}`);
+export async function deleteClient(id: string, force = false): Promise<void> {
+  await api.delete(`/clients/${id}`, { params: force ? { force: 'true' } : undefined });
 }
