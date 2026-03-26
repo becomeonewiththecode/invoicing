@@ -26,6 +26,32 @@ export const createClientSchema = z.object({
 
 export const updateClientSchema = createClientSchema.partial();
 
+export const portalLoginSchema = z.object({
+  accessToken: z.string().min(1).max(64),
+  password: z.string().min(1).max(200),
+  totpCode: z.string().min(6).max(12).optional(),
+});
+
+export const updateClientPortalSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    password: z.string().min(8).max(128).optional(),
+    regenerateToken: z.boolean().optional(),
+  })
+  .refine(
+    (d) =>
+      d.enabled !== undefined || d.password !== undefined || d.regenerateToken !== undefined,
+    { message: 'At least one of enabled, password, or regenerateToken is required' }
+  );
+
+export const portal2faVerifySchema = z.object({
+  code: z.string().min(6).max(12),
+});
+
+export const portal2faDisableSchema = z.object({
+  password: z.string().min(1).max(200),
+});
+
 // Project (per client)
 const projectMilestoneSchema = z.object({
   title: z.string().min(1).max(255),

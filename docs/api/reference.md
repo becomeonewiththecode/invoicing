@@ -7,7 +7,7 @@
 
 Paths below are relative to that base (e.g. `/auth/register` → `POST /api/auth/register`).
 
-**Authentication:** All endpoints except `/auth/register`, `/auth/login`, and `/invoices/share/:token` require a JWT in the `Authorization` header. `PUT /auth/account` requires JWT. Admin endpoints (`/admin/*`) additionally require `role = 'admin'`.
+**Authentication:** All endpoints except `/auth/register`, `/auth/login`, `/invoices/share/:token`, and `/portal/auth/login` require a JWT in the `Authorization` header. `PUT /auth/account` requires JWT. Admin endpoints (`/admin/*`) additionally require `role = 'admin'`.
 
 ```
 Authorization: Bearer <token>
@@ -119,6 +119,53 @@ Authenticate and receive a JWT token. The response includes the user's `role` (`
   "token": "jwt-token"
 }
 ```
+
+---
+
+## Client portal (vendor customers)
+
+Client portal auth uses **portal JWTs** (still sent as `Authorization: Bearer ...`). Only `POST /portal/auth/login` is public.
+
+### Vendor portal settings
+`PATCH /clients/:id/portal` (authenticated as vendor user)
+
+Updates portal access for a specific client.
+
+**Request body (JSON):**
+```json
+{
+  "enabled": true,
+  "password": "new portal password",
+  "regenerateToken": true
+}
+```
+
+### Client portal login
+`POST /portal/auth/login` (public)
+
+**Request body:**
+```json
+{
+  "accessToken": "<clients.portal_token>",
+  "password": "<client portal password>",
+  "totpCode": "123456" 
+}
+```
+
+**Responses:**
+- **200 (success):** `{ token, client, vendor, portal: { twoFactorEnabled } }`
+- **200 (2FA required):** `{ requiresTwoFactor: true, message: "..." }`
+
+### Protected portal endpoints (requires portal JWT)
+- `GET /portal/me`
+- `GET /portal/invoices` (draft invoices are hidden; backend returns `status != 'draft'`)
+- `GET /portal/projects`
+- `GET /portal/notifications` (recent activity; UI polls in v1)
+
+### Portal 2FA
+- `POST /portal/2fa/setup` → returns `{ qrDataUrl, otpauthUrl, secret }`
+- `POST /portal/2fa/enable` → body `{ code }`
+- `POST /portal/2fa/disable` → body `{ password }`
 
 ---
 

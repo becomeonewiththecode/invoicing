@@ -4,7 +4,7 @@ import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getClient, updateClient, deleteClient } from '../api/clients';
+import { getClient, updateClient, deleteClient, updateClientPortal } from '../api/clients';
 import { getDiscounts } from '../api/discounts';
 import { getClientInvoiceStats, getInvoices } from '../api/invoices';
 import { formatClientLabel } from '../utils/clientDisplay';
@@ -115,6 +115,21 @@ export function ClientProfilePage() {
   });
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ invoiceCount: number } | null>(null);
+  const [portalPassword, setPortalPassword] = useState('');
+
+  const portalMutation = useMutation({
+    mutationFn: (body: { enabled?: boolean; password?: string; regenerateToken?: boolean }) =>
+      updateClientPortal(clientId!, body),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      if (vars.password) setPortalPassword('');
+      toast.success('Portal settings updated');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg ?? 'Could not update portal');
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (force?: boolean) => deleteClient(clientId!, force ?? false),
@@ -351,6 +366,112 @@ export function ClientProfilePage() {
               </button>
             </div>
           </form>
+
+          <div className="mt-10 pt-10 border-t border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Client portal</h2>
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Clients open <span className="font-medium text-gray-800">/portal</span> or{' '}
+                <span className="font-medium text-gray-800">/client-portal</span> and sign in with the access link
+                and password below. Draft invoices are hidden; they can view invoices and projects.
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={client.portal_enabled ?? false}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    if (!next) {
+                      portalMutation.mutate({ enabled: false });
+                      return;
+                    }
+                    if (!client.portal_has_password && !portalPassword.trim()) {
+                      toast.error('Enter a portal password below before enabling');
+                      return;
+                    }
+                    portalMutation.mutate({
+                      enabled: true,
+                      ...(portalPassword.trim() ? { password: portalPassword.trim() } : {}),
+                    });
+                  }}
+                  disabled={portalMutation.isPending}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-800">Enable client portal</span>
+              </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Portal password</label>
+                <input
+                  type="password"
+                  value={portalPassword}
+                  onChange={(e) => setPortalPassword(e.target.value)}
+                  placeholder={
+                    client.portal_has_password ? 'New password (optional)' : 'Required when enabling'
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg max-w-md bg-white"
+                  autoComplete="new-password"
+                />
+                <span className="text-xs text-gray-500 mt-1 block">
+                  At least 8 characters. Leave blank to keep the current password if the portal is already enabled.
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={portalMutation.isPending}
+                  onClick={() => {
+                    if (!portalPassword.trim() && !client.portal_has_password) {
+                      toast.error('Set a portal password first');
+                      return;
+                    }
+                    portalMutation.mutate({
+                      enabled: true,
+                      ...(portalPassword.trim() ? { password: portalPassword.trim() } : {}),
+                    });
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  Save portal password
+                </button>
+                <button
+                  type="button"
+                  disabled={portalMutation.isPending || !(client.portal_enabled && client.portal_token)}
+                  onClick={() => {
+                    if (!confirm('Regenerate the access link? The old link stops working immediately.')) return;
+                    portalMutation.mutate({ regenerateToken: true });
+                  }}
+                  className="px-4 py-2 border border-amber-300 text-amber-900 rounded-lg hover:bg-amber-50 disabled:opacity-50 text-sm"
+                >
+                  Regenerate access link
+                </button>
+              </div>
+              {client.portal_enabled && client.portal_token && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Sign-in link</p>
+                  <div className="flex flex-col sm:flex-row gap-2 items-start">
+                    <code className="text-xs text-gray-800 bg-white border border-gray-200 rounded px-2 py-1.5 break-all max-w-full flex-1">
+                      {`${window.location.origin}/portal/login?token=${client.portal_token}`}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(
+                          `${window.location.origin}/portal/login?token=${client.portal_token}`
+                        );
+                        toast.success('Copied');
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 shrink-0 bg-white"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Clients can turn on two-factor authentication in the portal under Security after they sign in.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       )}
 

@@ -35,6 +35,11 @@ export interface Client {
   notes?: string;
   /** Default discount for invoices; must match an active discount code */
   discount_code?: string | null;
+  /** Vendor-only: client portal access; copy link for the client */
+  portal_enabled?: boolean;
+  portal_token?: string | null;
+  portal_has_password?: boolean;
+  portal_totp_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }

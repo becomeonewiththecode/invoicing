@@ -14,6 +14,7 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 | **Architecture** | [architecture.md](architecture.md) — Docker Compose stack, startup sequence, request flow, backup import |
 | **Backend** | [backend/overview.md](backend/overview.md) |
 | **Frontend** | [frontend/overview.md](frontend/overview.md) · [frontend/routes.md](frontend/routes.md) (routes, client profile, Projects tab, [new invoice + projects](frontend/routes.md#new-invoice-and-related-projects)) |
+| **Client portal** | [client-portal/overview.md](client-portal/overview.md) · [client-portal/login-and-usage.md](client-portal/login-and-usage.md) |
 | **Admin panel** | [admin/overview.md](admin/overview.md) · [admin/pages.md](admin/pages.md) (per-page reference) |
 
 ## Deployment (separate folder)

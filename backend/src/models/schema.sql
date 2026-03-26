@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS clients (
   address TEXT,
   notes TEXT,
   discount_code VARCHAR(50),
+  portal_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  portal_token VARCHAR(64) UNIQUE,
+  portal_password_hash VARCHAR(255),
+  portal_totp_secret VARCHAR(64),
+  portal_totp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (user_id, customer_number)

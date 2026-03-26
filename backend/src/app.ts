@@ -15,6 +15,7 @@ import settingsRoutes from './routes/settings';
 import dataPortRoutes from './routes/dataPort';
 import adminRoutes from './routes/admin/index';
 import ticketRoutes from './routes/tickets';
+import portalRoutes from './routes/portal';
 import { requestLogger } from './middleware/requestLogger';
 
 dotenv.config();
@@ -32,6 +33,7 @@ app.use(requestLogger);
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/portal', portalRoutes);
 app.use('/api/clients', projectRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/invoices/share', shareRoutes); // public — must be before authenticated invoice routes

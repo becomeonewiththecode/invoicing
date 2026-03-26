@@ -1,6 +1,6 @@
 # App routes and client profile
 
-SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`, `/login`, and `/register` use `AppLayout` (sidebar).
+SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`, `/login`, `/register`, and `/portal/*` use `AppLayout` (sidebar).
 
 ## Authenticated routes
 
@@ -61,6 +61,24 @@ Draft **edit** mode does not overwrite saved line items on load; syncing applies
 |------|------|
 | `/share/:token` | Shared invoice (no login); clients can mark as paid |
 | `/login`, `/register` | Auth |
+| `/portal/login` | Client portal login (access token + password, optional TOTP) |
+
+## Client portal routes
+
+The client portal uses a separate `PortalLayout` (no main app sidebar) and a `portalToken`-based auth gate. After login, the UI loads:
+- `/api/portal/me`
+- `/api/portal/notifications` (polled periodically to approximate real-time)
+- `/api/portal/invoices` (draft invoices are hidden by the backend)
+- `/api/portal/projects`
+
+| Path | Page | Notes |
+|------|------|------|
+| `/portal` | Dashboard | Account overview + recent activity |
+| `/portal/invoices` | Invoices | Non-draft invoices only |
+| `/portal/projects` | Projects | Project list/status |
+| `/portal/security` | Security | Portal 2FA setup/enable/disable |
+| `/client-portal` | Redirect to `/portal` | —
+| `/client-portal/login` | Redirect to `/portal/login` | —
 
 ## Admin routes
 

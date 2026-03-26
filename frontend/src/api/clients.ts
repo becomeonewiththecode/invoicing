@@ -32,3 +32,11 @@ export async function updateClient(id: string, client: Partial<Client>): Promise
 export async function deleteClient(id: string, force = false): Promise<void> {
   await api.delete(`/clients/${id}`, { params: force ? { force: 'true' } : undefined });
 }
+
+export async function updateClientPortal(
+  id: string,
+  body: { enabled?: boolean; password?: string; regenerateToken?: boolean }
+): Promise<Client> {
+  const { data } = await api.patch(`/clients/${id}/portal`, body);
+  return data;
+}

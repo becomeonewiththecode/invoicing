@@ -168,6 +168,16 @@ export async function ensureSchema(): Promise<void> {
     'ALTER TABLE projects ADD COLUMN IF NOT EXISTS hours_is_maximum BOOLEAN NOT NULL DEFAULT FALSE'
   );
 
+  await pool.query(
+    'ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_enabled BOOLEAN NOT NULL DEFAULT FALSE'
+  );
+  await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token VARCHAR(64) UNIQUE');
+  await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_password_hash VARCHAR(255)');
+  await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_totp_secret VARCHAR(64)');
+  await pool.query(
+    'ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_totp_enabled BOOLEAN NOT NULL DEFAULT FALSE'
+  );
+
   // Seed default admin user if configured and not already present
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
