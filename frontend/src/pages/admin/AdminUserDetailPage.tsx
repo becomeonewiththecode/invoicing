@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getAdminUserDetail, updateUserRole, flagUserContent } from '../../api/admin';
+import { getAdminUserDetail, updateUserRole, flagUserContent, deleteUser } from '../../api/admin';
 
 export function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [flagForm, setFlagForm] = useState({ contentType: '', contentSnippet: '', reason: '' });
   const [showFlagForm, setShowFlagForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const { data: user, isPending } = useQuery({
     queryKey: ['admin-user', id],
@@ -33,6 +36,19 @@ export function AdminUserDetailPage() {
       setFlagForm({ contentType: '', contentSnippet: '', reason: '' });
     },
     onError: () => toast.error('Failed to flag content'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteUser(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success('User deleted');
+      navigate('/admin/users');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(msg || 'Failed to delete user');
+    },
   });
 
   if (isPending) return <div className="text-gray-500">Loading...</div>;
@@ -143,6 +159,51 @@ export function AdminUserDetailPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Danger zone */}
+      <div className="bg-white rounded-lg shadow p-6 border border-red-200">
+        <h2 className="text-lg font-semibold text-red-700 mb-2">Danger zone</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Permanently delete this user and all associated data: clients, invoices, discount codes, tickets, backups, and content flags. This action cannot be undone.
+        </p>
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+          >
+            Delete user
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-700">
+              Type <strong>{user.email}</strong> to confirm:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              placeholder={user.email}
+              autoComplete="off"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteConfirmText !== user.email || deleteMutation.isPending}
+                className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Permanently delete'}
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
+                className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

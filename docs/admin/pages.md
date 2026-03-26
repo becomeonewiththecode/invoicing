@@ -75,7 +75,9 @@ Two-column layout:
 
 **Content flagging** — collapsible form to flag a user's content for moderation review. Fields: content type (Business Name / Invoice Notes / Client Notes), content snippet, optional reason. Calls `POST /admin/users/:id/flag`.
 
-**API:** `GET /admin/users/:id`, `PUT /admin/users/:id/role`, `POST /admin/users/:id/flag`.
+**Danger zone** — red-bordered section at the bottom. "Delete user" button reveals a confirmation prompt requiring the admin to type the user's email before the delete executes. Deletes the user and all associated data (clients, invoices, discount codes, tickets, backups, content flags) in a single transaction. Admins cannot delete their own account. On success, navigates back to the users list. Calls `DELETE /admin/users/:id`.
+
+**API:** `GET /admin/users/:id`, `PUT /admin/users/:id/role`, `POST /admin/users/:id/flag`, `DELETE /admin/users/:id`.
 
 ---
 

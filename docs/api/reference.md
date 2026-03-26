@@ -608,6 +608,20 @@ User detail: profile, client/invoice counts, total revenue.
 
 Update a user's role. Body: `{ "role": "admin" }` or `{ "role": "user" }`.
 
+### DELETE /admin/users/:id
+
+Permanently delete a user and all associated data (clients, invoices, line items, discount codes, tickets, content flags, backups). Runs in a transaction. Admins cannot delete their own account.
+
+**Response (200):**
+
+```json
+{
+  "message": "User user@example.com and all associated data deleted"
+}
+```
+
+**Errors:** **400** if attempting self-deletion; **404** if user not found.
+
 ### GET /admin/moderation
 
 Content flag queue. Query: `?status=pending&page=1&limit=20`.

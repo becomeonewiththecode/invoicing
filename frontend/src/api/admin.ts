@@ -29,6 +29,7 @@ export const updateUserRole = (id: string, role: string) =>
   api.put(`/admin/users/${id}/role`, { role }).then((r) => r.data);
 export const flagUserContent = (userId: string, data: { contentType: string; contentSnippet: string; reason?: string }) =>
   api.post(`/admin/users/${userId}/flag`, data).then((r) => r.data);
+export const deleteUser = (id: string) => api.delete(`/admin/users/${id}`).then((r) => r.data);
 
 // Moderation
 export const getModerationQueue = (status = 'pending', page = 1, limit = 20) =>
