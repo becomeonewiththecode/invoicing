@@ -372,10 +372,21 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
     }
   }
 
-  // —— Notes / terms ——
-  if (invoice.notes?.trim()) {
-    const noteLines = doc.splitTextToSize(invoice.notes.trim(), contentW);
-    const noteBlockH = 8 + noteLines.length * BODY_LINE_MM + 6;
+  // —— Notes / terms (project external links use labels only — same as web ExternalLinksList) ——
+  const extLinks = invoice.project_external_links?.filter((l) => l.url?.trim()) ?? [];
+  if (invoice.notes?.trim() || extLinks.length > 0) {
+    doc.setFontSize(9);
+    const noteLines = invoice.notes?.trim()
+      ? doc.splitTextToSize(invoice.notes.trim(), contentW)
+      : [];
+    const linkBlocks = extLinks.map((l) => {
+      const label = (l.description?.trim() || l.url).slice(0, 500);
+      return { url: l.url, lines: doc.splitTextToSize(label, contentW) };
+    });
+    const linkLineCount = linkBlocks.reduce((n, b) => n + b.lines.length, 0);
+    const spacerLines = noteLines.length > 0 && linkLineCount > 0 ? 1 : 0;
+    const totalBodyLines = noteLines.length + spacerLines + linkLineCount;
+    const noteBlockH = 8 + totalBodyLines * BODY_LINE_MM + 6;
     ensureBlockFits(noteBlockH);
     doc.setFontSize(8);
     doc.setTextColor(...gray.label);
@@ -383,8 +394,26 @@ export async function generateInvoicePdf(invoice: Invoice, company?: UserSetting
     y += 5;
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
-    doc.text(noteLines, M, y);
-    y += noteLines.length * BODY_LINE_MM + 4;
+    if (noteLines.length > 0) {
+      doc.text(noteLines, M, y);
+      y += noteLines.length * BODY_LINE_MM;
+    }
+    if (spacerLines) {
+      y += BODY_LINE_MM;
+    }
+    const docWithLink = doc as unknown as {
+      textWithLink?: (text: string, x: number, yPos: number, opts: { url: string }) => number;
+    };
+    for (const block of linkBlocks) {
+      if (block.lines.length === 1 && typeof docWithLink.textWithLink === 'function') {
+        docWithLink.textWithLink(block.lines[0], M, y, { url: block.url });
+        y += BODY_LINE_MM;
+        continue;
+      }
+      doc.text(block.lines, M, y);
+      y += block.lines.length * BODY_LINE_MM;
+    }
+    y += 4;
   }
 
   // —— Pay to (company settings) ——

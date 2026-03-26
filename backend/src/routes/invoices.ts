@@ -50,6 +50,30 @@ async function invalidateRevenueCache(userId: string) {
   if (keys.length > 0) await redis.del(...keys);
 }
 
+/** External links from `project_external_links` plus legacy `projects.external_link` when not duplicated. */
+async function fetchProjectExternalLinksForInvoice(projectId: string | null): Promise<
+  { url: string; description: string | null }[]
+> {
+  if (!projectId) return [];
+  const links = await pool.query<{ url: string; description: string | null }>(
+    `SELECT url, description FROM project_external_links WHERE project_id = $1 ORDER BY sort_order ASC, created_at ASC`,
+    [projectId]
+  );
+  const out = links.rows.map((r) => ({ url: r.url, description: r.description }));
+  const legacy = await pool.query<{
+    external_link: string | null;
+    external_link_description: string | null;
+  }>(`SELECT external_link, external_link_description FROM projects WHERE id = $1`, [projectId]);
+  const row = legacy.rows[0];
+  if (row?.external_link?.trim()) {
+    const u = row.external_link.trim();
+    if (!out.some((x) => x.url === u)) {
+      out.push({ url: u, description: row.external_link_description?.trim() || null });
+    }
+  }
+  return out;
+}
+
 // List invoices (optional ?clientId= to filter by client)
 router.get('/', validate(paginationSchema, 'query'), async (req: AuthRequest, res: Response) => {
   try {
@@ -289,7 +313,13 @@ router.post('/:id/send-to-company', rateLimit({ windowMs: 60_000, max: 5 }), asy
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const inv = invoiceResult.rows[0] as InvoiceEmailRow;
+    const project_external_links = await fetchProjectExternalLinksForInvoice(
+      invoiceResult.rows[0].project_id as string | null
+    );
+    const inv = {
+      ...invoiceResult.rows[0],
+      project_external_links,
+    } as InvoiceEmailRow;
     const items = itemsResult.rows as InvoiceItemEmailRow[];
     const subject = `Invoice ${inv.invoice_number} — ${inv.client_name ?? 'Client'}`;
     const html = buildInvoiceEmailHtml(inv, items);
@@ -323,7 +353,9 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    res.json({ ...invoiceResult.rows[0], items: itemsResult.rows });
+    const row = invoiceResult.rows[0];
+    const project_external_links = await fetchProjectExternalLinksForInvoice(row.project_id as string | null);
+    res.json({ ...row, project_external_links, items: itemsResult.rows });
   } catch (err) {
     console.error('Get invoice error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -409,7 +441,17 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
     await client.query('COMMIT');
     await invalidateRevenueCache(req.userId!);
 
-    res.status(201).json(invoiceResult.rows[0]);
+    const createdId = invoiceResult.rows[0].id as string;
+    const fullRow = await pool.query(
+      `SELECT i.*, p.name as project_name FROM invoices i
+       LEFT JOIN projects p ON p.id = i.project_id
+       WHERE i.id = $1`,
+      [createdId]
+    );
+    const project_external_links = await fetchProjectExternalLinksForInvoice(
+      fullRow.rows[0]?.project_id as string | null
+    );
+    res.status(201).json({ ...fullRow.rows[0], project_external_links });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Create invoice error:', err);
@@ -540,7 +582,9 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
       ),
       pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]),
     ]);
-    res.json({ ...invoiceResult.rows[0], items: itemsResult.rows });
+    const row = invoiceResult.rows[0];
+    const project_external_links = await fetchProjectExternalLinksForInvoice(row.project_id as string | null);
+    res.json({ ...row, project_external_links, items: itemsResult.rows });
   } catch (err) {
     console.error('Update invoice fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });

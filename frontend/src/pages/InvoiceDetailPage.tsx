@@ -5,7 +5,10 @@ import toast from 'react-hot-toast';
 import { getInvoice, deleteInvoice, updateInvoiceStatus, sendInvoiceToCompanyEmail, createShareLink, revokeShareLink } from '../api/invoices';
 import { getSettings } from '../api/settings';
 import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
+import { ExternalLinksList } from '../components/ExternalLinksList';
+import { LinkifiedText } from '../components/LinkifiedText';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { externalLinksFromInvoicePayload } from '../utils/externalLinksDisplay';
 import { generateInvoicePdf } from '../utils/pdf';
 import { formatInvoiceClientLabel } from '../utils/clientDisplay';
 import type { InvoiceStatus } from '../types';
@@ -301,7 +304,7 @@ export function InvoiceDetailPage() {
             {invoice.items?.map((item, i) => (
               <tr key={i}>
                 <td className="border border-gray-300 px-4 py-3 align-middle text-left leading-normal text-gray-900">
-                  {item.description}
+                  <LinkifiedText text={item.description} preserveLineBreaks />
                 </td>
                 <td className="border border-gray-300 px-4 py-3 align-middle text-right leading-normal tabular-nums text-gray-900">
                   {item.quantity}
@@ -355,10 +358,18 @@ export function InvoiceDetailPage() {
           </tfoot>
         </table>
 
-        {invoice.notes && (
+        {(invoice.notes?.trim() || externalLinksFromInvoicePayload(invoice.project_external_links).length > 0) && (
           <div className="mt-8 pt-6 border-t">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
-            <p className="text-gray-600">{invoice.notes}</p>
+            {invoice.notes?.trim() ? (
+              <p className="text-gray-600 whitespace-pre-line">
+                <LinkifiedText text={invoice.notes} preserveLineBreaks />
+              </p>
+            ) : null}
+            <ExternalLinksList
+              links={externalLinksFromInvoicePayload(invoice.project_external_links)}
+              className={`text-sm space-y-1 list-none pl-0 ${invoice.notes?.trim() ? 'mt-3' : 'mt-0'}`}
+            />
           </div>
         )}
 

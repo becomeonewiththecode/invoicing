@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast, { Toaster } from 'react-hot-toast';
 import { getSharedInvoice, markSharedInvoicePaid } from '../api/invoices';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { ExternalLinksList } from '../components/ExternalLinksList';
+import { LinkifiedText } from '../components/LinkifiedText';
+import { externalLinksFromInvoicePayload } from '../utils/externalLinksDisplay';
 
 export function SharedInvoicePage() {
   const { token } = useParams<{ token: string }>();
@@ -74,7 +77,20 @@ export function SharedInvoicePage() {
               <p className="text-sm text-gray-500">{company.businessPhone}</p>
             )}
             {company.businessWebsite && (
-              <p className="text-sm text-gray-500">{company.businessWebsite}</p>
+              <p className="text-sm text-gray-500">
+                {/^https?:\/\//i.test(company.businessWebsite.trim()) ? (
+                  <a
+                    href={company.businessWebsite.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline break-all"
+                  >
+                    {company.businessWebsite.trim()}
+                  </a>
+                ) : (
+                  company.businessWebsite
+                )}
+              </p>
             )}
           </div>
           <div className="text-right">
@@ -139,7 +155,9 @@ export function SharedInvoicePage() {
           <tbody>
             {invoice.items?.map((item, i) => (
               <tr key={i}>
-                <td className="border border-gray-300 px-4 py-3 text-gray-900">{item.description}</td>
+                <td className="border border-gray-300 px-4 py-3 text-gray-900">
+                  <LinkifiedText text={item.description} preserveLineBreaks />
+                </td>
                 <td className="border border-gray-300 px-4 py-3 text-right tabular-nums text-gray-900">
                   {item.quantity}
                 </td>
@@ -190,10 +208,18 @@ export function SharedInvoicePage() {
           </tfoot>
         </table>
 
-        {invoice.notes && (
+        {(invoice.notes?.trim() || externalLinksFromInvoicePayload(invoice.project_external_links).length > 0) && (
           <div className="mt-8 pt-6 border-t">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
-            <p className="text-gray-600 whitespace-pre-line">{invoice.notes}</p>
+            {invoice.notes?.trim() ? (
+              <p className="text-gray-600 whitespace-pre-line">
+                <LinkifiedText text={invoice.notes} preserveLineBreaks />
+              </p>
+            ) : null}
+            <ExternalLinksList
+              links={externalLinksFromInvoicePayload(invoice.project_external_links)}
+              className={`text-sm space-y-1 list-none pl-0 ${invoice.notes?.trim() ? 'mt-3' : 'mt-0'}`}
+            />
           </div>
         )}
 

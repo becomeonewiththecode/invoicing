@@ -34,7 +34,7 @@ Two sections:
 
 ### Projects tab (`#projects`)
 
-Per-client project tracking (see `ClientProjectsTab.tsx`). List, create, edit, and delete projects scoped to this client. Fields include: **project name** (required), description, start/end dates, status, priority, **external links** (zero or more Google Docs / Microsoft 365 URLs, each with an optional description), team members (comma-separated), tags, budget, **hours** (optional, with a checkbox for whether that value is a **maximum** cap), dependencies, milestones (title + optional due date per row), and notes. Uses `GET/POST /api/clients/:clientId/projects` and `GET/PUT/DELETE /api/clients/:clientId/projects/:projectId` (see [API reference](../api/reference.md#client-projects)).
+Per-client project tracking (see `ClientProjectsTab.tsx`). List, create, edit, and delete projects scoped to this client. Fields include: **project name** (required), description, start/end dates, status, priority, **documents** (zero or more Google Docs / Microsoft 365 URLs, each with an optional label), team members (comma-separated), tags, budget, **hours** (optional, with a checkbox for whether that value is a **maximum** cap), dependencies, milestones (title + optional due date per row), and notes. Uses `GET/POST /api/clients/:clientId/projects` and `GET/PUT/DELETE /api/clients/:clientId/projects/:projectId` (see [API reference](../api/reference.md#client-projects)).
 
 Each project card includes **View PDF**, **Create invoice**, **Download PDF**, and **Edit**. **Create invoice** links to `/invoices/new?clientId=<clientId>&projectId=<projectId>` so the new-invoice form opens with that client and project selected.
 

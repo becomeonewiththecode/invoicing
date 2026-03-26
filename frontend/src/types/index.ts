@@ -70,6 +70,8 @@ export interface Invoice {
   recurrence_interval?: string;
   project_id?: string | null;
   project_name?: string | null;
+  /** From related project — shown under Notes on invoice views / PDF */
+  project_external_links?: { url: string; description?: string | null }[];
   client_name?: string;
   client_email?: string;
   client_company?: string;

@@ -123,7 +123,7 @@ function getExternalLinksForPdf(project: Project): { url: string; description?: 
   return [];
 }
 
-/** One row: rowLabel (e.g. Link / Link 2) + clickable text (description or URL). */
+/** One row: rowLabel (e.g. Document / Document 2) + clickable text (description or URL). */
 function addExternalLinkRow(
   doc: jsPDF,
   y: number,
@@ -236,9 +236,9 @@ export function generateProjectPdf(project: Project, clientName?: string): jsPDF
 
   const extLinks = getExternalLinksForPdf(project);
   if (extLinks.length > 0) {
-    y = addSection(doc, y, 'External links', pageW, pageH);
+    y = addSection(doc, y, 'Documents', pageW, pageH);
     extLinks.forEach((item, i) => {
-      const rowLabel = extLinks.length > 1 ? `Link ${i + 1}` : 'Link';
+      const rowLabel = extLinks.length > 1 ? `Document ${i + 1}` : 'Document';
       y = addExternalLinkRow(
         doc,
         y,

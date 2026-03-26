@@ -12,6 +12,8 @@ import {
   type ProjectPayload,
 } from '../../api/projects';
 import { downloadProjectPdf } from '../../utils/projectPdf';
+import { externalLinksFromProject } from '../../utils/externalLinksDisplay';
+import { ExternalLinksList } from '../ExternalLinksList';
 import { ProjectPdfPreviewModal } from '../ProjectPdfPreviewModal';
 
 function apiErrorMessage(err: unknown, fallback: string): string {
@@ -268,7 +270,7 @@ function ProjectFields({
       </div>
       <div className="md:col-span-2 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-gray-700">External links</span>
+          <span className="text-sm font-medium text-gray-700">Documents</span>
           <button
             type="button"
             onClick={() =>
@@ -719,37 +721,7 @@ export function ClientProjectsTab({
                 <div>
                   <h3 className="text-base font-semibold text-gray-900">{p.name}</h3>
                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">{p.description || '—'}</p>
-                  {(() => {
-                    const links =
-                      p.external_links && p.external_links.length > 0
-                        ? [...p.external_links].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                        : p.external_link?.trim()
-                          ? [
-                              {
-                                url: p.external_link,
-                                description: p.external_link_description,
-                              },
-                            ]
-                          : [];
-                    if (links.length === 0) return null;
-                    return (
-                      <ul className="text-sm mt-2 space-y-1 list-none pl-0">
-                        {links.map((l, i) => (
-                          <li key={'id' in l && l.id ? l.id : `link-${i}`}>
-                            <a
-                              href={l.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
-                              title={l.description?.trim() ? l.url : undefined}
-                            >
-                              {l.description?.trim() || l.url}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    );
-                  })()}
+                  <ExternalLinksList links={externalLinksFromProject(p)} />
                   <dl className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs text-gray-500">
                     <div>
                       <dt className="font-medium text-gray-700">Status</dt>

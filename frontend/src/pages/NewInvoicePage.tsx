@@ -10,7 +10,7 @@ import { getClients } from '../api/clients';
 import { getSettings } from '../api/settings';
 import { getClientProjects } from '../api/projects';
 import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
-import { buildInvoiceFromForm } from '../utils/invoicePreview';
+import { buildInvoiceFromForm, projectExternalLinksFromProject } from '../utils/invoicePreview';
 import type { Invoice } from '../types';
 import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi';
 import { formatClientLabel } from '../utils/clientDisplay';
@@ -292,12 +292,17 @@ export function NewInvoicePage() {
       return;
     }
     const client = clientsData?.data.find((c) => c.id === data.clientId);
+    const selectedProj = data.projectId?.trim()
+      ? clientProjects.find((p) => p.id === data.projectId)
+      : undefined;
+    const linkList = projectExternalLinksFromProject(selectedProj);
     const inv = buildInvoiceFromForm(
       data,
       settings ?? null,
       client,
       discounts ?? [],
-      existingInvoice ?? null
+      existingInvoice ?? null,
+      linkList.length ? { projectExternalLinks: linkList } : undefined
     );
     if (!inv) {
       toast.error('Add at least one line with a description');
