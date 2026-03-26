@@ -16,7 +16,7 @@ flowchart TB
             EXPRESS["Express API\nhelmet · cors · morgan · JSON parser"]
 
             subgraph Routes["Routes"]
-                AUTH_R["/api/auth\nregister · login"]
+                AUTH_R["/api/auth\nregister · login\nchange email/password"]
                 CLIENT_R["/api/clients\nCRUD"]
                 INV_R["/api/invoices\nCRUD · stats · CSV\nshare · send email"]
                 SHARE_R["/api/invoices/share/:token\npublic view · mark paid"]

@@ -12,7 +12,7 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 
 | Path | Responsibility |
 |------|------------------|
-| `routes/auth.ts` | Register, login |
+| `routes/auth.ts` | Register, login, change email/password (authenticated) |
 | `routes/clients.ts` | Client CRUD, customer numbers |
 | `routes/invoices.ts` | Invoices, `GET /stats/revenue`, `GET /stats/by-client/:clientId`, CSV, share tokens, send-to-company email |
 | `routes/share.ts` | Public invoice by token: read-only view + mark as paid |
@@ -62,7 +62,7 @@ flowchart TB
     end
 
     subgraph Routes["Route handlers"]
-      AUTH["/api/auth\nregister · login\n(public)"]
+      AUTH["/api/auth\nregister · login (public)\nchange email/password (protected)"]
       CL["/api/clients\nCRUD · customer numbers\n(protected)"]
       SH["/api/invoices/share/:token\nview · mark paid\n(public)"]
       INV["/api/invoices\nCRUD · stats · CSV\nshare · email\n(protected)"]

@@ -18,7 +18,7 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 
 ## Routing
 
-Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup), `/support`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
+Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup, Account), `/support`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
 
 See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`), and deep links.
 
@@ -45,7 +45,7 @@ flowchart TB
         CL_LIST["/clients\nClientsPage\npaginated · quick edit"]
         CL_PROF["/clients/:clientId\nClientProfilePage\n#details · #invoice-status · #invoices"]
         DISC["/discounts\nDiscountsPage"]
-        SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup"]
+        SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup · Account"]
         SUPPORT["/support\nSupportPage\nuser ticket submission"]
       end
       subgraph Admin["Admin routes (AdminLayout)"]
@@ -78,7 +78,7 @@ flowchart TB
 
     subgraph API["API modules (Axios)"]
       direction LR
-      AUTH_API["auth.ts\nlogin · register"]
+      AUTH_API["auth.ts\nlogin · register · updateAccount"]
       INV_API["invoices.ts\nCRUD · stats · CSV\nshare · email"]
       CL_API["clients.ts\nCRUD · pagination"]
       DISC_API["discounts.ts\nCRUD · generate"]
@@ -182,6 +182,7 @@ flowchart LR
   SETT --> A_SET
   SETT --> A_DISC
   SETT --> A_DATA
+  SETT --> A_AUTH
   SHARE --> A_INV
   SUP --> A_TIX
   ADASH --> A_ADM

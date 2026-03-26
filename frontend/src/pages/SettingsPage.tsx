@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { getSettings, updateSettings, uploadLogo, deleteLogo, getSmtpSettings, updateSmtpSettings, sendSmtpTest } from '../api/settings';
 import type { SmtpSettings } from '../api/settings';
 import { downloadAccountBackup, importAccountBackup } from '../api/data';
+import { updateAccount } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import { resolveApiAssetUrl } from '../utils/resolveApiUrl';
 
@@ -24,13 +25,21 @@ interface SettingsForm {
   payableText: string;
 }
 
-type SettingsTab = 'general' | 'discounts' | 'email' | 'backup';
+interface AccountForm {
+  currentPassword: string;
+  newEmail: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+type SettingsTab = 'general' | 'discounts' | 'email' | 'backup' | 'account';
 
 const tabs: { key: SettingsTab; label: string }[] = [
   { key: 'general', label: 'General' },
   { key: 'discounts', label: 'Discounts' },
   { key: 'email', label: 'Email' },
   { key: 'backup', label: 'Backup' },
+  { key: 'account', label: 'Account' },
 ];
 
 export function SettingsPage() {
@@ -169,6 +178,51 @@ export function SettingsPage() {
     },
     onError: () => toast.error('Failed to save SMTP settings'),
   });
+
+  // --- Account (email / password) ---
+  const {
+    register: registerAccount,
+    handleSubmit: handleAccountSubmit,
+    reset: resetAccount,
+    watch: watchAccount,
+    formState: { errors: accountErrors },
+  } = useForm<AccountForm>({
+    defaultValues: { currentPassword: '', newEmail: user?.email ?? '', newPassword: '', confirmPassword: '' },
+  });
+
+  const accountMutation = useMutation({
+    mutationFn: updateAccount,
+    onSuccess: (data) => {
+      if (token) {
+        setAuth(data.user, data.token);
+      }
+      resetAccount({ currentPassword: '', newEmail: data.user.email, newPassword: '', confirmPassword: '' });
+      toast.success('Account updated');
+    },
+    onError: (err: unknown) => {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data as { error?: string })?.error
+        : undefined;
+      toast.error(msg || 'Failed to update account');
+    },
+  });
+
+  const onAccountSubmit = (data: AccountForm) => {
+    const payload: { currentPassword: string; newEmail?: string; newPassword?: string } = {
+      currentPassword: data.currentPassword,
+    };
+    if (data.newEmail.trim() && data.newEmail.trim() !== user?.email) {
+      payload.newEmail = data.newEmail.trim();
+    }
+    if (data.newPassword) {
+      payload.newPassword = data.newPassword;
+    }
+    if (!payload.newEmail && !payload.newPassword) {
+      toast.error('No changes to save');
+      return;
+    }
+    accountMutation.mutate(payload);
+  };
 
   const smtpTestMutation = useMutation({
     mutationFn: sendSmtpTest,
@@ -674,6 +728,99 @@ export function SettingsPage() {
               {importMutation.isPending ? 'Importing…' : 'Choose backup file…'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Account tab */}
+      {activeTab === 'account' && (
+        <div className="bg-white rounded-xl shadow-sm p-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Login credentials</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Change the email address or password you use to sign in. Your current password is required to confirm any changes.
+          </p>
+
+          <form onSubmit={handleAccountSubmit(onAccountSubmit)} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New email address</label>
+              <input
+                type="email"
+                {...registerAccount('newEmail', {
+                  required: 'Email is required',
+                  pattern: { value: /^\S+@\S+\.\S+$/, message: 'Enter a valid email' },
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="you@example.com"
+                autoComplete="email"
+              />
+              {accountErrors.newEmail && (
+                <p className="text-red-500 text-sm mt-1">{accountErrors.newEmail.message}</p>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 pt-5">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Change password</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                  <input
+                    type="password"
+                    {...registerAccount('newPassword', {
+                      minLength: { value: 6, message: 'Must be at least 6 characters' },
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Leave blank to keep current password"
+                    autoComplete="new-password"
+                  />
+                  {accountErrors.newPassword && (
+                    <p className="text-red-500 text-sm mt-1">{accountErrors.newPassword.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                  <input
+                    type="password"
+                    {...registerAccount('confirmPassword', {
+                      validate: (val) => {
+                        const pw = watchAccount('newPassword');
+                        if (pw && val !== pw) return 'Passwords do not match';
+                        return true;
+                      },
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="Re-enter new password"
+                    autoComplete="new-password"
+                  />
+                  {accountErrors.confirmPassword && (
+                    <p className="text-red-500 text-sm mt-1">{accountErrors.confirmPassword.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Current password *</label>
+              <input
+                type="password"
+                {...registerAccount('currentPassword', { required: 'Current password is required' })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="Enter your current password to confirm changes"
+                autoComplete="current-password"
+              />
+              {accountErrors.currentPassword && (
+                <p className="text-red-500 text-sm mt-1">{accountErrors.currentPassword.message}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={accountMutation.isPending}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {accountMutation.isPending ? 'Saving…' : 'Update account'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

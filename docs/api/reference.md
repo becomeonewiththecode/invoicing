@@ -7,7 +7,7 @@
 
 Paths below are relative to that base (e.g. `/auth/register` → `POST /api/auth/register`).
 
-**Authentication:** All endpoints except `/auth/*` and `/invoices/share/:token` require a JWT in the `Authorization` header. Admin endpoints (`/admin/*`) additionally require `role = 'admin'`.
+**Authentication:** All endpoints except `/auth/register`, `/auth/login`, and `/invoices/share/:token` require a JWT in the `Authorization` header. `PUT /auth/account` requires JWT. Admin endpoints (`/admin/*`) additionally require `role = 'admin'`.
 
 ```
 Authorization: Bearer <token>
@@ -52,6 +52,44 @@ Create a new user account.
   "token": "jwt-token"
 }
 ```
+
+### PUT /auth/account
+
+Change the authenticated user's login email and/or password. Requires the current password for verification. Returns a fresh JWT (the old token remains valid until expiry but the new one reflects the updated email).
+
+**Request body:**
+
+```json
+{
+  "currentPassword": "existing-password",
+  "newEmail": "newemail@example.com",
+  "newPassword": "newsecurepassword"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| currentPassword | string | Yes | Must match the user's current password |
+| newEmail | string | No | Omit or set to current email to skip |
+| newPassword | string | No | Min 6 characters; omit to keep current |
+
+At least one of `newEmail` or `newPassword` must differ from the current values.
+
+**Response (200):**
+
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "newemail@example.com",
+    "businessName": "My Business",
+    "role": "user"
+  },
+  "token": "new-jwt-token"
+}
+```
+
+**Errors:** **400** missing current password or no changes; **401** incorrect current password; **409** email already in use by another account.
 
 ### POST /auth/login
 

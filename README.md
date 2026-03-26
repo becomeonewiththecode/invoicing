@@ -9,7 +9,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 - **Invoices** — Draft → Sent → Paid; **Late** when past the late rule after `sent_at`; **Cancelled** via soft-delete for sent/late invoices (drafts hard-delete); line items use **description + hours** and the default hourly rate from Settings
 - **Clients** — Customer numbers, optional default discount codes; **[client profile](docs/frontend/routes.md)** (`/clients/:id`) for details, per-client invoice status, and invoice links  
 - **Discounts** — Percent or fixed codes  
-- **Company profile** — Tax rate, address, logo, optional company email for invoice copy emails  
+- **Company profile** — Tax rate, address, logo, optional company email for invoice copy emails; **Account** tab to change login email and password
 - **Dashboard** — Revenue stats (cached in Redis)  
 - **PDF** — Client-side invoice PDFs (jsPDF)  
 - **Share links** — Generate a public URL for any invoice; clients can view and mark as paid without logging in
@@ -47,6 +47,8 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | [docs/api/review.md](docs/api/review.md) | API design (auth, routing, conventions) |
 | [docs/api/reference.md](docs/api/reference.md) | Endpoint reference |
 | [docs/frontend/routes.md](docs/frontend/routes.md) | App routes, client profile, deep links |
+| [docs/admin/overview.md](docs/admin/overview.md) | Admin panel architecture, access control, backend modules |
+| [docs/admin/pages.md](docs/admin/pages.md) | Admin pages reference (per-page UI, actions, API calls) |
 | [docs/architecture.md](docs/architecture.md) | System architecture: Docker stack, startup, request flow |
 | [docs/backend/overview.md](docs/backend/overview.md) | Backend architecture and diagrams |
 | [docs/frontend/overview.md](docs/frontend/overview.md) | Frontend architecture and diagrams |
