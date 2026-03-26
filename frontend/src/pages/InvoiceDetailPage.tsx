@@ -135,6 +135,17 @@ export function InvoiceDetailPage() {
           <div>
             <h1 className="text-2xl font-bold">{invoice.invoice_number}</h1>
             <StatusBadge status={invoice.status} />
+            {invoice.project_name ? (
+              <p className="text-sm text-gray-600 mt-2">
+                Project:{' '}
+                <Link
+                  to={`/clients/${encodeURIComponent(invoice.client_id)}#projects`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {invoice.project_name}
+                </Link>
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto lg:justify-end">
             <button

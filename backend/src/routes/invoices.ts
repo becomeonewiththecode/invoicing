@@ -309,8 +309,10 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     const [invoiceResult, itemsResult] = await Promise.all([
       pool.query(
         `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
-                c.customer_number as client_customer_number
+                c.customer_number as client_customer_number,
+                p.name as project_name
          FROM invoices i JOIN clients c ON i.client_id = c.id
+         LEFT JOIN projects p ON p.id = i.project_id
          WHERE i.id = $1 AND i.user_id = $2`,
         [req.params.id, req.userId]
       ),
@@ -334,7 +336,8 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
   try {
     await client.query('BEGIN');
 
-    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items } = req.body;
+    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items, projectId } =
+      req.body;
 
     // Verify client belongs to user and read default discount from client profile
     const clientCheck = await client.query<{ discount_code: string | null }>(
@@ -344,6 +347,17 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
     if (clientCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Client not found' });
+    }
+
+    if (projectId) {
+      const pv = await client.query(
+        'SELECT 1 FROM projects WHERE id = $1 AND client_id = $2 AND user_id = $3',
+        [projectId, clientId, req.userId]
+      );
+      if (pv.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Project not found for this client' });
+      }
     }
 
     const effectiveCode = (clientCheck.rows[0].discount_code || '').trim() || null;
@@ -361,8 +375,8 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
     const total = taxableAmount + taxAmount;
 
     const invoiceResult = await client.query(
-      `INSERT INTO invoices (user_id, client_id, invoice_number, issue_date, due_date, subtotal, tax_rate, tax_amount, discount_code, discount_amount, total, notes, is_recurring, recurrence_interval)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      `INSERT INTO invoices (user_id, client_id, invoice_number, issue_date, due_date, subtotal, tax_rate, tax_amount, discount_code, discount_amount, total, notes, is_recurring, recurrence_interval, project_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [
         req.userId,
         clientId,
@@ -378,6 +392,7 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
         notes || null,
         isRecurring,
         recurrenceInterval || null,
+        projectId ?? null,
       ]
     );
 
@@ -421,7 +436,8 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
       });
     }
 
-    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items } = req.body;
+    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items, projectId } =
+      req.body;
 
     const clientCheck = await db.query<{ discount_code: string | null }>(
       'SELECT discount_code FROM clients WHERE id = $1 AND user_id = $2',
@@ -430,6 +446,17 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
     if (clientCheck.rows.length === 0) {
       await db.query('ROLLBACK');
       return res.status(404).json({ error: 'Client not found' });
+    }
+
+    if (projectId) {
+      const pv = await db.query(
+        'SELECT 1 FROM projects WHERE id = $1 AND client_id = $2 AND user_id = $3',
+        [projectId, clientId, req.userId]
+      );
+      if (pv.rows.length === 0) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ error: 'Project not found for this client' });
+      }
     }
 
     const effectiveCode = (clientCheck.rows[0].discount_code || '').trim() || null;
@@ -459,8 +486,9 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
         notes = $10,
         is_recurring = $11,
         recurrence_interval = $12,
+        project_id = $13,
         updated_at = NOW()
-      WHERE id = $13 AND user_id = $14`,
+      WHERE id = $14 AND user_id = $15`,
       [
         clientId,
         issueDate,
@@ -474,6 +502,7 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
         notes || null,
         isRecurring,
         recurrenceInterval || null,
+        projectId ?? null,
         req.params.id,
         req.userId,
       ]
@@ -502,8 +531,10 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
     const [invoiceResult, itemsResult] = await Promise.all([
       pool.query(
         `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
-                c.customer_number as client_customer_number
+                c.customer_number as client_customer_number,
+                p.name as project_name
          FROM invoices i JOIN clients c ON i.client_id = c.id
+         LEFT JOIN projects p ON p.id = i.project_id
          WHERE i.id = $1 AND i.user_id = $2`,
         [req.params.id, req.userId]
       ),

@@ -8,6 +8,7 @@ PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sq
 
 - `clients.discount_code`, `invoices.sent_at`, `invoices.share_token`, `users.business_email`, `users.payable_text`, enum value `invoice_status.cancelled`, and `users.role` (see source for the exact statements).
 - Admin tables: `support_tickets`, `ticket_messages`, `content_flags`, `backup_snapshots`, `backup_policies`, `system_logs`, `rate_limit_configs`, `rate_limit_events` — all created with `CREATE TABLE IF NOT EXISTS`.
+- Client **projects** tables: `projects`, `project_attachments` — created with `CREATE TABLE IF NOT EXISTS` (see `config/database.ts`); also in `schema.sql`.
 - Default admin user seed: if `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars are set and no user with that email exists, an admin account is created automatically.
 
 It runs in two places:
@@ -22,6 +23,8 @@ Fresh installs from current `schema.sql` already include these definitions; `ens
 ```
 users
   ├── clients (1:many)
+  │     ├── projects (1:many, ON DELETE CASCADE)
+  │     │     └── project_attachments (1:many, ON DELETE CASCADE)
   │     └── invoices (1:many, ON DELETE RESTRICT)
   │           ├── invoice_items (1:many, ON DELETE CASCADE)
   │           └── payment_reminders (1:many, ON DELETE CASCADE)
@@ -92,6 +95,63 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 
 Index: `idx_clients_user_id`; unique `(user_id, customer_number)`.
 
+### `projects`
+
+Per-client work items (also scoped by `user_id` for querying). Canonical DDL: `backend/src/models/schema.sql`.
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| client_id | UUID | FK → clients, ON DELETE CASCADE |
+| user_id | UUID | FK → users, ON DELETE CASCADE |
+| name | VARCHAR(255) | NOT NULL |
+| description | TEXT | |
+| start_date | DATE | |
+| end_date | DATE | |
+| status | VARCHAR(30) | NOT NULL, default `not_started` |
+| priority | VARCHAR(20) | NOT NULL, default `medium` |
+| external_link | TEXT | Legacy single link (optional migration source); prefer **`project_external_links`** |
+| external_link_description | TEXT | Legacy label for `external_link` |
+| budget | DECIMAL(12,2) | |
+| hours | DECIMAL(12,2) | Optional hours (estimate, planned, or cap — see `hours_is_maximum`) |
+| hours_is_maximum | BOOLEAN | NOT NULL, default `false` — if `true`, `hours` is a maximum cap |
+| dependencies | TEXT | |
+| milestones | JSONB | Default `[]`; entries typically `{ title, due_date }` |
+| team_members | TEXT[] | Default `{}` |
+| tags | TEXT[] | Default `{}` |
+| notes | TEXT | |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+Indexes: `idx_projects_client_id`, `idx_projects_user_id`.
+
+### `project_external_links`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| project_id | UUID | FK → projects, ON DELETE CASCADE |
+| url | TEXT | NOT NULL — Google Docs/Drive or Microsoft 365 share URL |
+| description | TEXT | Optional label shown in UI/PDF |
+| sort_order | INTEGER | NOT NULL, default `0` — display order |
+| created_at | TIMESTAMPTZ | |
+
+Index: `idx_project_external_links_project_id`.
+
+### `project_attachments`
+
+| Column | Type | Notes |
+|--------|------|--------|
+| id | UUID | PK |
+| project_id | UUID | FK → projects, ON DELETE CASCADE |
+| file_name | VARCHAR(255) | NOT NULL — label derived from URL |
+| file_path | TEXT | NOT NULL — **Share URL** (Google Docs/Drive or Microsoft 365); no app-hosted files |
+| file_size_bytes | BIGINT | Default 0 |
+| mime_type | VARCHAR(100) | |
+| created_at | TIMESTAMPTZ | |
+
+Index: `idx_project_attachments_project_id`.
+
 ### `invoices`
 
 | Column | Type | Notes |
@@ -115,10 +175,11 @@ Index: `idx_clients_user_id`; unique `(user_id, customer_number)`.
 | next_recurrence_date | DATE | |
 | sent_at | TIMESTAMPTZ | Set when relevant for **sent** / **late** logic (migration `005`) |
 | share_token | VARCHAR(64) | UNIQUE, optional public link token (migration `007`) |
+| project_id | UUID | FK → projects, ON DELETE SET NULL — optional related project for this client |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 
-Indexes include `idx_invoices_user_id`, `idx_invoices_client_id`, `idx_invoices_status`, `idx_invoices_due_date`.
+Indexes include `idx_invoices_user_id`, `idx_invoices_client_id`, `idx_invoices_status`, `idx_invoices_due_date`, `idx_invoices_project_id`.
 
 ### `invoice_items`
 

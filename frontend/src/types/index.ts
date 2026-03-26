@@ -68,6 +68,8 @@ export interface Invoice {
   notes?: string;
   is_recurring: boolean;
   recurrence_interval?: string;
+  project_id?: string | null;
+  project_name?: string | null;
   client_name?: string;
   client_email?: string;
   client_company?: string;

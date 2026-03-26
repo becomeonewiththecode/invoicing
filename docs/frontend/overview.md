@@ -10,17 +10,18 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | `src/components/layout/AppLayout.tsx` | Sidebar + outlet for authenticated user pages |
 | `src/components/layout/AdminLayout.tsx` | Admin sidebar + outlet; shows admin login if not authenticated as admin |
 | `src/components/layout/AdminSidebar.tsx` | Admin navigation links |
-| `src/api/` | Axios instance (`client.ts`) + resource modules (`settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
+| `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
 | `src/stores/` | Zustand auth store (persisted); `isAdmin()` helper for role check |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
+| `src/components/client/` | Client profile subviews (e.g. `ClientProjectsTab.tsx`) |
 | `src/pages/admin/` | Admin panel pages (dashboard, users, moderation, tickets, backups, rate limits, login) |
 | `src/utils/pdf.ts` | jsPDF invoice generation |
 
 ## Routing
 
-Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup, Account), `/support`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
+Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: **Details**, **Invoices**, **Projects** tabs), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup, Account), `/support`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
 
-See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`), and deep links.
+See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`, `#projects`), and deep links.
 
 ## Frontend diagrams
 
@@ -39,11 +40,11 @@ flowchart TB
       subgraph Protected["Protected routes (AppLayout)"]
         DASH["/ DashboardPage\nrevenue stats · chart · recent invoices"]
         INV_LIST["/invoices\nInvoicesPage\npaginated · filter by client · CSV export"]
-        INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview"]
+        INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview\noptional project · URL ?clientId & ?projectId"]
         INV_EDIT["/invoices/:id/edit\nNewInvoicePage (edit mode)"]
         INV_DET["/invoices/:id\nInvoiceDetailPage\nPDF · share · email · status"]
         CL_LIST["/clients\nClientsPage\npaginated · quick edit"]
-        CL_PROF["/clients/:clientId\nClientProfilePage\n#details · #invoice-status · #invoices"]
+        CL_PROF["/clients/:clientId\nClientProfilePage\nDetails · Invoices · Projects"]
         DISC["/discounts\nDiscountsPage"]
         SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup · Account"]
         SUPPORT["/support\nSupportPage\nuser ticket submission"]
@@ -81,6 +82,7 @@ flowchart TB
       AUTH_API["auth.ts\nlogin · register · updateAccount"]
       INV_API["invoices.ts\nCRUD · stats · CSV\nshare · email"]
       CL_API["clients.ts\nCRUD · pagination"]
+      PRJ_API["projects.ts\nper-client projects"]
       DISC_API["discounts.ts\nCRUD · generate"]
       SET_API["settings.ts\nprofile · logo · SMTP"]
       DATA_API["data.ts\nexport · import"]
@@ -157,6 +159,7 @@ flowchart LR
     A_AUTH["auth.ts"]
     A_INV["invoices.ts"]
     A_CL["clients.ts"]
+    A_PRJ["projects.ts"]
     A_DISC["discounts.ts"]
     A_SET["settings.ts"]
     A_DATA["data.ts"]
@@ -177,6 +180,7 @@ flowchart LR
   INVN --> A_SET
   CL --> A_CL
   CLP --> A_CL
+  CLP --> A_PRJ
   CLP --> A_INV
   DISC --> A_DISC
   SETT --> A_SET
@@ -236,6 +240,12 @@ sequenceDiagram
 ```
 
 **Dev server:** Vite serves on port **5173** and can proxy `/api` to the backend (see `vite.config.ts`).
+
+## New invoice and projects
+
+`NewInvoicePage` loads client projects when a client is selected and offers an optional **Related project**. Choosing a project (or opening `/invoices/new` with `clientId` and `projectId` query params) can prefill the **first line** description from the project’s description and the **first line** hours from the project’s hours when those values are set; if the project marks hours as a maximum, line hours are capped accordingly. The **Projects** tab on the client profile (`ClientProjectsTab.tsx`) includes a per-project **Create invoice** link next to **View PDF** that deep-links to the new-invoice page with both IDs.
+
+See **[routes.md — New invoice and related projects](routes.md#new-invoice-and-related-projects)** for full behavior and deep links.
 
 ## Related docs
 

@@ -27,6 +27,8 @@ export type InvoicePayload = {
   taxRate?: number;
   discountCode?: string;
   notes?: string;
+  /** Optional project for this client (must belong to the client) */
+  projectId?: string | null;
   isRecurring?: boolean;
   recurrenceInterval?: string;
   items: { description: string; quantity: number; unitPrice: number }[];

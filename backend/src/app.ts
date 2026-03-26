@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth';
+import projectRoutes from './routes/projects';
 import clientRoutes from './routes/clients';
 import invoiceRoutes from './routes/invoices';
 import shareRoutes from './routes/share';
@@ -31,6 +32,7 @@ app.use(requestLogger);
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/clients', projectRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/invoices/share', shareRoutes); // public — must be before authenticated invoice routes
 app.use('/api/invoices', invoiceRoutes);

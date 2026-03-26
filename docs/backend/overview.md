@@ -13,6 +13,7 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | Path | Responsibility |
 |------|------------------|
 | `routes/auth.ts` | Register, login, change email/password (authenticated) |
+| `routes/projects.ts` | Per-client projects: `/:clientId/projects` and `/:clientId/projects/:projectId` (JWT); mounted on `/api/clients` **before** `clients.ts` |
 | `routes/clients.ts` | Client CRUD, customer numbers |
 | `routes/invoices.ts` | Invoices, `GET /stats/revenue`, `GET /stats/by-client/:clientId`, CSV, share tokens, send-to-company email |
 | `routes/share.ts` | Public invoice by token: read-only view + mark as paid |
@@ -63,7 +64,7 @@ flowchart TB
 
     subgraph Routes["Route handlers"]
       AUTH["/api/auth\nregister · login (public)\nchange email/password (protected)"]
-      CL["/api/clients\nCRUD · customer numbers\n(protected)"]
+      CL["/api/clients\nprojects (nested) · CRUD ·\ncustomer numbers\n(protected)"]
       SH["/api/invoices/share/:token\nview · mark paid\n(public)"]
       INV["/api/invoices\nCRUD · stats · CSV\nshare · email\n(protected)"]
       DISC["/api/discounts\nCRUD · generate code\n(protected)"]

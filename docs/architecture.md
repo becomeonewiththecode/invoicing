@@ -17,7 +17,7 @@ flowchart TB
 
             subgraph Routes["Routes"]
                 AUTH_R["/api/auth\nregister · login\nchange email/password"]
-                CLIENT_R["/api/clients\nCRUD"]
+                CLIENT_R["/api/clients\nCRUD · projects per client"]
                 INV_R["/api/invoices\nCRUD · stats · CSV\nshare · send email"]
                 SHARE_R["/api/invoices/share/:token\npublic view · mark paid"]
                 DISC_R["/api/discounts\nCRUD"]

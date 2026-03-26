@@ -8,7 +8,7 @@ SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`,
 |------|------|--------|
 | `/` | Dashboard | Revenue stats, recent invoices |
 | `/invoices` | Invoice list | Optional `?clientId=` filter |
-| `/invoices/new` | New invoice | |
+| `/invoices/new` | New invoice | Optional query: **`?clientId=`** (preselect client), **`?projectId=`** (preselect related project — use with `clientId`). See [New invoice and related projects](#new-invoice-and-related-projects) |
 | `/invoices/:id` | Invoice detail | Actions: PDF, email, share link, status, cancel/delete |
 | `/invoices/:id/edit` | Edit invoice | Draft only |
 | `/clients` | Client list | Radio select, new client form, quick edit |
@@ -19,16 +19,41 @@ SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`,
 
 ## Client profile (`/clients/:clientId`)
 
-Single page for one client (see `ClientProfilePage.tsx`):
+Tabbed page for one client (see `ClientProfilePage.tsx`). Header shows client name, customer number, and action buttons (Full invoice list, Create invoice, Delete client).
 
-1. **Client details** — Edit fields and save; delete client. Hash: `#details`.
-2. **Invoice status** — Total revenue and total tax collected summary cards, plus counts and dollar totals by status (draft / sent / paid / late) for this client only (`GET /api/invoices/stats/by-client/:clientId`). Hash: `#invoice-status`.
-3. **Invoices** — Table of invoices showing per-invoice revenue, tax, and total columns with a totals footer row; links to each `/invoices/:id`; button to full filtered list (`/invoices?clientId=`). Hash: `#invoices`.
+### Details tab (`#details`, default)
+
+Edit client fields (name, email, phone, company, address, discount code, notes) and save. Customer number is read-only.
+
+### Invoices tab (`#invoices`, `#invoice-status`)
+
+Two sections:
+
+1. **Invoice status** — Total revenue and total tax collected summary cards, plus counts and dollar totals by status (draft / sent / paid / late) for this client only (`GET /api/invoices/stats/by-client/:clientId`).
+2. **Invoice list** — Table of invoices showing per-invoice revenue, tax, and total columns with a totals footer row; links to each `/invoices/:id`; link to full filtered list (`/invoices?clientId=`).
+
+### Projects tab (`#projects`)
+
+Per-client project tracking (see `ClientProjectsTab.tsx`). List, create, edit, and delete projects scoped to this client. Fields include: **project name** (required), description, start/end dates, status, priority, **external links** (zero or more Google Docs / Microsoft 365 URLs, each with an optional description), team members (comma-separated), tags, budget, **hours** (optional, with a checkbox for whether that value is a **maximum** cap), dependencies, milestones (title + optional due date per row), and notes. Uses `GET/POST /api/clients/:clientId/projects` and `GET/PUT/DELETE /api/clients/:clientId/projects/:projectId` (see [API reference](../api/reference.md#client-projects)).
+
+Each project card includes **View PDF**, **Create invoice**, **Download PDF**, and **Edit**. **Create invoice** links to `/invoices/new?clientId=<clientId>&projectId=<projectId>` so the new-invoice form opens with that client and project selected.
 
 **Deep links**
 
 - `/clients?edit=<uuid>` → redirects to `/clients/<uuid>#details` (e.g. from invoice “View / edit client”).
-- Old bookmark `/clients/:id/stats` → redirect to profile with `#invoice-status`.
+- Old bookmark `/clients/:id/stats` → redirect to profile with `#invoice-status` (opens Invoices tab).
+- Hash `#invoice-status` or `#invoices` → opens the Invoices tab; `#details` → opens the Details tab; **`#projects`** → opens the Projects tab.
+
+### New invoice and related projects (`NewInvoicePage.tsx`)
+
+The form supports an optional **Related project** dropdown (projects for the selected client). **Query params:** `?clientId=` and `?projectId=` prefill client and project (e.g. from the client header **Create invoice** button or a project card **Create invoice**).
+
+When you **change** the related project (including the first time it loads from the URL):
+
+- **Description:** If the project has a non-empty **description**, the **first line item** description is set to that text (shown in a textarea on line 1). If the project description is empty, line 1 description is cleared so you can type your own. You can always edit the field.
+- **Hours:** If the project has **hours** greater than zero, the **first line** hours field is set to that number. If the project marks hours as a **maximum** (`hours_is_maximum`), each line’s hours input uses that value as **`max`**, and **total** billed hours (lines with a description) cannot exceed it.
+
+Draft **edit** mode does not overwrite saved line items on load; syncing applies when the user changes the related project selection.
 
 ## Public routes
 
@@ -59,4 +84,4 @@ Admin routes use `AdminLayout` (separate sidebar + admin auth guard). Accessible
 ## Related
 
 - [Frontend overview](overview.md) — architecture diagram
-- [API reference](../api/reference.md) — `stats/by-client` endpoint
+- [API reference](../api/reference.md) — `stats/by-client`, [client projects](../api/reference.md#client-projects)

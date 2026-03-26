@@ -26,6 +26,77 @@ export const createClientSchema = z.object({
 
 export const updateClientSchema = createClientSchema.partial();
 
+// Project (per client)
+const projectMilestoneSchema = z.object({
+  title: z.string().min(1).max(255),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+
+/** Google Docs/Drive or Microsoft 365 (SharePoint, OneDrive, etc.) — no hosted file storage */
+export function isDocShareLinkUrl(s: string): boolean {
+  const t = s.trim();
+  /** Legacy rows from when the app stored files under uploads (still valid until removed) */
+  if (t.startsWith('/api/uploads/project-attachments/')) return true;
+  try {
+    const u = new URL(t);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+    const h = u.hostname.toLowerCase();
+    if (h === 'docs.google.com' || h === 'drive.google.com') return true;
+    if (h.endsWith('.sharepoint.com') || h.endsWith('.sharepoint.de')) return true;
+    if (h === '1drv.ms' || h.endsWith('.1drv.ms')) return true;
+    if (h.includes('onedrive')) return true;
+    if (h.includes('sharepoint')) return true;
+    if (h === 'office.com' || h.endsWith('.office.com')) return true;
+    if (h === 'live.com' || h.endsWith('.live.com')) return true;
+    if (h === 'teams.microsoft.com') return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+const projectAttachmentUrlSchema = z
+  .string()
+  .max(2000)
+  .refine((s) => isDocShareLinkUrl(s), {
+    message: 'Must be a Google Docs/Drive or Microsoft 365 share link (no file uploads)',
+  });
+
+export const createProjectSchema = z.object({
+  name: z.string().min(1).max(255),
+  description: z.string().max(10000).optional().nullable(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  status: z
+    .enum(['not_started', 'planning', 'in_progress', 'on_hold', 'completed', 'cancelled'])
+    .optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  /** Google Docs/Drive or Microsoft 365 share links with optional labels */
+  externalLinks: z
+    .array(
+      z.object({
+        url: projectAttachmentUrlSchema,
+        description: z.string().max(500).optional().nullable(),
+      })
+    )
+    .max(20)
+    .optional(),
+  budget: z.number().min(0).nullable().optional(),
+  /** Planned or logged hours; meaning depends on hoursIsMaximum */
+  hours: z.number().min(0).nullable().optional(),
+  /** If true, hours is a cap / maximum; if false, an estimate or non-cap value */
+  hoursIsMaximum: z.boolean().optional(),
+  dependencies: z.string().max(10000).optional().nullable(),
+  milestones: z.array(projectMilestoneSchema).optional(),
+  teamMembers: z.array(z.string().max(255)).max(100).optional(),
+  tags: z.array(z.string().max(100)).max(50).optional(),
+  notes: z.string().max(10000).optional().nullable(),
+  /** Share links only (Google Docs/Drive or Microsoft 365); stored as rows, no server files */
+  attachmentUrls: z.array(projectAttachmentUrlSchema).max(50).optional(),
+});
+
+export const updateProjectSchema = createProjectSchema.partial();
+
 // Invoice item
 const invoiceItemSchema = z.object({
   description: z.string().min(1).max(500),
@@ -41,6 +112,8 @@ export const createInvoiceSchema = z.object({
   taxRate: z.number().min(0).max(100).default(0),
   discountCode: z.string().max(50).optional(),
   notes: z.string().optional(),
+  /** Optional project for this client (must belong to the same client and user) */
+  projectId: z.string().uuid().optional().nullable(),
   isRecurring: z.boolean().default(false),
   recurrenceInterval: z.enum(['weekly', 'monthly', 'quarterly', 'yearly']).optional(),
   items: z.array(invoiceItemSchema).min(1),

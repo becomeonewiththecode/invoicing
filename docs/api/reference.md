@@ -200,6 +200,57 @@ Delete a client. Fails if the client has existing invoices.
 
 ---
 
+## Client projects
+
+Nested under each client. **Authentication:** Bearer JWT required. All routes verify that `:clientId` belongs to the current user.
+
+**Mounting:** In `app.ts`, `routes/projects.ts` is registered on `/api/clients` **before** `routes/clients.ts` so paths like `GET /api/clients/:clientId/projects` are handled by the projects router (see [API review](review.md#route-mounting-order-express)).
+
+### GET /clients/:clientId/projects
+
+List all projects for the client. Response is a JSON array of project objects, each including **`attachments`** (rows from `project_attachments`) and **`external_links`** (rows from `project_external_links`).
+
+### POST /clients/:clientId/projects
+
+Create a project. **Request body (JSON, camelCase):**
+
+| Field | Type | Required | Notes |
+|-------|------|----------|--------|
+| name | string | Yes | Max 255 characters |
+| description | string \| null | No | |
+| startDate | string \| null | No | `YYYY-MM-DD` |
+| endDate | string \| null | No | `YYYY-MM-DD` |
+| status | string | No | Default `not_started`; values: `not_started`, `planning`, `in_progress`, `on_hold`, `completed`, `cancelled` |
+| priority | string | No | Default `medium`; values: `low`, `medium`, `high`, `urgent` |
+| externalLinks | array | No | Up to 20 entries: `{ url, description? }`. Each **url** must be a **Google Docs/Drive** or **Microsoft 365** share link (same rules as `attachmentUrls`). Stored in `project_external_links`; replaces existing rows when sent on create/update. |
+| budget | number \| null | No | Non-negative |
+| hours | number \| null | No | Non-negative; use with `hoursIsMaximum` |
+| hoursIsMaximum | boolean | No | Default `false`. If `true`, `hours` is a **maximum** (cap); if `false`, treat as estimate / planned / non-cap |
+| dependencies | string \| null | No | Free text |
+| milestones | array | No | `{ title, dueDate }` entries; `dueDate` optional `YYYY-MM-DD` |
+| teamMembers | string[] | No | Stored as PostgreSQL `text[]` |
+| tags | string[] | No | Stored as PostgreSQL `text[]` |
+| notes | string \| null | No | |
+| attachmentUrls | string[] | No | **Share links only** — each URL must be a **Google Docs/Drive** or **Microsoft 365** (SharePoint, OneDrive, Office online, etc.) link. Stored as rows in `project_attachments` (no server-side file storage). The web app sends **`attachmentUrls: []`** on create/update so any legacy `project_attachments` rows are cleared. Other API clients may still set `attachmentUrls` explicitly. |
+
+**Response (201):** Created project including `attachments` and `external_links`.
+
+### GET /clients/:clientId/projects/:projectId
+
+Get one project (must belong to `:clientId`). **Response (200):** Project object with `attachments` and `external_links`.
+
+### PUT /clients/:clientId/projects/:projectId
+
+Partial update. Same fields as POST, all optional. If **`attachmentUrls`** is present in the body, existing attachment rows for that project are **replaced** with the new list. If **`externalLinks`** is present, existing **`project_external_links`** rows are **replaced** with the new list.
+
+**Response (200):** Updated project with `attachments` and `external_links`.
+
+### DELETE /clients/:clientId/projects/:projectId
+
+Delete the project (cascades attachment and external-link rows). **Response (204):** No body.
+
+---
+
 ## Invoices
 
 ### GET /invoices
@@ -260,6 +311,7 @@ Create a new invoice. Invoice number is auto-generated (INV-0001, INV-0002, etc.
   "taxRate": 10,
   "discountCode": "SAVE10",
   "notes": "Thank you for your business",
+  "projectId": "optional-project-uuid",
   "isRecurring": false,
   "recurrenceInterval": "monthly",
   "items": [
@@ -280,6 +332,7 @@ Create a new invoice. Invoice number is auto-generated (INV-0001, INV-0002, etc.
 | taxRate | number | No | 0-100, default 0 |
 | discountCode | string | No | Must match an active discount code |
 | notes | string | No | |
+| projectId | string (uuid) \| null | No | Optional project for this client; must belong to the same `clientId` and user |
 | isRecurring | boolean | No | Default false |
 | recurrenceInterval | string | No | weekly, monthly, quarterly, yearly |
 | items | array | Yes | At least 1 item required |

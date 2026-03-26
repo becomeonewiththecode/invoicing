@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,14 +8,25 @@ import { createInvoice, updateInvoice, getInvoice, type InvoicePayload } from '.
 import { getDiscounts } from '../api/discounts';
 import { getClients } from '../api/clients';
 import { getSettings } from '../api/settings';
+import { getClientProjects } from '../api/projects';
 import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
 import { buildInvoiceFromForm } from '../utils/invoicePreview';
 import type { Invoice } from '../types';
 import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi';
 import { formatClientLabel } from '../utils/clientDisplay';
 
+/** Sum of hours on lines that have a non-empty description (matches what is invoiced). */
+function sumBilledHours(formItems: { description: string; hours: number }[]): number {
+  return formItems.reduce((sum, row) => {
+    if (!row.description?.trim()) return sum;
+    const h = Number(row.hours);
+    return sum + (Number.isFinite(h) ? Math.max(0, h) : 0);
+  }, 0);
+}
+
 interface InvoiceFormData {
   clientId: string;
+  projectId: string;
   issueDate: string;
   dueDate: string;
   notes: string;
@@ -28,6 +39,7 @@ export function NewInvoicePage() {
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const preselectedClientId = searchParams.get('clientId') || '';
+  const preselectedProjectId = searchParams.get('projectId') || '';
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -64,6 +76,7 @@ export function NewInvoicePage() {
   const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<InvoiceFormData>({
     defaultValues: {
       clientId: preselectedClientId,
+      projectId: preselectedProjectId,
       issueDate: today,
       dueDate: format(new Date(Date.now() + 30 * 86400000), 'yyyy-MM-dd'),
       isRecurring: false,
@@ -88,6 +101,7 @@ export function NewInvoicePage() {
 
     reset({
       clientId: existingInvoice.client_id,
+      projectId: existingInvoice.project_id ?? '',
       issueDate: existingInvoice.issue_date.slice(0, 10),
       dueDate: existingInvoice.due_date.slice(0, 10),
       notes: existingInvoice.notes ?? '',
@@ -100,7 +114,77 @@ export function NewInvoicePage() {
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const items = watch('items');
   const clientId = watch('clientId');
+  const projectId = watch('projectId');
+  const prevClientIdRef = useRef<string | null>(null);
+  /** Tracks last project id for syncing line hours when the user picks a project (skipped on edit load). */
+  const prevProjectIdForSyncRef = useRef<string>('');
+
+  const { data: clientProjects = [] } = useQuery({
+    queryKey: ['client-projects', clientId],
+    queryFn: () => getClientProjects(clientId),
+    enabled: Boolean(clientId),
+  });
+
+  useEffect(() => {
+    if (prevClientIdRef.current !== null && prevClientIdRef.current !== clientId) {
+      setValue('projectId', '');
+    }
+    prevClientIdRef.current = clientId;
+  }, [clientId, setValue]);
+
+  useEffect(() => {
+    if (isEdit && existingInvoice) {
+      prevProjectIdForSyncRef.current = existingInvoice.project_id ?? '';
+    }
+  }, [isEdit, existingInvoice]);
+
   const selectedClient = clientsData?.data.find((c) => c.id === clientId);
+  const selectedProject = projectId ? clientProjects.find((p) => p.id === projectId) : undefined;
+  const rawProjectHoursNum =
+    selectedProject?.hours != null && String(selectedProject.hours).trim() !== ''
+      ? Number(selectedProject.hours)
+      : NaN;
+  const projectHoursPositive =
+    selectedProject && Number.isFinite(rawProjectHoursNum) && rawProjectHoursNum > 0 ? rawProjectHoursNum : null;
+  /** Cap applies only when the project marks hours as a maximum. */
+  const projectHoursCap =
+    selectedProject?.hours_is_maximum && projectHoursPositive != null ? projectHoursPositive : null;
+
+  const projectDescriptionTrimmed =
+    selectedProject?.description != null && String(selectedProject.description).trim() !== ''
+      ? String(selectedProject.description).trim()
+      : '';
+  const hasProjectDescription = Boolean(projectDescriptionTrimmed);
+
+  useEffect(() => {
+    if (!clientId) {
+      prevProjectIdForSyncRef.current = '';
+      return;
+    }
+    if (!projectId) {
+      prevProjectIdForSyncRef.current = '';
+      return;
+    }
+    if (!selectedProject) {
+      return;
+    }
+    const changed = prevProjectIdForSyncRef.current !== projectId;
+    prevProjectIdForSyncRef.current = projectId;
+    if (!changed) return;
+
+    setValue('items.0.description', projectDescriptionTrimmed);
+    if (projectHoursPositive != null) {
+      setValue('items.0.hours', projectHoursPositive);
+    }
+  }, [
+    clientId,
+    projectId,
+    selectedProject,
+    projectHoursPositive,
+    projectDescriptionTrimmed,
+    setValue,
+  ]);
+
   const hourlyRate = settings?.defaultHourlyRate ?? 0;
   const subtotal = items.reduce((sum, row) => {
     if (!row.description?.trim()) return sum;
@@ -117,6 +201,7 @@ export function NewInvoicePage() {
     dueDate: data.dueDate,
     taxRate,
     notes: data.notes || undefined,
+    projectId: data.projectId?.trim() || null,
     isRecurring: data.isRecurring,
     recurrenceInterval: data.isRecurring ? data.recurrenceInterval : undefined,
     items: data.items
@@ -165,6 +250,12 @@ export function NewInvoicePage() {
         return;
       }
     }
+    if (projectHoursCap != null && sumBilledHours(data.items) > projectHoursCap + 1e-6) {
+      toast.error(
+        `Total hours on line items cannot exceed ${projectHoursCap} (maximum set for the selected project).`
+      );
+      return;
+    }
     if ((settings?.defaultHourlyRate ?? 0) <= 0) {
       toast.error('Set a default hourly rate under Settings before saving');
       return;
@@ -189,6 +280,12 @@ export function NewInvoicePage() {
         toast.error('Enter a positive number of hours for each line item');
         return;
       }
+    }
+    if (projectHoursCap != null && sumBilledHours(data.items) > projectHoursCap + 1e-6) {
+      toast.error(
+        `Total hours on line items cannot exceed ${projectHoursCap} (maximum set for the selected project).`
+      );
+      return;
     }
     if ((settings?.defaultHourlyRate ?? 0) <= 0) {
       toast.error('Set a default hourly rate under Settings to preview');
@@ -274,6 +371,28 @@ export function NewInvoicePage() {
             {errors.clientId && <p className="text-red-500 text-sm mt-1">{errors.clientId.message}</p>}
           </div>
         </div>
+        {clientId ? (
+          <div className="max-w-xl">
+            <label htmlFor="invoice-project" className="block text-sm font-medium text-gray-700 mb-1">
+              Related project (optional)
+            </label>
+            <select
+              id="invoice-project"
+              {...register('projectId')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">None</option>
+              {[...clientProjects]
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Choose a project assigned to this client, or leave as none.</p>
+          </div>
+        ) : null}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
@@ -291,6 +410,25 @@ export function NewInvoicePage() {
           <p className="text-xs text-gray-500 mb-2">
             Each line uses your default hourly rate from Settings × hours worked.
           </p>
+          {projectId && selectedProject && (projectHoursPositive != null || hasProjectDescription) && (
+            <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-2 space-y-1">
+              {hasProjectDescription && (
+                <p>
+                  The first line description is filled from the project. You can edit it or replace it.
+                </p>
+              )}
+              {projectHoursPositive != null && (
+                <p>
+                  Project hours: <strong>{projectHoursPositive}</strong>
+                  {projectHoursCap != null ? (
+                    <> — each line is capped at this amount, and total billed hours cannot exceed it.</>
+                  ) : (
+                    <> — the first line hours field is set to this value when you select the project.</>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-12 gap-3 mb-2 text-xs text-gray-500">
             <div className="col-span-7 md:col-span-8">
               <span className="font-medium text-gray-500 uppercase tracking-wide">Description</span>
@@ -304,18 +442,44 @@ export function NewInvoicePage() {
             {fields.map((field, index) => (
               <div key={field.id} className="grid grid-cols-12 gap-3 items-end">
                 <div className="col-span-7 md:col-span-8">
-                  <input
-                    {...register(`items.${index}.description`)}
-                    placeholder="Describe work performed"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
+                  {index === 0 ? (
+                    <textarea
+                      {...register(`items.${index}.description`)}
+                      placeholder="Describe work performed"
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-y min-h-[4.5rem] text-sm"
+                    />
+                  ) : (
+                    <input
+                      {...register(`items.${index}.description`)}
+                      placeholder="Describe work performed"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  )}
                 </div>
                 <div className="col-span-4 md:col-span-3">
                   <input
                     type="number"
                     min={0}
+                    max={projectHoursCap ?? undefined}
                     step={0.25}
-                    {...register(`items.${index}.hours`, { valueAsNumber: true, min: 0 })}
+                    {...register(`items.${index}.hours`, {
+                      valueAsNumber: true,
+                      min: 0,
+                      ...(projectHoursCap != null
+                        ? {
+                            max: projectHoursCap,
+                            validate: (v) => {
+                              const h = Number(v);
+                              if (!Number.isFinite(h)) return true;
+                              if (h > projectHoursCap + 1e-9) {
+                                return `Hours cannot exceed ${projectHoursCap} (project maximum).`;
+                              }
+                              return true;
+                            },
+                          }
+                        : {}),
+                    })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg tabular-nums"
                     aria-label={`Hours for line ${index + 1}`}
                   />

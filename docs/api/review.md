@@ -18,11 +18,12 @@ Order matters for Express:
 
 1. **`/api/data`** — authenticated export/import; mounted with `express.json({ limit: '15mb' })` so large backups can be posted (see [reference](reference.md#data-backup-authenticated)).
 2. `/api/auth` — no JWT.
-3. `/api/clients`, then **`/api/invoices/share`** (public) **before** `/api/invoices` so `share` is not parsed as an invoice id.
-4. `/api/invoices` — CRUD, stats, CSV, share-token minting, email helpers.
-5. `/api/discounts`, `/api/settings`.
-6. Static uploads: `/api/uploads`.
-7. `GET /api/health` — health check.
+3. **`/api/clients` — two routers in order:** `routes/projects.ts` first (nested **`/:clientId/projects`** CRUD), then `routes/clients.ts` (client list and **`/:id`** CRUD). Registering the projects router first avoids ambiguous matching for client-scoped project paths.
+4. **`/api/invoices/share`** (public) **before** `/api/invoices` so `share` is not parsed as an invoice id.
+5. `/api/invoices` — CRUD, stats, CSV, share-token minting, email helpers.
+6. `/api/discounts`, `/api/settings`.
+7. Static uploads: `/api/uploads`.
+8. `GET /api/health` — health check.
 
 **Note:** In `app.ts`, the `/api/data` router is registered **before** the global `express.json()` so import requests use the larger body limit; other routes use the default JSON parser.
 

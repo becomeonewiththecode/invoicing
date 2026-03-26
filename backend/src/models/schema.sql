@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   next_recurrence_date DATE,
   sent_at TIMESTAMPTZ,
   share_token VARCHAR(64) UNIQUE,
+  project_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, invoice_number)
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 
 CREATE INDEX idx_invoices_user_id ON invoices(user_id);
 CREATE INDEX idx_invoices_client_id ON invoices(client_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_project_id ON invoices(project_id);
 CREATE INDEX idx_invoices_status ON invoices(status);
 CREATE INDEX idx_invoices_due_date ON invoices(due_date);
 
@@ -111,6 +113,64 @@ CREATE TABLE IF NOT EXISTS payment_reminders (
   sent_at TIMESTAMPTZ DEFAULT NOW(),
   reminder_type VARCHAR(20) DEFAULT 'overdue'
 );
+
+-- Projects (per-client)
+CREATE TABLE IF NOT EXISTS projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  start_date DATE,
+  end_date DATE,
+  status VARCHAR(30) NOT NULL DEFAULT 'not_started',
+  priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+  external_link TEXT,
+  external_link_description TEXT,
+  budget DECIMAL(12, 2),
+  hours DECIMAL(12, 2),
+  hours_is_maximum BOOLEAN NOT NULL DEFAULT FALSE,
+  dependencies TEXT,
+  milestones JSONB DEFAULT '[]',
+  team_members TEXT[] DEFAULT '{}',
+  tags TEXT[] DEFAULT '{}',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+
+DO $$ BEGIN
+  ALTER TABLE invoices
+    ADD CONSTRAINT invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS project_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size_bytes BIGINT NOT NULL DEFAULT 0,
+  mime_type VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_attachments_project_id ON project_attachments(project_id);
+
+CREATE TABLE IF NOT EXISTS project_external_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  description TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_external_links_project_id ON project_external_links(project_id);
 
 -- Support ticket system
 CREATE TABLE IF NOT EXISTS support_tickets (

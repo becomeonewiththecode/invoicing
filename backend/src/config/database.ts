@@ -102,6 +102,72 @@ export async function ensureSchema(): Promise<void> {
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
+  // Projects table (client-scoped)
+  await pool.query(`CREATE TABLE IF NOT EXISTS projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    start_date DATE,
+    end_date DATE,
+    status VARCHAR(30) NOT NULL DEFAULT 'not_started',
+    priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+    external_link TEXT,
+    external_link_description TEXT,
+    budget DECIMAL(12, 2),
+    hours DECIMAL(12, 2),
+    hours_is_maximum BOOLEAN NOT NULL DEFAULT FALSE,
+    dependencies TEXT,
+    milestones JSONB DEFAULT '[]',
+    team_members TEXT[] DEFAULT '{}',
+    tags TEXT[] DEFAULT '{}',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)');
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS project_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    file_name VARCHAR(255) NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size_bytes BIGINT NOT NULL DEFAULT 0,
+    mime_type VARCHAR(100),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_project_attachments_project_id ON project_attachments(project_id)');
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS project_external_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    description TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_project_external_links_project_id ON project_external_links(project_id)');
+
+  await pool.query(`INSERT INTO project_external_links (project_id, url, description, sort_order)
+    SELECT id, TRIM(external_link), NULLIF(TRIM(COALESCE(external_link_description, '')), ''), 0
+    FROM projects
+    WHERE external_link IS NOT NULL AND TRIM(external_link) <> ''
+    AND NOT EXISTS (SELECT 1 FROM project_external_links e WHERE e.project_id = projects.id)`);
+
+  await pool.query('ALTER TABLE invoices ADD COLUMN IF NOT EXISTS project_id UUID');
+  await pool.query(`DO $$ BEGIN
+    ALTER TABLE invoices ADD CONSTRAINT invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL;
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_invoices_project_id ON invoices(project_id)');
+
+  await pool.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS external_link_description TEXT');
+  await pool.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS hours DECIMAL(12, 2)');
+  await pool.query(
+    'ALTER TABLE projects ADD COLUMN IF NOT EXISTS hours_is_maximum BOOLEAN NOT NULL DEFAULT FALSE'
+  );
+
   // Seed default admin user if configured and not already present
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;

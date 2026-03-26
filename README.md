@@ -7,7 +7,8 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 ## Features
 
 - **Invoices** — Draft → Sent → Paid; **Late** when past the late rule after `sent_at`; **Cancelled** via soft-delete for sent/late invoices (drafts hard-delete); line items use **description + hours** and the default hourly rate from Settings
-- **Clients** — Customer numbers, optional default discount codes; **[client profile](docs/frontend/routes.md)** (`/clients/:id`) for details, per-client invoice status, and invoice links  
+- **Clients** — Customer numbers, optional default discount codes; **[client profile](docs/frontend/routes.md)** (`/clients/:id`) for details, per-client invoice status, **Projects** (with **Create invoice** per project), and invoice links  
+- **Invoices + projects** — Optional related project on each invoice; the new-invoice form can prefill line 1 from the project description and hours, and enforce a hours cap when the project marks hours as a maximum ([details](docs/frontend/routes.md#new-invoice-and-related-projects))  
 - **Discounts** — Percent or fixed codes  
 - **Company profile** — Tax rate, address, logo, optional company email for invoice copy emails; **Account** tab to change login email and password
 - **Dashboard** — Revenue stats (cached in Redis)  
