@@ -7,7 +7,7 @@ PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sq
 `backend/src/config/database.ts` exports **`ensureSchema()`**, which applies idempotent `ALTER`s so older databases gain columns and enum values that the app expects:
 
 - `clients.discount_code`, `invoices.sent_at`, `invoices.share_token`, `users.business_email`, `users.payable_text`, enum value `invoice_status.cancelled`, and `users.role` (see source for the exact statements).
-- `clients.portal_enabled`, `clients.portal_token`, `clients.portal_password_hash`, `clients.portal_totp_secret`, `clients.portal_totp_enabled` (see source for the exact statements).
+- `clients.portal_enabled`, `clients.portal_login_email`, `clients.portal_token`, `clients.portal_password_hash`, `clients.portal_totp_secret`, `clients.portal_totp_enabled` (see source for the exact statements).
 - Admin tables: `support_tickets`, `ticket_messages`, `content_flags`, `backup_snapshots`, `backup_policies`, `system_logs`, `rate_limit_configs`, `rate_limit_events` — all created with `CREATE TABLE IF NOT EXISTS`.
 - Client **projects** tables: `projects`, `project_attachments` — created with `CREATE TABLE IF NOT EXISTS` (see `config/database.ts`); also in `schema.sql`.
 - Default admin user seed: if `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars are set and no user with that email exists, an admin account is created automatically.
@@ -92,6 +92,7 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 | notes | TEXT | |
 | discount_code | VARCHAR(50) | Optional default discount code |
 | portal_enabled | BOOLEAN | Whether this client has an active portal account |
+| portal_login_email | VARCHAR(255) | Optional login email (username) for the client portal; must be unique across clients |
 | portal_token | VARCHAR(64) | Unique per client; vendor-generated access token used to authenticate to the portal login page |
 | portal_password_hash | VARCHAR(255) | Bcrypt hash of the portal password; required when `portal_enabled = true` |
 | portal_totp_secret | VARCHAR(64) | Raw TOTP secret (set during 2FA setup; cleared on disable) |
@@ -99,7 +100,7 @@ See [diagram.md](diagram.md) for a Mermaid ER diagram.
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 
-Index: `idx_clients_user_id`; unique `(user_id, customer_number)`. `portal_token` is also `UNIQUE` (nullable).
+Index: `idx_clients_user_id`; unique `(user_id, customer_number)`. `portal_token` and `portal_login_email` are also `UNIQUE` (nullable).
 
 ### `projects`
 

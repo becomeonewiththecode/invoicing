@@ -147,10 +147,13 @@ Updates portal access for a specific client.
 ```json
 {
   "accessToken": "<clients.portal_token>",
+  "email": "client@example.com",
   "password": "<client portal password>",
   "totpCode": "123456" 
 }
 ```
+
+Provide either `accessToken` or `email`.
 
 **Responses:**
 - **200 (success):** `{ token, client, vendor, portal: { twoFactorEnabled } }`
@@ -160,7 +163,10 @@ Updates portal access for a specific client.
 - `GET /portal/me`
 - `GET /portal/invoices` (draft invoices are hidden; backend returns `status != 'draft'`)
 - `GET /portal/projects`
+- `GET /portal/projects/:projectId`
 - `GET /portal/notifications` (recent activity; UI polls in v1)
+- `GET /portal/account`
+- `PUT /portal/account` (set login email and/or change password; requires `currentPassword`)
 
 ### Portal 2FA
 - `POST /portal/2fa/setup` → returns `{ qrDataUrl, otpauthUrl, secret }`

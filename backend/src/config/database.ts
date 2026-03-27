@@ -171,6 +171,7 @@ export async function ensureSchema(): Promise<void> {
   await pool.query(
     'ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_enabled BOOLEAN NOT NULL DEFAULT FALSE'
   );
+  await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_login_email VARCHAR(255) UNIQUE');
   await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token VARCHAR(64) UNIQUE');
   await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_password_hash VARCHAR(255)');
   await pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_totp_secret VARCHAR(64)');

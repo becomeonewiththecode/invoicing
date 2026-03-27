@@ -13,15 +13,17 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
 | `src/stores/` | Zustand auth store (persisted); `isAdmin()` helper for role check |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
+| `src/pages/portal/` | **Client portal** pages (login, dashboard, invoices, projects, project detail, account, security); `PortalLayout` (no main sidebar) |
+| `src/components/portal/` | `PortalLayout.tsx` and shared portal chrome |
 | `src/components/client/` | Client profile subviews (e.g. `ClientProjectsTab.tsx`) |
 | `src/pages/admin/` | Admin panel pages (dashboard, users, moderation, tickets, backups, rate limits, login) |
 | `src/utils/pdf.ts` | jsPDF invoice generation |
 
 ## Routing
 
-Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: **Details**, **Invoices**, **Projects** tabs), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup, Account), `/support`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
+Public: `/login`, `/register`, `/share/:token`, **`/portal/login`** (client portal). Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: **Details**, **Invoices**, **Projects**, **Portal** tabs), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup, Account), `/support`. **`/portal/*`** (after client login) uses **`PortalLayout`** instead of `AppLayout`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
 
-See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`, `#projects`), and deep links.
+See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`, `#projects`, `#portal`), client portal paths, and deep links. **[Client portal docs](../client-portal/overview.md)** cover login, 2FA, and API usage.
 
 ## Frontend diagrams
 

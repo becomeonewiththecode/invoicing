@@ -26,11 +26,26 @@ export const createClientSchema = z.object({
 
 export const updateClientSchema = createClientSchema.partial();
 
-export const portalLoginSchema = z.object({
-  accessToken: z.string().min(1).max(64),
-  password: z.string().min(1).max(200),
-  totpCode: z.string().min(6).max(12).optional(),
-});
+export const portalLoginSchema = z
+  .object({
+    accessToken: z.string().min(1).max(64).optional(),
+    email: z.string().email().optional(),
+    password: z.string().min(1).max(200),
+    totpCode: z.string().min(6).max(12).optional(),
+  })
+  .refine((d) => Boolean(d.accessToken) || Boolean(d.email), {
+    message: 'Either accessToken or email is required',
+  });
+
+export const portalAccountUpdateSchema = z
+  .object({
+    email: z.string().email().optional(),
+    currentPassword: z.string().min(1).max(200),
+    newPassword: z.string().min(8).max(128).optional(),
+  })
+  .refine((d) => d.email !== undefined || d.newPassword !== undefined, {
+    message: 'At least one of email or newPassword is required',
+  });
 
 export const updateClientPortalSchema = z
   .object({

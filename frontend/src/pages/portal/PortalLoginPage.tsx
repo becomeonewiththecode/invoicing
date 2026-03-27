@@ -6,6 +6,7 @@ import { portalLogin } from '../../api/portal';
 import { usePortalAuthStore } from '../../stores/portalAuthStore';
 
 interface Form {
+  email: string;
   accessToken: string;
   password: string;
   totpCode: string;
@@ -17,9 +18,10 @@ export function PortalLoginPage() {
   const token = usePortalAuthStore((s) => s.token);
   const setPortalAuth = usePortalAuthStore((s) => s.setPortalAuth);
   const [needs2fa, setNeeds2fa] = useState(false);
+  const [useEmailLogin, setUseEmailLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<Form>({
-    defaultValues: { accessToken: '', password: '', totpCode: '' },
+    defaultValues: { email: '', accessToken: '', password: '', totpCode: '' },
   });
 
   useEffect(() => {
@@ -35,7 +37,8 @@ export function PortalLoginPage() {
     setLoading(true);
     try {
       const res = await portalLogin({
-        accessToken: form.accessToken.trim(),
+        accessToken: useEmailLogin ? undefined : form.accessToken.trim(),
+        email: useEmailLogin ? form.email.trim() : undefined,
         password: form.password.trim(),
         totpCode: form.totpCode.trim() || undefined,
       });
@@ -67,36 +70,74 @@ export function PortalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md p-6 sm:p-8 bg-white rounded-xl shadow-sm border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100/80 via-blue-50 to-purple-100/60 p-4">
+      <div className="w-full max-w-md p-6 sm:p-8 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border border-sky-200/70">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Client portal</h1>
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-sm text-gray-700 mb-6">
           Use the access link and password from your vendor.{' '}
-          <Link to="/login" className="text-blue-600 hover:underline">
+          <Link to="/login" className="text-purple-700 hover:text-purple-800 hover:underline">
             Vendor sign in
           </Link>
         </p>
+        <div className="flex gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => setUseEmailLogin(false)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+              !useEmailLogin
+                ? 'bg-sky-100 text-purple-900 border-sky-300'
+                : 'bg-white text-gray-800 border-gray-300 hover:bg-sky-50/50'
+            }`}
+          >
+            Access token
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseEmailLogin(true)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+              useEmailLogin
+                ? 'bg-sky-100 text-purple-900 border-sky-300'
+                : 'bg-white text-gray-800 border-gray-300 hover:bg-sky-50/50'
+            }`}
+          >
+            Email
+          </button>
+        </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {useEmailLogin ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-1">Email</label>
+              <input
+                type="email"
+                autoComplete="email"
+                {...register('email', { required: 'Email is required' })}
+                className="w-full px-3 py-2 border border-gray-400 rounded-lg"
+                placeholder="you@example.com"
+              />
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-1">Access token</label>
+              <input
+                type="text"
+                autoComplete="off"
+                {...register('accessToken', { required: 'Access token is required' })}
+                className="w-full px-3 py-2 border border-gray-400 rounded-lg font-mono text-sm"
+                placeholder="From your vendor’s portal link"
+              />
+              {errors.accessToken && (
+                <p className="text-red-500 text-sm mt-1">{errors.accessToken.message}</p>
+              )}
+            </div>
+          )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Access token</label>
-            <input
-              type="text"
-              autoComplete="off"
-              {...register('accessToken', { required: 'Access token is required' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
-              placeholder="From your vendor’s portal link"
-            />
-            {errors.accessToken && (
-              <p className="text-red-500 text-sm mt-1">{errors.accessToken.message}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Portal password</label>
+            <label className="block text-sm font-medium text-gray-800 mb-1">Portal password</label>
             <input
               type="password"
               autoComplete="current-password"
               {...register('password', { required: 'Password is required' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-400 rounded-lg"
             />
             {errors.password && (
               <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
@@ -104,7 +145,7 @@ export function PortalLoginPage() {
           </div>
           {needs2fa && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-800 mb-1">
                 Authenticator code
               </label>
               <input
@@ -112,7 +153,7 @@ export function PortalLoginPage() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 {...register('totpCode', { required: needs2fa ? 'Enter the 6-digit code' : false })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg tracking-widest"
+                className="w-full px-3 py-2 border border-gray-400 rounded-lg tracking-widest"
                 placeholder="6-digit code"
               />
               {errors.totpCode && (
@@ -123,7 +164,7 @@ export function PortalLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+            className="w-full py-2.5 px-4 bg-gradient-to-r from-sky-600 to-purple-700 text-white rounded-lg hover:from-sky-700 hover:to-purple-800 disabled:opacity-50 transition-colors font-medium shadow-sm"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>

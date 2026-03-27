@@ -24,7 +24,15 @@ sequenceDiagram
 - If the vendor enables the portal, the backend requires a portal password hash to exist (or the call provides `password`).
 - Regenerating the token instantly invalidates old links because login uses `clients.portal_token`.
 
-## 2) Client login flow (token + password, optional TOTP)
+## 2) Client login flow (token or email + password, optional TOTP)
+
+### Login options
+
+Clients can sign in using either:
+- **Access token + password** (default; vendor shares a portal link containing the token)
+- **Email + password** (optional; client sets a login email under `/portal/account`)
+
+Both flows share the same endpoint: `POST /api/portal/auth/login`.
 
 ### Login with username-less “access token”
 
@@ -33,6 +41,22 @@ The client portal login page uses a token (access link) created by the vendor.
 ```mermaid
 flowchart TD
   A[/portal/login?token=<portal_token>] --> B[Client enters access token + password]
+  B --> C[POST /api/portal/auth/login]
+  C --> D{portal has TOTP enabled?}
+  D -- No --> E[Backend verifies password hash]
+  D -- Yes --> F{Client provided totpCode?}
+  F -- No --> G[Backend returns requiresTwoFactor=true]
+  F -- Yes --> H[Backend verifies TOTP code]
+  E --> I[Backend returns portal JWT]
+  H --> I[Backend returns portal JWT]
+  I --> J[Redirect to /portal]
+```
+
+### Login with email + password
+
+```mermaid
+flowchart TD
+  A[/portal/login] --> B[Client selects Email login\nenters email + password]
   B --> C[POST /api/portal/auth/login]
   C --> D{portal has TOTP enabled?}
   D -- No --> E[Backend verifies password hash]
@@ -76,7 +100,14 @@ sequenceDiagram
   B->>N: GET /api/portal/projects (Bearer portal JWT)
   E->>PG: SELECT projects for client
   E-->>B: { data: [ ... ] }
+
+  Note over B,E: Project details
+  B->>N: GET /api/portal/projects/:projectId (Bearer portal JWT)
+  E->>PG: SELECT project + attachments + external links
+  E-->>B: Project object
 ```
+
+The projects list includes a visible **View project** call-to-action on each card to open the detail route.
 
 ### “Real-time” behavior
 
@@ -116,4 +147,25 @@ sequenceDiagram
 
 - **Invoices:** the backend returns only invoices with `status != 'draft'`.
 - **Notifications:** includes recent invoice/project status updates for this client.
+
+## 6) Account page: set portal login email + change password
+
+The Account page is available at `/portal/account` (authenticated).
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant E as Express API
+  participant PG as PostgreSQL
+
+  B->>E: GET /api/portal/account (Bearer)
+  E->>PG: SELECT portal_login_email, portal_totp_enabled
+  E-->>B: { email, twoFactorEnabled }
+
+  B->>E: PUT /api/portal/account { email?, currentPassword, newPassword? } (Bearer)
+  E->>PG: SELECT portal_password_hash
+  E-->>E: bcrypt.compare(currentPassword, hash)
+  E->>PG: UPDATE clients.portal_login_email and/or portal_password_hash
+  E-->>B: { email, twoFactorEnabled }
+```
 

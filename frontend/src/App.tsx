@@ -4,7 +4,9 @@ import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
 import { PortalInvoicesPage } from './pages/portal/PortalInvoicesPage';
 import { PortalProjectsPage } from './pages/portal/PortalProjectsPage';
+import { PortalProjectDetailPage } from './pages/portal/PortalProjectDetailPage';
 import { PortalSecurityPage } from './pages/portal/PortalSecurityPage';
+import { PortalAccountPage } from './pages/portal/PortalAccountPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout/AppLayout';
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -57,6 +59,8 @@ export default function App() {
             <Route index element={<PortalDashboardPage />} />
             <Route path="invoices" element={<PortalInvoicesPage />} />
             <Route path="projects" element={<PortalProjectsPage />} />
+            <Route path="projects/:projectId" element={<PortalProjectDetailPage />} />
+            <Route path="account" element={<PortalAccountPage />} />
             <Route path="security" element={<PortalSecurityPage />} />
           </Route>
           <Route path="/login" element={<LoginPage />} />

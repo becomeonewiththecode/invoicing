@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS clients (
   notes TEXT,
   discount_code VARCHAR(50),
   portal_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  portal_login_email VARCHAR(255) UNIQUE,
   portal_token VARCHAR(64) UNIQUE,
   portal_password_hash VARCHAR(255),
   portal_totp_secret VARCHAR(64),

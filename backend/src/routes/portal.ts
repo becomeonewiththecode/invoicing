@@ -9,6 +9,7 @@ import {
   portalLoginSchema,
   portal2faVerifySchema,
   portal2faDisableSchema,
+  portalAccountUpdateSchema,
 } from '../models/validation';
 import { rateLimit } from '../middleware/rateLimit';
 import { authenticatePortal, PortalAuthRequest } from '../middleware/portalAuth';
@@ -22,23 +23,33 @@ router.post(
   validate(portalLoginSchema),
   async (req: PortalAuthRequest, res: Response) => {
     try {
-      const { accessToken, password, totpCode } = req.body as {
-        accessToken: string;
+      const { accessToken, email, password, totpCode } = req.body as {
+        accessToken?: string;
+        email?: string;
         password: string;
         totpCode?: string;
       };
 
-      const r = await pool.query(
-        `SELECT c.id, c.user_id, c.name, c.email, c.company, c.portal_enabled, c.portal_password_hash,
-                c.portal_totp_secret, c.portal_totp_enabled, u.business_name
-         FROM clients c
-         JOIN users u ON u.id = c.user_id
-         WHERE c.portal_token = $1`,
-        [accessToken.trim()]
-      );
+      const r = accessToken
+        ? await pool.query(
+            `SELECT c.id, c.user_id, c.name, c.email, c.company, c.portal_enabled, c.portal_password_hash,
+                    c.portal_totp_secret, c.portal_totp_enabled, u.business_name
+             FROM clients c
+             JOIN users u ON u.id = c.user_id
+             WHERE c.portal_token = $1`,
+            [accessToken.trim()]
+          )
+        : await pool.query(
+            `SELECT c.id, c.user_id, c.name, c.email, c.company, c.portal_enabled, c.portal_password_hash,
+                    c.portal_totp_secret, c.portal_totp_enabled, u.business_name
+             FROM clients c
+             JOIN users u ON u.id = c.user_id
+             WHERE c.portal_login_email = $1`,
+            [String(email ?? '').trim().toLowerCase()]
+          );
 
       if (r.rows.length === 0) {
-        return res.status(401).json({ error: 'Invalid access token or portal is disabled' });
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
 
       const client = r.rows[0];
@@ -49,7 +60,7 @@ router.post(
         return res.status(403).json({ error: 'Portal login is not configured yet' });
       }
 
-      const passwordOk = await bcrypt.compare(password, client.portal_password_hash);
+      const passwordOk = await bcrypt.compare(String(password ?? '').trim(), client.portal_password_hash);
       if (!passwordOk) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
@@ -96,6 +107,109 @@ router.post(
 );
 
 router.use(authenticatePortal);
+
+router.get('/account', async (req: PortalAuthRequest, res: Response) => {
+  try {
+    const r = await pool.query(
+      `SELECT portal_login_email, portal_totp_enabled
+       FROM clients
+       WHERE id = $1 AND user_id = $2 AND portal_enabled = true`,
+      [req.portalClientId, req.portalVendorUserId]
+    );
+    if (r.rows.length === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    res.json({
+      email: r.rows[0].portal_login_email ?? null,
+      twoFactorEnabled: Boolean(r.rows[0].portal_totp_enabled),
+    });
+  } catch (err) {
+    console.error('Portal account get error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put(
+  '/account',
+  validate(portalAccountUpdateSchema),
+  async (req: PortalAuthRequest, res: Response) => {
+    try {
+      const { email, currentPassword, newPassword } = req.body as {
+        email?: string;
+        currentPassword: string;
+        newPassword?: string;
+      };
+
+      const cur = await pool.query(
+        `SELECT portal_password_hash
+         FROM clients
+         WHERE id = $1 AND user_id = $2 AND portal_enabled = true`,
+        [req.portalClientId, req.portalVendorUserId]
+      );
+      if (cur.rows.length === 0) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+      const hash = cur.rows[0].portal_password_hash as string | null;
+      if (!hash) {
+        return res.status(403).json({ error: 'Portal login is not configured yet' });
+      }
+      const ok = await bcrypt.compare(String(currentPassword ?? '').trim(), hash);
+      if (!ok) {
+        return res.status(401).json({ error: 'Invalid password' });
+      }
+
+      const nextEmail = email !== undefined ? String(email).trim().toLowerCase() : undefined;
+      const nextHash =
+        newPassword !== undefined ? await bcrypt.hash(String(newPassword).trim(), 12) : undefined;
+
+      if (nextEmail !== undefined) {
+        const exists = await pool.query(
+          `SELECT 1 FROM clients
+           WHERE portal_login_email = $1 AND id <> $2
+           LIMIT 1`,
+          [nextEmail, req.portalClientId]
+        );
+        if (exists.rows.length > 0) {
+          return res.status(409).json({ error: 'That email is already in use' });
+        }
+      }
+
+      const set: string[] = [];
+      const vals: unknown[] = [];
+      let i = 1;
+
+      if (nextEmail !== undefined) {
+        set.push(`portal_login_email = $${i++}`);
+        vals.push(nextEmail);
+      }
+      if (nextHash !== undefined) {
+        set.push(`portal_password_hash = $${i++}`);
+        vals.push(nextHash);
+      }
+      set.push('updated_at = NOW()');
+
+      vals.push(req.portalClientId, req.portalVendorUserId);
+      await pool.query(
+        `UPDATE clients SET ${set.join(', ')} WHERE id = $${i++} AND user_id = $${i}`,
+        vals
+      );
+
+      const out = await pool.query(
+        `SELECT portal_login_email, portal_totp_enabled
+         FROM clients
+         WHERE id = $1 AND user_id = $2`,
+        [req.portalClientId, req.portalVendorUserId]
+      );
+      res.json({
+        email: out.rows[0]?.portal_login_email ?? null,
+        twoFactorEnabled: Boolean(out.rows[0]?.portal_totp_enabled),
+      });
+    } catch (err) {
+      console.error('Portal account update error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
 
 router.get('/me', async (req: PortalAuthRequest, res: Response) => {
   try {
@@ -181,6 +295,48 @@ router.get('/projects', async (req: PortalAuthRequest, res: Response) => {
     res.json({ data: result.rows });
   } catch (err) {
     console.error('Portal projects error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/projects/:projectId', async (req: PortalAuthRequest, res: Response) => {
+  try {
+    const projectId = req.params.projectId;
+    const r = await pool.query(
+      `SELECT *
+       FROM projects
+       WHERE id = $1 AND client_id = $2 AND user_id = $3`,
+      [projectId, req.portalClientId, req.portalVendorUserId]
+    );
+
+    if (r.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    const project = r.rows[0];
+
+    const attachmentsR = await pool.query(
+      `SELECT id, file_name, file_path, file_size_bytes, mime_type, created_at
+       FROM project_attachments
+       WHERE project_id = $1
+       ORDER BY created_at`,
+      [projectId]
+    );
+
+    const externalLinksR = await pool.query(
+      `SELECT id, url, description, sort_order, created_at
+       FROM project_external_links
+       WHERE project_id = $1
+       ORDER BY sort_order, created_at`,
+      [projectId]
+    );
+
+    res.json({
+      ...project,
+      attachments: attachmentsR.rows,
+      external_links: externalLinksR.rows,
+    });
+  } catch (err) {
+    console.error('Portal project detail error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

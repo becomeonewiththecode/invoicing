@@ -38,11 +38,20 @@ Per-client project tracking (see `ClientProjectsTab.tsx`). List, create, edit, a
 
 Each project card includes **View PDF**, **Create invoice**, **Download PDF**, and **Edit**. **Create invoice** links to `/invoices/new?clientId=<clientId>&projectId=<projectId>` so the new-invoice form opens with that client and project selected.
 
+### Portal tab (`#portal`)
+
+Client portal management has its own tab (separate from Details):
+
+- Enable/disable client portal
+- Set/update portal password
+- Regenerate portal access token link
+- Copy sign-in link (`/portal/login?token=...`)
+
 **Deep links**
 
 - `/clients?edit=<uuid>` → redirects to `/clients/<uuid>#details` (e.g. from invoice “View / edit client”).
 - Old bookmark `/clients/:id/stats` → redirect to profile with `#invoice-status` (opens Invoices tab).
-- Hash `#invoice-status` or `#invoices` → opens the Invoices tab; `#details` → opens the Details tab; **`#projects`** → opens the Projects tab.
+- Hash `#invoice-status` or `#invoices` → opens the Invoices tab; `#details` → opens the Details tab; **`#projects`** → opens the Projects tab; **`#portal`** → opens the Portal tab.
 
 ### New invoice and related projects (`NewInvoicePage.tsx`)
 
@@ -61,7 +70,7 @@ Draft **edit** mode does not overwrite saved line items on load; syncing applies
 |------|------|
 | `/share/:token` | Shared invoice (no login); clients can mark as paid |
 | `/login`, `/register` | Auth |
-| `/portal/login` | Client portal login (access token + password, optional TOTP) |
+| `/portal/login` | Client portal login (access token **or** email + password, optional TOTP) |
 
 ## Client portal routes
 
@@ -70,12 +79,15 @@ The client portal uses a separate `PortalLayout` (no main app sidebar) and a `po
 - `/api/portal/notifications` (polled periodically to approximate real-time)
 - `/api/portal/invoices` (draft invoices are hidden by the backend)
 - `/api/portal/projects`
+- `/api/portal/account`
 
 | Path | Page | Notes |
 |------|------|------|
 | `/portal` | Dashboard | Account overview + recent activity |
 | `/portal/invoices` | Invoices | Non-draft invoices only |
 | `/portal/projects` | Projects | Project list/status |
+| `/portal/projects/:projectId` | Project detail | Full project view for the client |
+| `/portal/account` | Account | Set login email (username) + change password |
 | `/portal/security` | Security | Portal 2FA setup/enable/disable |
 | `/client-portal` | Redirect to `/portal` | —
 | `/client-portal/login` | Redirect to `/portal/login` | —

@@ -53,6 +53,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | [docs/architecture.md](docs/architecture.md) | System architecture: Docker stack, startup, request flow |
 | [docs/backend/overview.md](docs/backend/overview.md) | Backend architecture and diagrams |
 | [docs/frontend/overview.md](docs/frontend/overview.md) | Frontend architecture and diagrams |
+| [docs/client-portal/overview.md](docs/client-portal/overview.md) | Client portal (customer login, dashboard, 2FA); [login & usage](docs/client-portal/login-and-usage.md) |
 
 ### [`deployment/`](deployment/README.md)
 
