@@ -1,20 +1,29 @@
 import { NavLink } from 'react-router-dom';
-import { HiOutlineDocumentText, HiOutlineUsers, HiOutlineHome, HiOutlineCog } from 'react-icons/hi';
+import {
+  HiOutlineDocumentText,
+  HiOutlineUsers,
+  HiOutlineHome,
+  HiOutlineCog,
+  HiOutlineSupport,
+  HiOutlineShieldCheck,
+  HiOutlineGlobeAlt,
+} from 'react-icons/hi';
 import { useAuthStore } from '../../stores/authStore';
 
 const linkBase = 'flex items-center gap-3 px-3 py-2 rounded-lg mb-1 transition-colors';
 const linkActive = 'bg-blue-600 text-white';
 const linkInactive = 'text-gray-300 hover:bg-gray-800';
 
-const subLinkBase = 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors';
-const subLinkActive = 'bg-blue-600 text-white';
-const subLinkInactive = 'text-gray-300 hover:bg-gray-800';
+interface SidebarProps {
+  className?: string;
+  onNavigate?: () => void;
+}
 
-export function Sidebar() {
+export function Sidebar({ className = '', onNavigate }: SidebarProps) {
   const { user } = useAuthStore();
 
   return (
-    <aside className="flex flex-col w-64 bg-gray-900 text-white min-h-screen">
+    <aside className={`flex min-h-screen w-64 flex-col bg-gray-900 text-white ${className}`}>
       <div className="p-6">
         <h1 className="text-xl font-bold">{user?.businessName || 'Invoicing'}</h1>
         <p className="text-sm text-gray-400 mt-1 truncate">{user?.email}</p>
@@ -24,38 +33,71 @@ export function Sidebar() {
           to="/"
           end
           className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineHome className="w-5 h-5 shrink-0" />
           Dashboard
         </NavLink>
 
-        <div className="mb-1">
-          <NavLink
-            to="/clients"
-            end
-            className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
-          >
-            <HiOutlineUsers className="w-5 h-5 shrink-0" />
-            Clients
-          </NavLink>
-          <div className="mt-1 ml-3 pl-3 border-l border-gray-700 space-y-0.5">
-            <NavLink
-              to="/invoices"
-              className={({ isActive }) => `${subLinkBase} ${isActive ? subLinkActive : subLinkInactive}`}
-            >
-              <HiOutlineDocumentText className="w-4 h-4 shrink-0" />
-              Invoices
-            </NavLink>
-          </div>
-        </div>
+        <NavLink
+          to="/clients"
+          end
+          className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
+        >
+          <HiOutlineUsers className="w-5 h-5 shrink-0" />
+          Clients
+        </NavLink>
+
+        <NavLink
+          to="/invoices"
+          className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
+        >
+          <HiOutlineDocumentText className="w-5 h-5 shrink-0" />
+          Invoices
+        </NavLink>
 
         <NavLink
           to="/settings"
           className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineCog className="w-5 h-5 shrink-0" />
           Settings
         </NavLink>
+
+        <NavLink
+          to="/support"
+          className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
+        >
+          <HiOutlineSupport className="w-5 h-5 shrink-0" />
+          Support
+        </NavLink>
+
+        <NavLink
+          to="/admin"
+          className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <HiOutlineShieldCheck className="w-5 h-5 shrink-0" />
+          Admin site
+        </NavLink>
+
+        <NavLink
+          to="/portal/login"
+          className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <HiOutlineGlobeAlt className="w-5 h-5 shrink-0" />
+          Client site
+        </NavLink>
+
       </nav>
     </aside>
   );

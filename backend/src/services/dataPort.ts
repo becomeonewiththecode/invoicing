@@ -154,14 +154,17 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
     await c.query('DELETE FROM clients WHERE user_id = $1', [userId]);
     await c.query('DELETE FROM discount_codes WHERE user_id = $1', [userId]);
 
-    // Also remove any rows whose IDs collide with the backup (e.g. backup from another account)
+    // Also remove any rows whose IDs collide with the backup (e.g. backup from another account).
+    // Order matters: invoices reference clients (ON DELETE RESTRICT), so delete invoices first.
     const backupClientIds = data.clients.map((r) => r.id);
     const backupDiscountIds = data.discount_codes.map((r) => r.id);
     const backupInvoiceIds = data.invoices.map((r) => r.id);
     if (backupInvoiceIds.length > 0) {
       await c.query('DELETE FROM invoices WHERE id = ANY($1)', [backupInvoiceIds]);
     }
+    // Delete invoices that reference colliding client IDs before deleting those clients
     if (backupClientIds.length > 0) {
+      await c.query('DELETE FROM invoices WHERE client_id = ANY($1)', [backupClientIds]);
       await c.query('DELETE FROM clients WHERE id = ANY($1)', [backupClientIds]);
     }
     if (backupDiscountIds.length > 0) {

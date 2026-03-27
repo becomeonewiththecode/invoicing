@@ -50,6 +50,30 @@ async function invalidateRevenueCache(userId: string) {
   if (keys.length > 0) await redis.del(...keys);
 }
 
+/** External links from `project_external_links` plus legacy `projects.external_link` when not duplicated. */
+async function fetchProjectExternalLinksForInvoice(projectId: string | null): Promise<
+  { url: string; description: string | null }[]
+> {
+  if (!projectId) return [];
+  const links = await pool.query<{ url: string; description: string | null }>(
+    `SELECT url, description FROM project_external_links WHERE project_id = $1 ORDER BY sort_order ASC, created_at ASC`,
+    [projectId]
+  );
+  const out = links.rows.map((r) => ({ url: r.url, description: r.description }));
+  const legacy = await pool.query<{
+    external_link: string | null;
+    external_link_description: string | null;
+  }>(`SELECT external_link, external_link_description FROM projects WHERE id = $1`, [projectId]);
+  const row = legacy.rows[0];
+  if (row?.external_link?.trim()) {
+    const u = row.external_link.trim();
+    if (!out.some((x) => x.url === u)) {
+      out.push({ url: u, description: row.external_link_description?.trim() || null });
+    }
+  }
+  return out;
+}
+
 // List invoices (optional ?clientId= to filter by client)
 router.get('/', validate(paginationSchema, 'query'), async (req: AuthRequest, res: Response) => {
   try {
@@ -289,7 +313,13 @@ router.post('/:id/send-to-company', rateLimit({ windowMs: 60_000, max: 5 }), asy
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const inv = invoiceResult.rows[0] as InvoiceEmailRow;
+    const project_external_links = await fetchProjectExternalLinksForInvoice(
+      invoiceResult.rows[0].project_id as string | null
+    );
+    const inv = {
+      ...invoiceResult.rows[0],
+      project_external_links,
+    } as InvoiceEmailRow;
     const items = itemsResult.rows as InvoiceItemEmailRow[];
     const subject = `Invoice ${inv.invoice_number} — ${inv.client_name ?? 'Client'}`;
     const html = buildInvoiceEmailHtml(inv, items);
@@ -309,8 +339,10 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     const [invoiceResult, itemsResult] = await Promise.all([
       pool.query(
         `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
-                c.customer_number as client_customer_number
+                c.customer_number as client_customer_number,
+                p.name as project_name
          FROM invoices i JOIN clients c ON i.client_id = c.id
+         LEFT JOIN projects p ON p.id = i.project_id
          WHERE i.id = $1 AND i.user_id = $2`,
         [req.params.id, req.userId]
       ),
@@ -321,7 +353,9 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    res.json({ ...invoiceResult.rows[0], items: itemsResult.rows });
+    const row = invoiceResult.rows[0];
+    const project_external_links = await fetchProjectExternalLinksForInvoice(row.project_id as string | null);
+    res.json({ ...row, project_external_links, items: itemsResult.rows });
   } catch (err) {
     console.error('Get invoice error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -334,7 +368,8 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
   try {
     await client.query('BEGIN');
 
-    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items } = req.body;
+    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items, projectId } =
+      req.body;
 
     // Verify client belongs to user and read default discount from client profile
     const clientCheck = await client.query<{ discount_code: string | null }>(
@@ -344,6 +379,17 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
     if (clientCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Client not found' });
+    }
+
+    if (projectId) {
+      const pv = await client.query(
+        'SELECT 1 FROM projects WHERE id = $1 AND client_id = $2 AND user_id = $3',
+        [projectId, clientId, req.userId]
+      );
+      if (pv.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Project not found for this client' });
+      }
     }
 
     const effectiveCode = (clientCheck.rows[0].discount_code || '').trim() || null;
@@ -361,8 +407,8 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
     const total = taxableAmount + taxAmount;
 
     const invoiceResult = await client.query(
-      `INSERT INTO invoices (user_id, client_id, invoice_number, issue_date, due_date, subtotal, tax_rate, tax_amount, discount_code, discount_amount, total, notes, is_recurring, recurrence_interval)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      `INSERT INTO invoices (user_id, client_id, invoice_number, issue_date, due_date, subtotal, tax_rate, tax_amount, discount_code, discount_amount, total, notes, is_recurring, recurrence_interval, project_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [
         req.userId,
         clientId,
@@ -378,6 +424,7 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
         notes || null,
         isRecurring,
         recurrenceInterval || null,
+        projectId ?? null,
       ]
     );
 
@@ -394,7 +441,17 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
     await client.query('COMMIT');
     await invalidateRevenueCache(req.userId!);
 
-    res.status(201).json(invoiceResult.rows[0]);
+    const createdId = invoiceResult.rows[0].id as string;
+    const fullRow = await pool.query(
+      `SELECT i.*, p.name as project_name FROM invoices i
+       LEFT JOIN projects p ON p.id = i.project_id
+       WHERE i.id = $1`,
+      [createdId]
+    );
+    const project_external_links = await fetchProjectExternalLinksForInvoice(
+      fullRow.rows[0]?.project_id as string | null
+    );
+    res.status(201).json({ ...fullRow.rows[0], project_external_links });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Create invoice error:', err);
@@ -421,7 +478,8 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
       });
     }
 
-    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items } = req.body;
+    const { clientId, issueDate, dueDate, taxRate, notes, isRecurring, recurrenceInterval, items, projectId } =
+      req.body;
 
     const clientCheck = await db.query<{ discount_code: string | null }>(
       'SELECT discount_code FROM clients WHERE id = $1 AND user_id = $2',
@@ -430,6 +488,17 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
     if (clientCheck.rows.length === 0) {
       await db.query('ROLLBACK');
       return res.status(404).json({ error: 'Client not found' });
+    }
+
+    if (projectId) {
+      const pv = await db.query(
+        'SELECT 1 FROM projects WHERE id = $1 AND client_id = $2 AND user_id = $3',
+        [projectId, clientId, req.userId]
+      );
+      if (pv.rows.length === 0) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ error: 'Project not found for this client' });
+      }
     }
 
     const effectiveCode = (clientCheck.rows[0].discount_code || '').trim() || null;
@@ -459,8 +528,9 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
         notes = $10,
         is_recurring = $11,
         recurrence_interval = $12,
+        project_id = $13,
         updated_at = NOW()
-      WHERE id = $13 AND user_id = $14`,
+      WHERE id = $14 AND user_id = $15`,
       [
         clientId,
         issueDate,
@@ -474,6 +544,7 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
         notes || null,
         isRecurring,
         recurrenceInterval || null,
+        projectId ?? null,
         req.params.id,
         req.userId,
       ]
@@ -502,14 +573,18 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
     const [invoiceResult, itemsResult] = await Promise.all([
       pool.query(
         `SELECT i.*, c.name as client_name, c.email as client_email, c.company as client_company, c.address as client_address,
-                c.customer_number as client_customer_number
+                c.customer_number as client_customer_number,
+                p.name as project_name
          FROM invoices i JOIN clients c ON i.client_id = c.id
+         LEFT JOIN projects p ON p.id = i.project_id
          WHERE i.id = $1 AND i.user_id = $2`,
         [req.params.id, req.userId]
       ),
       pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]),
     ]);
-    res.json({ ...invoiceResult.rows[0], items: itemsResult.rows });
+    const row = invoiceResult.rows[0];
+    const project_external_links = await fetchProjectExternalLinksForInvoice(row.project_id as string | null);
+    res.json({ ...row, project_external_links, items: itemsResult.rows });
   } catch (err) {
     console.error('Update invoice fetch error:', err);
     res.status(500).json({ error: 'Internal server error' });

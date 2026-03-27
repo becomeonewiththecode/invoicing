@@ -16,31 +16,46 @@ flowchart TB
             EXPRESS["Express API\nhelmet · cors · morgan · JSON parser"]
 
             subgraph Routes["Routes"]
-                AUTH_R["/api/auth\nregister · login"]
-                CLIENT_R["/api/clients\nCRUD"]
+                AUTH_R["/api/auth\nregister · login\nchange email/password"]
+                CLIENT_R["/api/clients\nCRUD · projects per client"]
                 INV_R["/api/invoices\nCRUD · stats · CSV\nshare · send email"]
                 SHARE_R["/api/invoices/share/:token\npublic view · mark paid"]
                 DISC_R["/api/discounts\nCRUD"]
                 SET_R["/api/settings\nprofile · logo · SMTP"]
                 DATA_R["/api/data\nexport · import"]
+                TICKET_R["/api/tickets\nuser support tickets"]
                 HEALTH_R["/api/health"]
+            end
+
+            subgraph AdminRoutes["Admin Routes (/api/admin)"]
+                ADM_DASH["/dashboard\nstats · user growth"]
+                ADM_USERS["/users\nlist · detail · role"]
+                ADM_MOD["/moderation\nflags · review · bulk"]
+                ADM_TIX["/tickets\nall tickets · reply · status"]
+                ADM_HEALTH["/health\nservice checks · logs"]
+                ADM_BACK["/backups\nsnapshots · policies"]
+                ADM_RL["/rate-limits\nconfigs · analytics"]
             end
 
             subgraph MW["Middleware"]
                 JWT["JWT auth"]
+                ADMIN["Admin auth\n(role check)"]
                 RL["Rate limit\n(Redis)"]
                 ZOD["Zod validation"]
+                REQLOG["Request logger\n(system_logs)"]
             end
 
             subgraph SVC["Services"]
                 MAIL["mail.ts\nnodemailer"]
                 TMPL["invoiceEmailHtml.ts\nemail templates"]
                 DP["dataPort.ts\nbackup export/import"]
+                ADM_SVC["adminDashboard.ts\nadminHealth.ts\nadminModeration.ts\nadminTickets.ts\nadminBackup.ts"]
             end
 
             subgraph JOBS["Scheduled jobs (node-cron)"]
                 J1["Daily: mark late\n+ send reminders"]
                 J2["Daily: create\nrecurring invoices"]
+                J3["Daily: automated\nbackup snapshots"]
             end
 
             SCHEMA["ensureSchema()\nidempotent ALTERs\non startup + import"]
@@ -68,15 +83,19 @@ flowchart TB
 
     %% Routes → Middleware
     Routes -. "per-route" .-> MW
+    AdminRoutes -. "JWT + admin role" .-> ADMIN
+    AdminRoutes -. "per-route" .-> ZOD
 
     %% Routes → Services
     INV_R --> MAIL
     SET_R --> MAIL
     DATA_R --> DP
     MAIL --> TMPL
+    AdminRoutes --> ADM_SVC
 
     %% Backend → PostgreSQL
     Routes -- "pg pool" --> PGDB
+    AdminRoutes -- "pg pool" --> PGDB
     JOBS -- "pg pool" --> PGDB
     DP -- "transactional\nimport/export" --> PGDB
     SCHEMA -- "ALTER TABLE\nADD COLUMN" --> PGDB
@@ -105,8 +124,9 @@ sequenceDiagram
     PG-->>DC: Healthcheck passes (pg_isready)
     RD-->>DC: Healthcheck passes (redis-cli ping)
     DC->>BE: Start container (depends_on: postgres, redis healthy)
-    BE->>PG: ensureSchema() — idempotent ALTERs
-    BE->>BE: Start node-cron jobs
+    BE->>PG: ensureSchema() — idempotent ALTERs + admin tables
+    BE->>PG: Seed admin user (if ADMIN_EMAIL set and not exists)
+    BE->>BE: Start node-cron jobs (reminders, recurrence, backups)
     BE->>BE: Listen on 0.0.0.0:3001
     BE-->>DC: Healthcheck passes (GET /api/health)
     DC->>FE: Start container (depends_on: backend healthy)

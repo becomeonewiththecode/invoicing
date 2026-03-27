@@ -1,11 +1,27 @@
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { Router, Response } from 'express';
 import pool from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { createClientSchema, updateClientSchema, paginationSchema } from '../models/validation';
+import {
+  createClientSchema,
+  updateClientSchema,
+  paginationSchema,
+  updateClientPortalSchema,
+} from '../models/validation';
 
 const router = Router();
 router.use(authenticate);
+
+function sanitizeClientRow(row: Record<string, unknown>) {
+  const out = { ...row };
+  const hasPassword = Boolean(out.portal_password_hash);
+  delete out.portal_password_hash;
+  delete out.portal_totp_secret;
+  out.portal_has_password = hasPassword;
+  return out;
+}
 
 /** Empty / omitted → null; non-empty must match an active discount_codes row for this user. */
 async function normalizeClientDiscountCode(
@@ -43,7 +59,7 @@ router.get('/', validate(paginationSchema, 'query'), async (req: AuthRequest, re
     ]);
 
     res.json({
-      data: clients.rows,
+      data: clients.rows.map((r) => sanitizeClientRow(r as Record<string, unknown>)),
       pagination: { page, limit, total: parseInt(countResult.rows[0].count) },
     });
   } catch (err) {
@@ -51,6 +67,71 @@ router.get('/', validate(paginationSchema, 'query'), async (req: AuthRequest, re
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+router.patch(
+  '/:id/portal',
+  validate(updateClientPortalSchema),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { enabled, password, regenerateToken } = req.body as {
+        enabled?: boolean;
+        password?: string;
+        regenerateToken?: boolean;
+      };
+      const id = req.params.id;
+
+      const cur = await pool.query(
+        'SELECT portal_token, portal_password_hash, portal_enabled FROM clients WHERE id = $1 AND user_id = $2',
+        [id, req.userId]
+      );
+      if (cur.rows.length === 0) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+      const row = cur.rows[0];
+
+      let nextEnabled = row.portal_enabled as boolean;
+      let nextToken = row.portal_token as string | null;
+      let nextHash = row.portal_password_hash as string | null;
+
+      if (enabled !== undefined) {
+        nextEnabled = enabled;
+      }
+
+      if (enabled === true) {
+        if (!nextToken) {
+          nextToken = crypto.randomBytes(32).toString('hex');
+        }
+        if (password) {
+          nextHash = await bcrypt.hash(password, 12);
+        } else if (!nextHash) {
+          return res.status(400).json({ error: 'Set a portal password when enabling the client portal' });
+        }
+      } else if (password) {
+        nextHash = await bcrypt.hash(password, 12);
+      }
+
+      if (regenerateToken && nextEnabled) {
+        nextToken = crypto.randomBytes(32).toString('hex');
+      }
+
+      await pool.query(
+        `UPDATE clients SET
+          portal_enabled = $1,
+          portal_token = $2,
+          portal_password_hash = $3,
+          updated_at = NOW()
+         WHERE id = $4 AND user_id = $5`,
+        [nextEnabled, nextToken, nextHash, id, req.userId]
+      );
+
+      const result = await pool.query('SELECT * FROM clients WHERE id = $1 AND user_id = $2', [id, req.userId]);
+      res.json(sanitizeClientRow(result.rows[0] as Record<string, unknown>));
+    } catch (err) {
+      console.error('Patch client portal error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
 
 // Get single client
 router.get('/:id', async (req: AuthRequest, res: Response) => {
@@ -62,7 +143,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Client not found' });
     }
-    res.json(result.rows[0]);
+    res.json(sanitizeClientRow(result.rows[0] as Record<string, unknown>));
   } catch (err) {
     console.error('Get client error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -114,7 +195,7 @@ router.post('/', validate(createClientSchema), async (req: AuthRequest, res: Res
       ]
     );
     await db.query('COMMIT');
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(sanitizeClientRow(result.rows[0] as Record<string, unknown>));
   } catch (err) {
     await db.query('ROLLBACK').catch(() => {});
     console.error('Create client error:', err);
@@ -178,7 +259,7 @@ router.put('/:id', validate(updateClientSchema), async (req: AuthRequest, res: R
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Client not found' });
     }
-    res.json(result.rows[0]);
+    res.json(sanitizeClientRow(result.rows[0] as Record<string, unknown>));
   } catch (err) {
     console.error('Update client error:', err);
     res.status(500).json({ error: 'Internal server error' });

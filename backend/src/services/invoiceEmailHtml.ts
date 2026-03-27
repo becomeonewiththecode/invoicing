@@ -26,6 +26,8 @@ export type InvoiceEmailRow = {
   client_email?: string;
   /** From users.payable_text — invoice footer */
   payable_text?: string | null;
+  /** From related project — shown in Notes area of email */
+  project_external_links?: { url: string; description?: string | null }[];
 };
 
 export type InvoiceItemEmailRow = {
@@ -57,8 +59,17 @@ export function buildInvoiceEmailText(inv: InvoiceEmailRow, items: InvoiceItemEm
     lines.push(`Tax (${n(inv.tax_rate)}%): $${n(inv.tax_amount).toFixed(2)}`);
   }
   lines.push(`Total: $${n(inv.total).toFixed(2)}`);
-  if (inv.notes?.trim()) {
-    lines.push('', `Notes: ${inv.notes.trim()}`);
+  if (inv.notes?.trim() || inv.project_external_links?.length) {
+    lines.push('', 'Notes:');
+    if (inv.notes?.trim()) {
+      lines.push(inv.notes.trim());
+    }
+    if (inv.project_external_links?.length) {
+      for (const l of inv.project_external_links) {
+        const label = l.description?.trim() || l.url;
+        lines.push(`  - ${label}: ${l.url}`);
+      }
+    }
   }
   if (inv.payable_text?.trim()) {
     lines.push('', `Pay to: ${inv.payable_text.trim()}`);
@@ -112,7 +123,26 @@ export function buildInvoiceEmailHtml(inv: InvoiceEmailRow, items: InvoiceItemEm
     }
     <tr><td style="padding:8px 8px 4px 0;font-weight:bold;">Total</td><td style="padding:8px 0;text-align:right;font-weight:bold;">$${n(inv.total).toFixed(2)}</td></tr>
   </table>
-  ${inv.notes?.trim() ? `<p style="margin-top:16px;"><strong>Notes</strong><br>${escapeHtml(inv.notes.trim()).replace(/\n/g, '<br>')}</p>` : ''}
+  ${
+    inv.notes?.trim() || inv.project_external_links?.length
+      ? `<div style="margin-top:16px;"><strong>Notes</strong><br>${
+          inv.notes?.trim()
+            ? `${escapeHtml(inv.notes.trim()).replace(/\n/g, '<br>')}`
+            : ''
+        }${
+          inv.project_external_links?.length
+            ? `<ul style="margin:8px 0 0;padding-left:20px;">${inv.project_external_links
+                .map(
+                  (l) =>
+                    `<li style="margin:4px 0;"><a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;">${escapeHtml(
+                      l.description?.trim() || l.url
+                    )}</a></li>`
+                )
+                .join('')}</ul>`
+            : ''
+        }</div>`
+      : ''
+  }
   ${
     inv.payable_text?.trim()
       ? `<p style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e5e5;color:#333;"><strong>Pay to</strong><br>${escapeHtml(inv.payable_text.trim()).replace(/\n/g, '<br>')}</p>`

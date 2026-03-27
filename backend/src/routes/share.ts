@@ -3,6 +3,29 @@ import pool from '../config/database';
 
 const router = Router();
 
+async function fetchProjectExternalLinksForInvoice(projectId: string | null): Promise<
+  { url: string; description: string | null }[]
+> {
+  if (!projectId) return [];
+  const links = await pool.query<{ url: string; description: string | null }>(
+    `SELECT url, description FROM project_external_links WHERE project_id = $1 ORDER BY sort_order ASC, created_at ASC`,
+    [projectId]
+  );
+  const out = links.rows.map((r) => ({ url: r.url, description: r.description }));
+  const legacy = await pool.query<{
+    external_link: string | null;
+    external_link_description: string | null;
+  }>(`SELECT external_link, external_link_description FROM projects WHERE id = $1`, [projectId]);
+  const row = legacy.rows[0];
+  if (row?.external_link?.trim()) {
+    const u = row.external_link.trim();
+    if (!out.some((x) => x.url === u)) {
+      out.push({ url: u, description: row.external_link_description?.trim() || null });
+    }
+  }
+  return out;
+}
+
 /** Public endpoint — returns invoice + items + business info for a valid share token. */
 router.get('/:token', async (req: Request, res: Response) => {
   try {
@@ -14,6 +37,7 @@ router.get('/:token', async (req: Request, res: Response) => {
     const invoiceResult = await pool.query(
       `SELECT i.invoice_number, i.status, i.issue_date, i.due_date,
               i.subtotal, i.tax_rate, i.tax_amount, i.discount_code, i.discount_amount, i.total, i.notes,
+              i.project_id,
               c.name AS client_name, c.email AS client_email, c.company AS client_company,
               c.address AS client_address, c.customer_number AS client_customer_number,
               u.business_name, u.business_phone, u.business_website, u.business_address,
@@ -30,6 +54,9 @@ router.get('/:token', async (req: Request, res: Response) => {
     }
 
     const invoice = invoiceResult.rows[0];
+    const project_external_links = await fetchProjectExternalLinksForInvoice(
+      invoice.project_id as string | null
+    );
 
     const itemsResult = await pool.query(
       `SELECT ii.description, ii.quantity, ii.unit_price, ii.amount, ii.sort_order
@@ -40,7 +67,7 @@ router.get('/:token', async (req: Request, res: Response) => {
       [token]
     );
 
-    res.json({ ...invoice, items: itemsResult.rows });
+    res.json({ ...invoice, project_external_links, items: itemsResult.rows });
   } catch (err) {
     console.error('Public share view error:', err);
     res.status(500).json({ error: 'Internal server error' });

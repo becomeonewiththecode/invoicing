@@ -2,6 +2,7 @@ export interface User {
   id: string;
   email: string;
   businessName?: string;
+  role?: string;
 }
 
 /** Company profile & defaults from GET/PUT /api/settings */
@@ -34,6 +35,11 @@ export interface Client {
   notes?: string;
   /** Default discount for invoices; must match an active discount code */
   discount_code?: string | null;
+  /** Vendor-only: client portal access; copy link for the client */
+  portal_enabled?: boolean;
+  portal_token?: string | null;
+  portal_has_password?: boolean;
+  portal_totp_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +73,10 @@ export interface Invoice {
   notes?: string;
   is_recurring: boolean;
   recurrence_interval?: string;
+  project_id?: string | null;
+  project_name?: string | null;
+  /** From related project — shown under Notes on invoice views / PDF */
+  project_external_links?: { url: string; description?: string | null }[];
   client_name?: string;
   client_email?: string;
   client_company?: string;

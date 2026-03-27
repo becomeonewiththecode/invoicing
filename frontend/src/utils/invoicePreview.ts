@@ -1,4 +1,6 @@
 import type { Client, DiscountCode, Invoice, InvoiceItem } from '../types';
+import type { Project } from '../api/projects';
+import { externalLinksFromProject } from './externalLinksDisplay';
 
 export function computeDiscountAmount(
   subtotal: number,
@@ -25,13 +27,19 @@ export interface InvoiceFormShape {
   items: { description: string; hours: number }[];
 }
 
+/** Same as `externalLinksFromProject` in `./externalLinksDisplay` — kept for existing imports. */
+export function projectExternalLinksFromProject(project: Project | undefined) {
+  return externalLinksFromProject(project);
+}
+
 /** Builds a synthetic Invoice for PDF/HTML preview (not persisted). */
 export function buildInvoiceFromForm(
   form: InvoiceFormShape,
   settings: { defaultTaxRate: number; defaultHourlyRate: number | null } | null,
   client: Client | undefined,
   discounts: DiscountCode[],
-  existing: Invoice | null
+  existing: Invoice | null,
+  options?: { projectExternalLinks?: { url: string; description?: string | null }[] }
 ): Invoice | null {
   if (!form.clientId) return null;
   const hourly = settings?.defaultHourlyRate ?? 0;
@@ -86,5 +94,8 @@ export function buildInvoiceFromForm(
     items: lineItems,
     created_at: existing?.created_at ?? '',
     updated_at: existing?.updated_at ?? '',
+    ...(options?.projectExternalLinks?.length
+      ? { project_external_links: options.projectExternalLinks }
+      : {}),
   };
 }

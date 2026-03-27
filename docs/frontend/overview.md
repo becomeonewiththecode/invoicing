@@ -6,18 +6,26 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 
 | Area | Role |
 |------|------|
-| `src/App.tsx` | `BrowserRouter`, route table, public vs protected layout |
-| `src/layouts/AppLayout.tsx` | Sidebar + outlet for authenticated pages |
-| `src/api/` | Axios instance (`client.ts`) + resource modules (`settings`, `data` backup helpers, …); base URL from `VITE_API_URL` |
-| `src/store/` | Zustand auth store (persisted) |
+| `src/App.tsx` | `BrowserRouter`, route table, public vs protected vs admin layout |
+| `src/components/layout/AppLayout.tsx` | Responsive vendor layout: desktop sidebar + mobile drawer, header, outlet; includes quick links to admin and client portals |
+| `src/components/layout/AdminLayout.tsx` | Responsive admin layout: desktop sidebar + mobile drawer; shows admin login if not authenticated as admin |
+| `src/components/layout/AdminSidebar.tsx` | Admin navigation links (desktop and mobile drawer) |
+| `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
+| `src/stores/` | Zustand auth store (persisted); `isAdmin()` helper for role check |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
+| `src/pages/portal/` | **Client portal** pages (login, dashboard, invoices, projects, project detail, account, security); `PortalLayout` (no main sidebar) |
+| `src/components/portal/` | `PortalLayout.tsx` and shared portal chrome |
+| `src/components/client/` | Client profile subviews (e.g. `ClientProjectsTab.tsx`) |
+| `src/pages/admin/` | Admin panel pages (dashboard, users, moderation, tickets, backups, rate limits, login) |
 | `src/utils/pdf.ts` | jsPDF invoice generation |
 
 ## Routing
 
-Public: `/login`, `/register`, `/share/:token`. Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: details, invoice status, invoice links), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup). Unknown paths redirect to `/`.
+Public: `/login`, `/register`, `/share/:token`, **`/portal/login`** (client portal). Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: **Details**, **Invoices**, **Projects**, **Portal** tabs), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup, Account), `/support`. **`/portal/*`** (after client login) uses **`PortalLayout`** instead of `AppLayout`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
 
-See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`), and deep links.
+Vendor and admin shells are mobile-friendly: below desktop breakpoints, sidebars collapse into a slide-in drawer, and page padding/header controls scale down for smaller screens.
+
+See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`, `#projects`, `#portal`), client portal paths, and deep links. **[Client portal docs](../client-portal/overview.md)** cover login, 2FA, and API usage.
 
 ## Frontend diagrams
 
@@ -36,19 +44,31 @@ flowchart TB
       subgraph Protected["Protected routes (AppLayout)"]
         DASH["/ DashboardPage\nrevenue stats · chart · recent invoices"]
         INV_LIST["/invoices\nInvoicesPage\npaginated · filter by client · CSV export"]
-        INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview"]
+        INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview\noptional project · URL ?clientId & ?projectId"]
         INV_EDIT["/invoices/:id/edit\nNewInvoicePage (edit mode)"]
         INV_DET["/invoices/:id\nInvoiceDetailPage\nPDF · share · email · status"]
         CL_LIST["/clients\nClientsPage\npaginated · quick edit"]
-        CL_PROF["/clients/:clientId\nClientProfilePage\n#details · #invoice-status · #invoices"]
+        CL_PROF["/clients/:clientId\nClientProfilePage\nDetails · Invoices · Projects"]
         DISC["/discounts\nDiscountsPage"]
-        SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup"]
+        SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup · Account"]
+        SUPPORT["/support\nSupportPage\nuser ticket submission"]
+      end
+      subgraph Admin["Admin routes (AdminLayout)"]
+        ADM_LOGIN["/admin\nAdminLoginPage\n(if not admin)"]
+        ADM_DASH["/admin\nAdminDashboardPage\nstats · health · logs"]
+        ADM_USERS["/admin/users\nAdminUsersPage"]
+        ADM_MOD["/admin/moderation\nAdminModerationPage"]
+        ADM_TIX["/admin/tickets\nAdminTicketsPage"]
+        ADM_BACK["/admin/backups\nAdminBackupsPage"]
+        ADM_RL["/admin/rate-limits\nAdminRateLimitsPage"]
       end
     end
 
     subgraph Layout["Layout components"]
-      APPL["AppLayout\nsidebar + header + auth guard"]
+      APPL["AppLayout\ndesktop sidebar + mobile drawer\nheader + auth guard"]
       SIDE["Sidebar\nnav links · user info"]
+      ADML["AdminLayout\ndesktop sidebar + mobile drawer\nadmin auth guard"]
+      ADMSIDE["AdminSidebar\nadmin nav links"]
     end
 
     subgraph UI["UI components"]
@@ -63,12 +83,15 @@ flowchart TB
 
     subgraph API["API modules (Axios)"]
       direction LR
-      AUTH_API["auth.ts\nlogin · register"]
+      AUTH_API["auth.ts\nlogin · register · updateAccount"]
       INV_API["invoices.ts\nCRUD · stats · CSV\nshare · email"]
       CL_API["clients.ts\nCRUD · pagination"]
+      PRJ_API["projects.ts\nper-client projects"]
       DISC_API["discounts.ts\nCRUD · generate"]
       SET_API["settings.ts\nprofile · logo · SMTP"]
       DATA_API["data.ts\nexport · import"]
+      ADM_API["admin.ts\ndashboard · users · moderation\ntickets · health · backups · rate limits"]
+      TIX_API["tickets.ts\nuser support tickets"]
     end
 
     subgraph Utils["Utilities"]
@@ -84,10 +107,14 @@ flowchart TB
   %% Layout
   Protected --> APPL
   APPL --> SIDE
+  Admin --> ADML
+  ADML --> ADMSIDE
 
   %% State flow
   Protected --> RQ
   Protected --> ZS
+  Admin --> RQ
+  Admin --> ZS
   SHARE --> RQ
   LOGIN --> ZS
   REG --> ZS
@@ -119,18 +146,33 @@ flowchart LR
     SETT["SettingsPage"]
     SHARE["SharedInvoicePage"]
     LOGIN["LoginPage"]
+    SUP["SupportPage"]
+  end
+
+  subgraph AdminPages["Admin Pages"]
+    ADASH["AdminDashboardPage"]
+    AUSERS["AdminUsersPage"]
+    AMOD["AdminModerationPage"]
+    ATIX["AdminTicketsPage"]
+    ABACK["AdminBackupsPage"]
+    ARL["AdminRateLimitsPage"]
+    ALOGIN["AdminLoginPage"]
   end
 
   subgraph APIs["API modules"]
     A_AUTH["auth.ts"]
     A_INV["invoices.ts"]
     A_CL["clients.ts"]
+    A_PRJ["projects.ts"]
     A_DISC["discounts.ts"]
     A_SET["settings.ts"]
     A_DATA["data.ts"]
+    A_ADM["admin.ts"]
+    A_TIX["tickets.ts"]
   end
 
   LOGIN --> A_AUTH
+  ALOGIN --> A_AUTH
   DASH --> A_INV
   INV --> A_INV
   INV --> A_CL
@@ -142,12 +184,21 @@ flowchart LR
   INVN --> A_SET
   CL --> A_CL
   CLP --> A_CL
+  CLP --> A_PRJ
   CLP --> A_INV
   DISC --> A_DISC
   SETT --> A_SET
   SETT --> A_DISC
   SETT --> A_DATA
+  SETT --> A_AUTH
   SHARE --> A_INV
+  SUP --> A_TIX
+  ADASH --> A_ADM
+  AUSERS --> A_ADM
+  AMOD --> A_ADM
+  ATIX --> A_ADM
+  ABACK --> A_ADM
+  ARL --> A_ADM
 ```
 
 ### Data flow
@@ -193,6 +244,12 @@ sequenceDiagram
 ```
 
 **Dev server:** Vite serves on port **5173** and can proxy `/api` to the backend (see `vite.config.ts`).
+
+## New invoice and projects
+
+`NewInvoicePage` loads client projects when a client is selected and offers an optional **Related project**. Choosing a project (or opening `/invoices/new` with `clientId` and `projectId` query params) can prefill the **first line** description from the project’s description and the **first line** hours from the project’s hours when those values are set; if the project marks hours as a maximum, line hours are capped accordingly. The **Projects** tab on the client profile (`ClientProjectsTab.tsx`) includes a per-project **Create** link next to **View** and **Download** that deep-links to the new-invoice page with both IDs.
+
+See **[routes.md — New invoice and related projects](routes.md#new-invoice-and-related-projects)** for full behavior and deep links.
 
 ## Related docs
 

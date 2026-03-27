@@ -7,7 +7,7 @@
 
 Paths below are relative to that base (e.g. `/auth/register` → `POST /api/auth/register`).
 
-**Authentication:** All endpoints except `/auth/*` and `/invoices/share/:token` require a JWT in the `Authorization` header:
+**Authentication:** All endpoints except `/auth/register`, `/auth/login`, `/invoices/share/:token`, and `/portal/auth/login` require a JWT in the `Authorization` header. `PUT /auth/account` requires JWT. Admin endpoints (`/admin/*`) additionally require `role = 'admin'`.
 
 ```
 Authorization: Bearer <token>
@@ -46,15 +46,54 @@ Create a new user account.
   "user": {
     "id": "uuid",
     "email": "user@example.com",
-    "businessName": "My Business"
+    "businessName": "My Business",
+    "role": "user"
   },
   "token": "jwt-token"
 }
 ```
 
+### PUT /auth/account
+
+Change the authenticated user's login email and/or password. Requires the current password for verification. Returns a fresh JWT (the old token remains valid until expiry but the new one reflects the updated email).
+
+**Request body:**
+
+```json
+{
+  "currentPassword": "existing-password",
+  "newEmail": "newemail@example.com",
+  "newPassword": "newsecurepassword"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| currentPassword | string | Yes | Must match the user's current password |
+| newEmail | string | No | Omit or set to current email to skip |
+| newPassword | string | No | Min 6 characters; omit to keep current |
+
+At least one of `newEmail` or `newPassword` must differ from the current values.
+
+**Response (200):**
+
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "newemail@example.com",
+    "businessName": "My Business",
+    "role": "user"
+  },
+  "token": "new-jwt-token"
+}
+```
+
+**Errors:** **400** missing current password or no changes; **401** incorrect current password; **409** email already in use by another account.
+
 ### POST /auth/login
 
-Authenticate and receive a JWT token.
+Authenticate and receive a JWT token. The response includes the user's `role` (`user` or `admin`).
 
 **Rate limit:** 10 requests per minute per IP.
 
@@ -74,11 +113,92 @@ Authenticate and receive a JWT token.
   "user": {
     "id": "uuid",
     "email": "user@example.com",
-    "businessName": "My Business"
+    "businessName": "My Business",
+    "role": "user"
   },
   "token": "jwt-token"
 }
 ```
+
+---
+
+## Client portal (vendor customers)
+
+Client portal auth uses **portal JWTs** (still sent as `Authorization: Bearer ...`). Only `POST /portal/auth/login` is public.
+
+### Vendor portal settings
+`PATCH /clients/:id/portal` (authenticated as vendor user)
+
+Updates portal access for a specific client.
+
+**Request body (JSON):**
+```json
+{
+  "enabled": true,
+  "password": "new portal password",
+  "regenerateToken": true
+}
+```
+
+### Client portal login
+`POST /portal/auth/login` (public)
+
+**Request body:**
+```json
+{
+  "accessToken": "<clients.portal_token>",
+  "email": "client@example.com",
+  "password": "<client portal password>",
+  "totpCode": "123456" 
+}
+```
+
+Provide either `accessToken` or `email`.
+
+**Responses:**
+- **200 (success):** `{ token, client, vendor, portal: { twoFactorEnabled } }`
+- **200 (2FA required):** `{ requiresTwoFactor: true, message: "..." }`
+
+### Protected portal endpoints (requires portal JWT)
+- `GET /portal/me`
+- `GET /portal/invoices` (draft invoices are hidden; backend returns `status != 'draft'`)
+- `GET /portal/projects`
+- `GET /portal/projects/:projectId`
+- `GET /portal/notifications` (recent activity; UI polls in v1)
+- `GET /portal/account`
+- `PUT /portal/account` (set login email and/or change password)
+
+`GET /portal/account` returns:
+
+```json
+{
+  "email": "client@example.com",
+  "twoFactorEnabled": false,
+  "canSetPasswordWithoutCurrent": true
+}
+```
+
+`canSetPasswordWithoutCurrent` is true when the current portal session came from access-token login.
+
+`PUT /portal/account` request body:
+
+```json
+{
+  "email": "client@example.com",
+  "currentPassword": "optional-in-token-session",
+  "newPassword": "new-secure-password"
+}
+```
+
+Rules:
+- at least one of `email` or `newPassword` is required
+- `currentPassword` is required for password changes in normal email-login sessions
+- in access-token sessions, password can be set without `currentPassword`
+
+### Portal 2FA
+- `POST /portal/2fa/setup` → returns `{ qrDataUrl, otpauthUrl, secret }`
+- `POST /portal/2fa/enable` → body `{ code }`
+- `POST /portal/2fa/disable` → body `{ password }`
 
 ---
 
@@ -160,6 +280,57 @@ Delete a client. Fails if the client has existing invoices.
 
 ---
 
+## Client projects
+
+Nested under each client. **Authentication:** Bearer JWT required. All routes verify that `:clientId` belongs to the current user.
+
+**Mounting:** In `app.ts`, `routes/projects.ts` is registered on `/api/clients` **before** `routes/clients.ts` so paths like `GET /api/clients/:clientId/projects` are handled by the projects router (see [API review](review.md#route-mounting-order-express)).
+
+### GET /clients/:clientId/projects
+
+List all projects for the client. Response is a JSON array of project objects, each including **`attachments`** (rows from `project_attachments`) and **`external_links`** (rows from `project_external_links`).
+
+### POST /clients/:clientId/projects
+
+Create a project. **Request body (JSON, camelCase):**
+
+| Field | Type | Required | Notes |
+|-------|------|----------|--------|
+| name | string | Yes | Max 255 characters |
+| description | string \| null | No | |
+| startDate | string \| null | No | `YYYY-MM-DD` |
+| endDate | string \| null | No | `YYYY-MM-DD` |
+| status | string | No | Default `not_started`; values: `not_started`, `planning`, `in_progress`, `on_hold`, `completed`, `cancelled` |
+| priority | string | No | Default `medium`; values: `low`, `medium`, `high`, `urgent` |
+| externalLinks | array | No | Up to 20 entries: `{ url, description? }`. Each **url** must be a **Google Docs/Drive** or **Microsoft 365** share link (same rules as `attachmentUrls`). Stored in `project_external_links`; replaces existing rows when sent on create/update. |
+| budget | number \| null | No | Non-negative |
+| hours | number \| null | No | Non-negative; use with `hoursIsMaximum` |
+| hoursIsMaximum | boolean | No | Default `false`. If `true`, `hours` is a **maximum** (cap); if `false`, treat as estimate / planned / non-cap |
+| dependencies | string \| null | No | Free text |
+| milestones | array | No | `{ title, dueDate }` entries; `dueDate` optional `YYYY-MM-DD` |
+| teamMembers | string[] | No | Stored as PostgreSQL `text[]` |
+| tags | string[] | No | Stored as PostgreSQL `text[]` |
+| notes | string \| null | No | |
+| attachmentUrls | string[] | No | **Share links only** — each URL must be a **Google Docs/Drive** or **Microsoft 365** (SharePoint, OneDrive, Office online, etc.) link. Stored as rows in `project_attachments` (no server-side file storage). The web app sends **`attachmentUrls: []`** on create/update so any legacy `project_attachments` rows are cleared. Other API clients may still set `attachmentUrls` explicitly. |
+
+**Response (201):** Created project including `attachments` and `external_links`.
+
+### GET /clients/:clientId/projects/:projectId
+
+Get one project (must belong to `:clientId`). **Response (200):** Project object with `attachments` and `external_links`.
+
+### PUT /clients/:clientId/projects/:projectId
+
+Partial update. Same fields as POST, all optional. If **`attachmentUrls`** is present in the body, existing attachment rows for that project are **replaced** with the new list. If **`externalLinks`** is present, existing **`project_external_links`** rows are **replaced** with the new list.
+
+**Response (200):** Updated project with `attachments` and `external_links`.
+
+### DELETE /clients/:clientId/projects/:projectId
+
+Delete the project (cascades attachment and external-link rows). **Response (204):** No body.
+
+---
+
 ## Invoices
 
 ### GET /invoices
@@ -220,6 +391,7 @@ Create a new invoice. Invoice number is auto-generated (INV-0001, INV-0002, etc.
   "taxRate": 10,
   "discountCode": "SAVE10",
   "notes": "Thank you for your business",
+  "projectId": "optional-project-uuid",
   "isRecurring": false,
   "recurrenceInterval": "monthly",
   "items": [
@@ -240,6 +412,7 @@ Create a new invoice. Invoice number is auto-generated (INV-0001, INV-0002, etc.
 | taxRate | number | No | 0-100, default 0 |
 | discountCode | string | No | Must match an active discount code |
 | notes | string | No | |
+| projectId | string (uuid) \| null | No | Optional project for this client; must belong to the same `clientId` and user |
 | isRecurring | boolean | No | Default false |
 | recurrenceInterval | string | No | weekly, monthly, quarterly, yearly |
 | items | array | Yes | At least 1 item required |
@@ -508,6 +681,162 @@ Returns server status.
 
 ---
 
+## Support Tickets (authenticated)
+
+### POST /tickets
+
+Create a support ticket.
+
+**Request body:**
+
+```json
+{
+  "subject": "Issue with invoice PDF",
+  "body": "The PDF won't generate for invoice INV-0005...",
+  "priority": "normal"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| subject | string | Yes | 1-255 characters |
+| body | string | Yes | 1-10000 characters |
+| priority | string | No | `low`, `normal` (default), `high`, `urgent` |
+
+### GET /tickets
+
+List the authenticated user's support tickets with pagination.
+
+### GET /tickets/:id
+
+Get a single ticket with messages.
+
+### POST /tickets/:id/reply
+
+Add a message to a ticket.
+
+---
+
+## Admin Panel (admin role required)
+
+All `/admin/*` endpoints require JWT authentication **and** `role = 'admin'`. Non-admin users receive **403**.
+
+### GET /admin/dashboard/stats
+
+Platform-wide statistics: total users, active users (30d), open tickets, pending moderation flags, total invoices, platform revenue.
+
+### GET /admin/dashboard/user-growth
+
+User registration counts by day. Query: `?days=30` (max 365).
+
+### GET /admin/users
+
+Paginated user list with invoice counts. Query: `?page=1&limit=20&search=`.
+
+### GET /admin/users/:id
+
+User detail: profile, client/invoice counts, total revenue.
+
+### PUT /admin/users/:id/role
+
+Update a user's role. Body: `{ "role": "admin" }` or `{ "role": "user" }`.
+
+### DELETE /admin/users/:id
+
+Permanently delete a user and all associated data (clients, invoices, line items, discount codes, tickets, content flags, backups). Runs in a transaction. Admins cannot delete their own account.
+
+**Response (200):**
+
+```json
+{
+  "message": "User user@example.com and all associated data deleted"
+}
+```
+
+**Errors:** **400** if attempting self-deletion; **404** if user not found.
+
+### GET /admin/moderation
+
+Content flag queue. Query: `?status=pending&page=1&limit=20`.
+
+### PUT /admin/moderation/:id
+
+Review a flag. Body: `{ "decision": "approved" }` or `{ "decision": "rejected" }`.
+
+### POST /admin/moderation/bulk
+
+Bulk review flags. Body: `{ "flagIds": ["uuid", ...], "decision": "approved" }`.
+
+### GET /admin/tickets
+
+All support tickets (across all users). Query: `?page=1&limit=20&status=open&priority=normal&search=`.
+
+### GET /admin/tickets/:id
+
+Ticket detail with full message thread.
+
+### POST /admin/tickets/:id/reply
+
+Admin reply to a ticket. Body: `{ "body": "..." }`.
+
+### PUT /admin/tickets/:id/status
+
+Update ticket status. Body: `{ "status": "open" }` — values: `open`, `in_progress`, `closed`.
+
+### GET /admin/health
+
+System health checks: database, Redis, frontend, backend service status with response times. Also returns error rate, avg response time, and requests in the last hour.
+
+### GET /admin/health/logs
+
+Paginated system logs. Query: `?page=1&limit=20&level=error&source=`.
+
+### GET /admin/backups
+
+Paginated backup snapshots. Query: `?page=1&limit=20&userId=`.
+
+### POST /admin/backups/:userId
+
+Trigger a manual backup for a user.
+
+### POST /admin/backups/:snapshotId/restore
+
+Restore a backup snapshot.
+
+### POST /admin/backups/:snapshotId/verify
+
+Verify a backup snapshot integrity.
+
+### DELETE /admin/backups/:snapshotId
+
+Delete a backup snapshot.
+
+### GET /admin/backups/policies
+
+List backup policies.
+
+### PUT /admin/backups/policies/:id
+
+Update a backup policy. Body fields: `retention_days`, `max_snapshots`, `is_enabled`, `cron_expression`.
+
+### GET /admin/rate-limits
+
+List all rate limit configurations.
+
+### POST /admin/rate-limits
+
+Create a rate limit config. Body: `{ "route_pattern": "/api/auth/login", "window_ms": 60000, "max_requests": 10, "is_enabled": true }`.
+
+### PUT /admin/rate-limits/:id
+
+Update a rate limit config.
+
+### GET /admin/rate-limits/analytics
+
+Rate limit analytics. Query: `?hours=24` (max 720).
+
+---
+
 ## Error Responses
 
 **Validation error (400):**
@@ -526,6 +855,14 @@ Returns server status.
 ```json
 {
   "error": "Authentication required"
+}
+```
+
+**Forbidden (403):**
+
+```json
+{
+  "error": "Admin access required"
 }
 ```
 
