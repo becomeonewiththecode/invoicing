@@ -9,7 +9,7 @@ Vendor sidebar quick links include **Admin site** (`/admin`) and **Client site**
 | Path | Page | Notes |
 |------|------|--------|
 | `/` | Dashboard | Revenue stats, recent invoices |
-| `/invoices` | Invoice list | Optional `?clientId=` filter; includes a **Filter by customer** button beside **Create invoice** |
+| `/invoices` | Invoice list | Optional `?clientId=` filter; includes a **Filter by customer** button beside **Create invoice**. Invoice numbers follow per-customer sequence (`INV-<CUSTOMER_NUMBER>-NNNN`). |
 | `/invoices/new` | New invoice | Optional query: **`?clientId=`** (preselect client), **`?projectId=`** (preselect related project — use with `clientId`). See [New invoice and related projects](#new-invoice-and-related-projects) |
 | `/invoices/:id` | Invoice detail | Actions: PDF, email, share link, status, cancel/delete |
 | `/invoices/:id/edit` | Edit invoice | Draft only |

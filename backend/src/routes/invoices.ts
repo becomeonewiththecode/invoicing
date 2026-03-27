@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Router, Response } from 'express';
 import pool from '../config/database';
 import redis from '../config/redis';
+import type { PoolClient } from 'pg';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import {
@@ -21,15 +22,29 @@ import {
 const router = Router();
 router.use(authenticate);
 
-async function generateInvoiceNumber(userId: string): Promise<string> {
-  const result = await pool.query(
-    "SELECT invoice_number FROM invoices WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
-    [userId]
-  );
-  if (result.rows.length === 0) return 'INV-0001';
-  const last = result.rows[0].invoice_number;
-  const num = parseInt(last.replace('INV-', '')) + 1;
-  return `INV-${num.toString().padStart(4, '0')}`;
+async function generateInvoiceNumber(
+  userId: string,
+  clientId: string,
+  db: PoolClient | typeof pool = pool
+): Promise<string> {
+  const [clientResult, seqResult] = await Promise.all([
+    db.query<{ customer_number: string | null }>(
+      'SELECT customer_number FROM clients WHERE id = $1 AND user_id = $2',
+      [clientId, userId]
+    ),
+    db.query<{ next_seq: number }>(
+      `SELECT COALESCE(MAX((regexp_match(invoice_number, '(\\d+)$'))[1]::int), 0) + 1 AS next_seq
+       FROM invoices
+       WHERE user_id = $1 AND client_id = $2`,
+      [userId, clientId]
+    ),
+  ]);
+
+  const customerNumber = (clientResult.rows[0]?.customer_number || 'CLIENT')
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, '');
+  const nextSeq = Number(seqResult.rows[0]?.next_seq ?? 1);
+  return `INV-${customerNumber}-${String(nextSeq).padStart(4, '0')}`;
 }
 
 async function applyDiscount(userId: string, code: string, subtotal: number): Promise<number> {
@@ -394,7 +409,7 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
 
     const effectiveCode = (clientCheck.rows[0].discount_code || '').trim() || null;
 
-    const invoiceNumber = await generateInvoiceNumber(req.userId!);
+    const invoiceNumber = await generateInvoiceNumber(req.userId!, clientId, client);
 
     // Calculate totals
     const subtotal = items.reduce(

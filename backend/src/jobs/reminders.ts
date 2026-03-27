@@ -1,5 +1,31 @@
 import cron from 'node-cron';
 import pool from '../config/database';
+import type { PoolClient } from 'pg';
+
+async function generateRecurringInvoiceNumber(
+  userId: string,
+  clientId: string,
+  db: PoolClient
+): Promise<string> {
+  const [clientRes, seqRes] = await Promise.all([
+    db.query<{ customer_number: string | null }>(
+      'SELECT customer_number FROM clients WHERE id = $1 AND user_id = $2',
+      [clientId, userId]
+    ),
+    db.query<{ next_seq: number }>(
+      `SELECT COALESCE(MAX((regexp_match(invoice_number, '(\\d+)$'))[1]::int), 0) + 1 AS next_seq
+       FROM invoices
+       WHERE user_id = $1 AND client_id = $2`,
+      [userId, clientId]
+    ),
+  ]);
+
+  const customerNumber = (clientRes.rows[0]?.customer_number || 'CLIENT')
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, '');
+  const nextSeq = Number(seqRes.rows[0]?.next_seq ?? 1);
+  return `INV-${customerNumber}-${String(nextSeq).padStart(4, '0')}`;
+}
 
 // Mark sent → late when 30+ days past sent_at; reminders for late invoices
 export function startReminderJob() {
@@ -57,13 +83,8 @@ export function startRecurrenceJob() {
             invoice.id,
           ]);
 
-          // Generate new invoice number
-          const numResult = await client.query(
-            "SELECT invoice_number FROM invoices WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
-            [invoice.user_id]
-          );
-          const lastNum = parseInt(numResult.rows[0].invoice_number.replace('INV-', '')) + 1;
-          const newNumber = `INV-${lastNum.toString().padStart(4, '0')}`;
+          // Generate a per-customer invoice number sequence.
+          const newNumber = await generateRecurringInvoiceNumber(invoice.user_id, invoice.client_id, client);
 
           // Calculate new dates
           const intervalMap: Record<string, string> = {
