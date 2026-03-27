@@ -19,7 +19,7 @@ SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`,
 
 ## Client profile (`/clients/:clientId`)
 
-Tabbed page for one client (see `ClientProfilePage.tsx`). Header shows client name, customer number, and action buttons (Full invoice list, Create invoice, Delete client).
+Tabbed page for one client (see `ClientProfilePage.tsx`). Header shows client name, customer number, and action buttons (Full invoice list, Create invoice, Delete client). On small screens, these actions stack to full-width buttons for easier tapping.
 
 ### Details tab (`#details`, default)
 
@@ -36,7 +36,9 @@ Two sections:
 
 Per-client project tracking (see `ClientProjectsTab.tsx`). List, create, edit, and delete projects scoped to this client. Fields include: **project name** (required), description, start/end dates, status, priority, **documents** (zero or more Google Docs / Microsoft 365 URLs, each with an optional label), team members (comma-separated), tags, budget, **hours** (optional, with a checkbox for whether that value is a **maximum** cap), dependencies, milestones (title + optional due date per row), and notes. Uses `GET/POST /api/clients/:clientId/projects` and `GET/PUT/DELETE /api/clients/:clientId/projects/:projectId` (see [API reference](../api/reference.md#client-projects)).
 
-Each project card includes **View PDF**, **Create invoice**, **Download PDF**, and **Edit**. **Create invoice** links to `/invoices/new?clientId=<clientId>&projectId=<projectId>` so the new-invoice form opens with that client and project selected.
+Each project card includes **View**, **Create**, **Download**, and **Edit**. **Create** links to `/invoices/new?clientId=<clientId>&projectId=<projectId>` so the new-invoice form opens with that client and project selected.
+
+On small screens, the profile tab bar is horizontally scrollable so **Details / Invoices / Projects / Portal** remain usable without wrapping.
 
 ### Portal tab (`#portal`)
 
@@ -95,6 +97,8 @@ The client portal uses a separate `PortalLayout` (no main app sidebar) and a `po
 ## Admin routes
 
 Admin routes use `AdminLayout` (separate sidebar + admin auth guard). Accessible via `/admin` with a dedicated admin login page — separate from the regular user login.
+
+Both `AppLayout` and `AdminLayout` are responsive: desktop uses fixed sidebars, while mobile uses a slide-in navigation drawer (hamburger menu + backdrop + auto-close on navigation).
 
 | Path | Page | Notes |
 |------|------|--------|

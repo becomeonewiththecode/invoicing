@@ -7,9 +7,9 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | Area | Role |
 |------|------|
 | `src/App.tsx` | `BrowserRouter`, route table, public vs protected vs admin layout |
-| `src/components/layout/AppLayout.tsx` | Sidebar + outlet for authenticated user pages |
-| `src/components/layout/AdminLayout.tsx` | Admin sidebar + outlet; shows admin login if not authenticated as admin |
-| `src/components/layout/AdminSidebar.tsx` | Admin navigation links |
+| `src/components/layout/AppLayout.tsx` | Responsive vendor layout: desktop sidebar + mobile drawer, header, outlet |
+| `src/components/layout/AdminLayout.tsx` | Responsive admin layout: desktop sidebar + mobile drawer; shows admin login if not authenticated as admin |
+| `src/components/layout/AdminSidebar.tsx` | Admin navigation links (desktop and mobile drawer) |
 | `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
 | `src/stores/` | Zustand auth store (persisted); `isAdmin()` helper for role check |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
@@ -22,6 +22,8 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 ## Routing
 
 Public: `/login`, `/register`, `/share/:token`, **`/portal/login`** (client portal). Authenticated routes are nested under `AppLayout`: `/`, `/invoices`, `/invoices/new`, `/invoices/:id`, `/invoices/:id/edit`, `/clients`, **`/clients/:clientId`** (client profile: **Details**, **Invoices**, **Projects**, **Portal** tabs), `/clients/:clientId/stats` (redirects to profile `#invoice-status`), `/discounts`, `/settings` (tabbed: General, Discounts, Email, Backup, Account), `/support`. **`/portal/*`** (after client login) uses **`PortalLayout`** instead of `AppLayout`. Admin routes are nested under `AdminLayout` with a separate login: `/admin` (dashboard + health), `/admin/users`, `/admin/moderation`, `/admin/tickets`, `/admin/backups`, `/admin/rate-limits`. Unknown paths redirect to `/`.
+
+Vendor and admin shells are mobile-friendly: below desktop breakpoints, sidebars collapse into a slide-in drawer, and page padding/header controls scale down for smaller screens.
 
 See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`, `#projects`, `#portal`), client portal paths, and deep links. **[Client portal docs](../client-portal/overview.md)** cover login, 2FA, and API usage.
 
@@ -63,9 +65,9 @@ flowchart TB
     end
 
     subgraph Layout["Layout components"]
-      APPL["AppLayout\nsidebar + header + auth guard"]
+      APPL["AppLayout\ndesktop sidebar + mobile drawer\nheader + auth guard"]
       SIDE["Sidebar\nnav links · user info"]
-      ADML["AdminLayout\nadmin sidebar + admin auth guard"]
+      ADML["AdminLayout\ndesktop sidebar + mobile drawer\nadmin auth guard"]
       ADMSIDE["AdminSidebar\nadmin nav links"]
     end
 

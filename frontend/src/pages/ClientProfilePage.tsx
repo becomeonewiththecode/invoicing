@@ -199,16 +199,16 @@ export function ClientProfilePage() {
           <h1 className="text-2xl font-bold mt-2">{formatClientLabel(client)}</h1>
           <p className="text-sm text-gray-500 mt-1">Customer # {client.customer_number ?? '—'}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Link
             to={`/invoices?clientId=${encodeURIComponent(clientId)}`}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium text-center sm:w-auto"
           >
             Full invoice list
           </Link>
           <Link
             to={`/invoices/new?clientId=${encodeURIComponent(clientId)}`}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium text-center sm:w-auto"
           >
             Create invoice
           </Link>
@@ -218,7 +218,7 @@ export function ClientProfilePage() {
               if (confirm('Delete this client?')) deleteMutation.mutate(false);
             }}
             disabled={deleteMutation.isPending}
-            className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm disabled:opacity-50"
+            className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm disabled:opacity-50 sm:w-auto"
           >
             Delete client
           </button>
@@ -254,7 +254,7 @@ export function ClientProfilePage() {
       )}
 
       {/* Tab bar */}
-      <div className="flex border-b border-gray-200 -mt-4">
+      <div className="-mt-4 flex overflow-x-auto border-b border-gray-200">
         {([
           { key: 'details' as ProfileTab, label: 'Details' },
           { key: 'invoices' as ProfileTab, label: 'Invoices' },
@@ -271,7 +271,7 @@ export function ClientProfilePage() {
               else if (tab.key === 'projects') window.location.hash = 'projects';
               else if (tab.key === 'portal') window.location.hash = 'portal';
             }}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.key
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'

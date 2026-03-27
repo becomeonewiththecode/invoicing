@@ -13,9 +13,14 @@ const linkBase = 'flex items-center gap-3 px-3 py-2 rounded-lg mb-1 transition-c
 const linkActive = 'bg-indigo-600 text-white';
 const linkInactive = 'text-gray-300 hover:bg-gray-800';
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  className?: string;
+  onNavigate?: () => void;
+}
+
+export function AdminSidebar({ className = '', onNavigate }: AdminSidebarProps) {
   return (
-    <aside className="flex flex-col w-64 bg-gray-900 text-white min-h-screen">
+    <aside className={`flex min-h-screen w-64 flex-col bg-gray-900 text-white ${className}`}>
       <div className="p-6">
         <h1 className="text-xl font-bold text-indigo-400">Admin</h1>
         <p className="text-sm text-gray-400 mt-1">System Management</p>
@@ -25,6 +30,7 @@ export function AdminSidebar() {
           to="/admin"
           end
           className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineHome className="w-5 h-5 shrink-0" />
           Dashboard
@@ -33,6 +39,7 @@ export function AdminSidebar() {
         <NavLink
           to="/admin/users"
           className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineUsers className="w-5 h-5 shrink-0" />
           Users
@@ -41,6 +48,7 @@ export function AdminSidebar() {
         <NavLink
           to="/admin/moderation"
           className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineShieldCheck className="w-5 h-5 shrink-0" />
           Moderation
@@ -49,6 +57,7 @@ export function AdminSidebar() {
         <NavLink
           to="/admin/tickets"
           className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineTicket className="w-5 h-5 shrink-0" />
           Tickets
@@ -57,6 +66,7 @@ export function AdminSidebar() {
         <NavLink
           to="/admin/backups"
           className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineDatabase className="w-5 h-5 shrink-0" />
           Backups
@@ -65,6 +75,7 @@ export function AdminSidebar() {
         <NavLink
           to="/admin/rate-limits"
           className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineLightningBolt className="w-5 h-5 shrink-0" />
           Rate Limits
@@ -73,6 +84,7 @@ export function AdminSidebar() {
         <NavLink
           to="/admin/settings"
           className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+          onClick={onNavigate}
         >
           <HiOutlineCog className="w-5 h-5 shrink-0" />
           Settings

@@ -757,13 +757,13 @@ export function ClientProjectsTab({
                     onClick={() => setPdfPreviewProject(p)}
                     className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
                   >
-                    View PDF
+                    View
                   </button>
                   <Link
                     to={`/invoices/new?clientId=${encodeURIComponent(clientId)}&projectId=${encodeURIComponent(p.id)}`}
                     className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
                   >
-                    Create invoice
+                    Create
                   </Link>
                   <button
                     type="button"
@@ -776,7 +776,7 @@ export function ClientProjectsTab({
                     }}
                     className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
                   >
-                    Download PDF
+                    Download
                   </button>
                   <button
                     type="button"
