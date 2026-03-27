@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { getInvoices, getInvoice, deleteInvoice, exportInvoicesCsv } from '../api/invoices';
-import { getClient } from '../api/clients';
+import { getClient, getClients } from '../api/clients';
 import { getSettings } from '../api/settings';
 import { InvoicePreviewModal } from '../components/InvoicePreviewModal';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -15,11 +15,17 @@ export function InvoicesPage() {
 
   const [page, setPage] = useState(1);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [filterPickerOpen, setFilterPickerOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState(clientIdFilter ?? '');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   useEffect(() => {
     setPage(1);
+  }, [clientIdFilter]);
+
+  useEffect(() => {
+    setSelectedClientId(clientIdFilter ?? '');
   }, [clientIdFilter]);
 
   const clientQuery = useQuery({
@@ -30,6 +36,11 @@ export function InvoicesPage() {
   });
   const filterClient = clientQuery.data;
   const filterClientMissing = clientQuery.isError;
+
+  const clientsQuery = useQuery({
+    queryKey: ['clients', 'invoice-filter'],
+    queryFn: () => getClients(1, 100),
+  });
 
   const {
     data,
@@ -87,6 +98,22 @@ export function InvoicesPage() {
     setSearchParams(next, { replace: true });
   };
 
+  const applyClientFilter = (clientId: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('clientId', clientId);
+    setSearchParams(next, { replace: true });
+  };
+
+  const applySelectedClientFilter = () => {
+    if (!selectedClientId) {
+      clearClientFilter();
+      setFilterPickerOpen(false);
+      return;
+    }
+    applyClientFilter(selectedClientId);
+    setFilterPickerOpen(false);
+  };
+
   return (
     <div>
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
@@ -95,11 +122,60 @@ export function InvoicesPage() {
           <button onClick={handleExport} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             Export CSV
           </button>
+          <button
+            type="button"
+            onClick={() => setFilterPickerOpen((prev) => !prev)}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Filter by customer
+          </button>
           <Link to="/invoices/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             Create invoice
           </Link>
         </div>
       </div>
+
+      {filterPickerOpen && (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[220px] flex-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Customer</label>
+              <select
+                value={selectedClientId}
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">All customers</option>
+                {clientsQuery.data?.data.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {formatClientLabel(client)}
+                  </option>
+                ))}
+              </select>
+              {clientsQuery.isError && (
+                <p className="mt-1 text-xs text-red-600">Could not load customers.</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={applySelectedClientFilter}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
+            >
+              Apply filter
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearClientFilter();
+                setSelectedClientId('');
+              }}
+              className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-sm"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
       {clientIdFilter && filterClientMissing && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-800">

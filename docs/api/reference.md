@@ -379,7 +379,11 @@ Get a single invoice with all line items and client details.
 
 ### POST /invoices
 
-Create a new invoice. Invoice number is auto-generated (INV-0001, INV-0002, etc.).
+Create a new invoice. Invoice number is auto-generated per customer sequence.
+
+Format: `INV-<CUSTOMER_NUMBER>-NNNN` (example: `INV-C-00001-0003`).
+
+The numeric suffix increments independently for each customer, so every customer's invoice numbering stays consistent.
 
 **Request body:**
 

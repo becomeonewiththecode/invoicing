@@ -36,7 +36,7 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `middleware/rateLimit.ts` | Redis sliding windows / counters; supports DB-configurable rules |
 | `middleware/requestLogger.ts` | Logs requests to `system_logs` table for admin health monitoring |
 | `models/adminValidation.ts` | Zod schemas for all admin endpoints |
-| `jobs/reminders.ts` | Cron: late invoices, reminders, recurring drafts |
+| `jobs/reminders.ts` | Cron: late invoices, reminders, recurring drafts; recurring invoices use per-customer invoice-number sequencing |
 | `jobs/backups.ts` | Cron: daily automated backup snapshots |
 | `config/database.ts` | `pg` pool; **`ensureSchema()`** — idempotent `ALTER`s and `CREATE TABLE IF NOT EXISTS` on startup (and before backup import) so older databases match expected columns/enums/tables; seeds admin user from `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars; see [schema doc](../database/schema.md#runtime-schema-upgrades) |
 
