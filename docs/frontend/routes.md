@@ -9,7 +9,7 @@ Vendor sidebar quick links include **Admin site** (`/admin`) and **Client site**
 | Path | Page | Notes |
 |------|------|--------|
 | `/` | Dashboard | Revenue stats, recent invoices |
-| `/invoices` | Invoice list | Optional `?clientId=` filter |
+| `/invoices` | Invoice list | Optional `?clientId=` filter; includes a **Filter by customer** button beside **Create invoice** |
 | `/invoices/new` | New invoice | Optional query: **`?clientId=`** (preselect client), **`?projectId=`** (preselect related project — use with `clientId`). See [New invoice and related projects](#new-invoice-and-related-projects) |
 | `/invoices/:id` | Invoice detail | Actions: PDF, email, share link, status, cancel/delete |
 | `/invoices/:id/edit` | Edit invoice | Draft only |
@@ -67,6 +67,15 @@ When you **change** the related project (including the first time it loads from 
 - **Hours:** If the project has **hours** greater than zero, the **first line** hours field is set to that number. If the project marks hours as a **maximum** (`hours_is_maximum`), each line’s hours input uses that value as **`max`**, and **total** billed hours (lines with a description) cannot exceed it.
 
 Draft **edit** mode does not overwrite saved line items on load; syncing applies when the user changes the related project selection.
+
+## Invoice preview behavior
+
+The invoice preview modal (`InvoicePreviewModal.tsx`) renders:
+
+- embedded PDF preview
+- a dedicated **External links (open in new tab)** list above the PDF when invoice/project links exist
+
+The extra links list is intentional because browser/PDF-viewer handling of embedded PDF links is inconsistent across environments.
 
 ## Public routes
 

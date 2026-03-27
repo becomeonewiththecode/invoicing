@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { HiOutlineX } from 'react-icons/hi';
 import type { Invoice, UserSettings } from '../types';
 import { generateInvoicePdf } from '../utils/pdf';
+import { ExternalLinksList } from './ExternalLinksList';
+import { externalLinksFromInvoicePayload } from '../utils/externalLinksDisplay';
 
 type Props = {
   open: boolean;
@@ -24,6 +26,7 @@ export function InvoicePreviewModal({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const externalLinks = externalLinksFromInvoicePayload(invoice?.project_external_links);
 
   useEffect(() => {
     if (!open || !invoice) {
@@ -119,6 +122,12 @@ export function InvoicePreviewModal({
             ? 'Review the PDF below. Use Save or Create on the form to store the invoice—nothing is saved until you submit.'
             : 'Review the PDF below. Download a copy or close to return.'}
         </p>
+        {externalLinks.length > 0 && (
+          <div className="px-4 py-2 text-sm border-b border-gray-100 bg-white">
+            <p className="text-gray-700 font-medium">External links (open in new tab):</p>
+            <ExternalLinksList links={externalLinks} className="mt-1 space-y-1 list-none pl-0" />
+          </div>
+        )}
         <div className="flex-1 min-h-[320px] bg-gray-100 relative">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-500">Generating preview…</div>

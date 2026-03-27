@@ -43,7 +43,7 @@ flowchart TB
       end
       subgraph Protected["Protected routes (AppLayout)"]
         DASH["/ DashboardPage\nrevenue stats · chart · recent invoices"]
-        INV_LIST["/invoices\nInvoicesPage\npaginated · filter by client · CSV export"]
+        INV_LIST["/invoices\nInvoicesPage\npaginated · customer filter button · CSV export"]
         INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview\noptional project · URL ?clientId & ?projectId"]
         INV_EDIT["/invoices/:id/edit\nNewInvoicePage (edit mode)"]
         INV_DET["/invoices/:id\nInvoiceDetailPage\nPDF · share · email · status"]
@@ -73,7 +73,7 @@ flowchart TB
 
     subgraph UI["UI components"]
       BADGE["StatusBadge\ncolor-coded invoice status"]
-      PREVIEW["InvoicePreviewModal\nPDF iframe + download"]
+      PREVIEW["InvoicePreviewModal\nPDF iframe + external links list + download"]
     end
 
     subgraph State["State management"]
