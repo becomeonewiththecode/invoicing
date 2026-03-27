@@ -83,7 +83,12 @@ router.post(
       }
 
       const token = jwt.sign(
-        { type: 'portal', clientId: client.id, vendorUserId: client.user_id },
+        {
+          type: 'portal',
+          clientId: client.id,
+          vendorUserId: client.user_id,
+          loginMethod: accessToken ? 'token' : 'email',
+        },
         jwtSecret,
         { expiresIn: '7d' } as jwt.SignOptions
       );
@@ -122,6 +127,7 @@ router.get('/account', async (req: PortalAuthRequest, res: Response) => {
     res.json({
       email: r.rows[0].portal_login_email ?? null,
       twoFactorEnabled: Boolean(r.rows[0].portal_totp_enabled),
+      canSetPasswordWithoutCurrent: req.portalLoginMethod === 'token',
     });
   } catch (err) {
     console.error('Portal account get error:', err);
@@ -136,7 +142,7 @@ router.put(
     try {
       const { email, currentPassword, newPassword } = req.body as {
         email?: string;
-        currentPassword: string;
+        currentPassword?: string;
         newPassword?: string;
       };
 
@@ -153,9 +159,20 @@ router.put(
       if (!hash) {
         return res.status(403).json({ error: 'Portal login is not configured yet' });
       }
-      const ok = await bcrypt.compare(String(currentPassword ?? '').trim(), hash);
-      if (!ok) {
-        return res.status(401).json({ error: 'Invalid password' });
+
+      // Token-based portal sessions can set a new password without knowing the existing one.
+      const skipCurrentPassword =
+        req.portalLoginMethod === 'token' && newPassword !== undefined && !String(currentPassword ?? '').trim();
+
+      if (newPassword !== undefined && !skipCurrentPassword) {
+        const provided = String(currentPassword ?? '').trim();
+        if (!provided) {
+          return res.status(400).json({ error: 'Current password is required' });
+        }
+        const ok = await bcrypt.compare(provided, hash);
+        if (!ok) {
+          return res.status(401).json({ error: 'Invalid password' });
+        }
       }
 
       const nextEmail = email !== undefined ? String(email).trim().toLowerCase() : undefined;
@@ -203,6 +220,7 @@ router.put(
       res.json({
         email: out.rows[0]?.portal_login_email ?? null,
         twoFactorEnabled: Boolean(out.rows[0]?.portal_totp_enabled),
+        canSetPasswordWithoutCurrent: req.portalLoginMethod === 'token',
       });
     } catch (err) {
       console.error('Portal account update error:', err);

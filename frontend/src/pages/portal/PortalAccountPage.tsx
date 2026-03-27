@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -13,6 +13,8 @@ type Form = {
 
 export function PortalAccountPage() {
   const queryClient = useQueryClient();
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
 
   const accountQuery = useQuery({
     queryKey: ['portal-account'],
@@ -32,7 +34,7 @@ export function PortalAccountPage() {
   }, [accountQuery.data, reset]);
 
   const updateMutation = useMutation({
-    mutationFn: (body: { email?: string; currentPassword: string; newPassword?: string }) =>
+    mutationFn: (body: { email?: string; currentPassword?: string; newPassword?: string }) =>
       updatePortalAccount(body),
     onSuccess: async () => {
       toast.success('Account updated');
@@ -48,13 +50,20 @@ export function PortalAccountPage() {
 
   const newPassword = watch('newPassword');
   const confirmNewPassword = watch('confirmNewPassword');
+  const canSetPasswordWithoutCurrent = Boolean(accountQuery.data?.canSetPasswordWithoutCurrent);
 
   const onSubmit = (f: Form) => {
     const email = f.email.trim().toLowerCase();
     const currentPassword = f.currentPassword.trim();
     const nextPass = f.newPassword.trim();
+    const changingEmail = accountQuery.data?.email !== (email || null);
+    const changingPassword = nextPass.length > 0;
+    setJustSaved(false);
+    setSaveMessage(null);
 
-    if (!currentPassword) {
+    const needsCurrentPassword = changingPassword && !canSetPasswordWithoutCurrent;
+
+    if (needsCurrentPassword && !currentPassword) {
       toast.error('Current password is required');
       return;
     }
@@ -64,11 +73,28 @@ export function PortalAccountPage() {
       return;
     }
 
-    updateMutation.mutate({
-      email: email || undefined,
-      currentPassword,
-      newPassword: nextPass || undefined,
-    });
+    updateMutation.mutate(
+      {
+        email: email || undefined,
+        currentPassword,
+        newPassword: nextPass || undefined,
+      },
+      {
+        onSuccess: () => {
+          setJustSaved(true);
+          window.setTimeout(() => setJustSaved(false), 4000);
+          if (changingPassword && changingEmail) {
+            setSaveMessage('Password and login email saved.');
+          } else if (changingPassword) {
+            setSaveMessage('Password saved.');
+          } else if (changingEmail) {
+            setSaveMessage('Login email saved.');
+          } else {
+            setSaveMessage('No changes to save.');
+          }
+        },
+      }
+    );
   };
 
   return (
@@ -102,16 +128,22 @@ export function PortalAccountPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-800 mb-1">Current portal password *</label>
+          <label className="block text-sm font-medium text-gray-800 mb-1">
+            Current portal password {canSetPasswordWithoutCurrent ? '(optional)' : '*'}
+          </label>
           <input
             type="password"
             autoComplete="current-password"
-            {...register('currentPassword', { required: 'Current password is required' })}
+            {...register('currentPassword')}
             className="w-full px-3 py-2 border border-gray-400 rounded-lg"
           />
-          {errors.currentPassword && (
+          {canSetPasswordWithoutCurrent ? (
+            <p className="text-xs text-gray-600 mt-1">
+              You signed in with an access token, so you can set a new password without the current one.
+            </p>
+          ) : errors.currentPassword ? (
             <p className="text-red-500 text-sm mt-1">{errors.currentPassword.message}</p>
-          )}
+          ) : null}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -143,13 +175,23 @@ export function PortalAccountPage() {
           </p>
         )}
 
+        {saveMessage && (
+          <p className="text-sm text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
+            {saveMessage}
+          </p>
+        )}
+
         <div className="flex justify-end">
           <button
             type="submit"
             disabled={updateMutation.isPending}
-            className="px-5 py-2.5 bg-gradient-to-r from-sky-600 to-purple-700 text-white rounded-lg hover:from-sky-700 hover:to-purple-800 disabled:opacity-50 text-sm font-medium shadow-sm"
+            className={`px-5 py-2.5 text-white rounded-lg disabled:opacity-50 text-sm font-medium shadow-sm transition-colors ${
+              justSaved
+                ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-600 hover:to-emerald-700'
+                : 'bg-gradient-to-r from-sky-600 to-purple-700 hover:from-sky-700 hover:to-purple-800'
+            }`}
           >
-            {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+            {updateMutation.isPending ? 'Saving…' : justSaved ? 'Saved' : 'Save changes'}
           </button>
         </div>
       </form>

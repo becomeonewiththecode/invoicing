@@ -162,10 +162,16 @@ sequenceDiagram
   E->>PG: SELECT portal_login_email, portal_totp_enabled
   E-->>B: { email, twoFactorEnabled }
 
-  B->>E: PUT /api/portal/account { email?, currentPassword, newPassword? } (Bearer)
+  B->>E: PUT /api/portal/account { email?, currentPassword?, newPassword? } (Bearer)
   E->>PG: SELECT portal_password_hash
-  E-->>E: bcrypt.compare(currentPassword, hash)
+  alt Session came from token login and currentPassword is blank
+    E-->>E: Allow password update without current password
+  else Standard path
+    E-->>E: bcrypt.compare(currentPassword, hash)
+  end
   E->>PG: UPDATE clients.portal_login_email and/or portal_password_hash
-  E-->>B: { email, twoFactorEnabled }
+  E-->>B: { email, twoFactorEnabled, canSetPasswordWithoutCurrent }
 ```
+
+The Account form shows inline success feedback after save (for example: **Password saved**), and the save button briefly changes to **Saved**.
 

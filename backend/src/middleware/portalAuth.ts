@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 export interface PortalAuthRequest extends Request {
   portalClientId?: string;
   portalVendorUserId?: string;
+  portalLoginMethod?: 'token' | 'email';
 }
 
 export function authenticatePortal(req: PortalAuthRequest, res: Response, next: NextFunction) {
@@ -18,12 +19,14 @@ export function authenticatePortal(req: PortalAuthRequest, res: Response, next: 
       type?: string;
       clientId?: string;
       vendorUserId?: string;
+      loginMethod?: 'token' | 'email';
     };
     if (payload.type !== 'portal' || !payload.clientId || !payload.vendorUserId) {
       return res.status(401).json({ error: 'Invalid portal token' });
     }
     req.portalClientId = payload.clientId;
     req.portalVendorUserId = payload.vendorUserId;
+    req.portalLoginMethod = payload.loginMethod;
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });

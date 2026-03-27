@@ -7,7 +7,7 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | Area | Role |
 |------|------|
 | `src/App.tsx` | `BrowserRouter`, route table, public vs protected vs admin layout |
-| `src/components/layout/AppLayout.tsx` | Responsive vendor layout: desktop sidebar + mobile drawer, header, outlet |
+| `src/components/layout/AppLayout.tsx` | Responsive vendor layout: desktop sidebar + mobile drawer, header, outlet; includes quick links to admin and client portals |
 | `src/components/layout/AdminLayout.tsx` | Responsive admin layout: desktop sidebar + mobile drawer; shows admin login if not authenticated as admin |
 | `src/components/layout/AdminSidebar.tsx` | Admin navigation links (desktop and mobile drawer) |
 | `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
@@ -247,7 +247,7 @@ sequenceDiagram
 
 ## New invoice and projects
 
-`NewInvoicePage` loads client projects when a client is selected and offers an optional **Related project**. Choosing a project (or opening `/invoices/new` with `clientId` and `projectId` query params) can prefill the **first line** description from the project’s description and the **first line** hours from the project’s hours when those values are set; if the project marks hours as a maximum, line hours are capped accordingly. The **Projects** tab on the client profile (`ClientProjectsTab.tsx`) includes a per-project **Create invoice** link next to **View PDF** that deep-links to the new-invoice page with both IDs.
+`NewInvoicePage` loads client projects when a client is selected and offers an optional **Related project**. Choosing a project (or opening `/invoices/new` with `clientId` and `projectId` query params) can prefill the **first line** description from the project’s description and the **first line** hours from the project’s hours when those values are set; if the project marks hours as a maximum, line hours are capped accordingly. The **Projects** tab on the client profile (`ClientProjectsTab.tsx`) includes a per-project **Create** link next to **View** and **Download** that deep-links to the new-invoice page with both IDs.
 
 See **[routes.md — New invoice and related projects](routes.md#new-invoice-and-related-projects)** for full behavior and deep links.
 

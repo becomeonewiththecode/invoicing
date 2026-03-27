@@ -24,7 +24,7 @@ The **client portal** lets your end clients view their account dashboard, projec
   - Each project includes a clear **View project** link to open `/portal/projects/:projectId`
 - **Account** (`/portal/account`)
   - Sets a login **email (username)** for Email+Password sign-in
-  - Changes the portal password (requires current password)
+  - Changes the portal password (current password required for normal email-login sessions; token-login sessions can set a new password without the current one)
 - **Security** (`/portal/security`)
   - Enables or disables TOTP 2FA after a successful portal login
 

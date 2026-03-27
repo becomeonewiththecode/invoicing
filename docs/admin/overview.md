@@ -16,8 +16,8 @@ Standalone management interface at `/admin`. Separate layout, sidebar, and login
 
 | Component | File | Role |
 |-----------|------|------|
-| `AdminLayout` | `frontend/src/components/layout/AdminLayout.tsx` | Auth guard, header ("Admin Panel" + sign-out), sidebar + `<Outlet />` |
-| `AdminSidebar` | `frontend/src/components/layout/AdminSidebar.tsx` | Fixed `w-64` dark sidebar with nav links |
+| `AdminLayout` | `frontend/src/components/layout/AdminLayout.tsx` | Auth guard, responsive header ("Admin Panel" + sign-out), desktop sidebar + mobile drawer, `<Outlet />` |
+| `AdminSidebar` | `frontend/src/components/layout/AdminSidebar.tsx` | Dark nav sidebar used in desktop mode and the mobile slide-in drawer |
 
 **Sidebar links:** Dashboard, Users, Moderation, Tickets, Backups, Rate Limits, Settings.
 
@@ -58,8 +58,8 @@ sequenceDiagram
 flowchart TB
     subgraph AdminLayout["AdminLayout (auth guard)"]
         direction TB
-        SIDEBAR["AdminSidebar\nDashboard · Users · Moderation\nTickets · Backups · Rate Limits · Settings"]
-        HEADER["Header\nAdmin Panel · Sign Out"]
+        SIDEBAR["AdminSidebar\nDesktop fixed sidebar\nMobile slide-in drawer"]
+        HEADER["Responsive header\nMenu toggle · Admin Panel · Sign Out"]
     end
 
     subgraph Pages["Admin pages"]

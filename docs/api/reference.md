@@ -166,7 +166,34 @@ Provide either `accessToken` or `email`.
 - `GET /portal/projects/:projectId`
 - `GET /portal/notifications` (recent activity; UI polls in v1)
 - `GET /portal/account`
-- `PUT /portal/account` (set login email and/or change password; requires `currentPassword`)
+- `PUT /portal/account` (set login email and/or change password)
+
+`GET /portal/account` returns:
+
+```json
+{
+  "email": "client@example.com",
+  "twoFactorEnabled": false,
+  "canSetPasswordWithoutCurrent": true
+}
+```
+
+`canSetPasswordWithoutCurrent` is true when the current portal session came from access-token login.
+
+`PUT /portal/account` request body:
+
+```json
+{
+  "email": "client@example.com",
+  "currentPassword": "optional-in-token-session",
+  "newPassword": "new-secure-password"
+}
+```
+
+Rules:
+- at least one of `email` or `newPassword` is required
+- `currentPassword` is required for password changes in normal email-login sessions
+- in access-token sessions, password can be set without `currentPassword`
 
 ### Portal 2FA
 - `POST /portal/2fa/setup` → returns `{ qrDataUrl, otpauthUrl, secret }`

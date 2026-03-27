@@ -40,7 +40,7 @@ export const portalLoginSchema = z
 export const portalAccountUpdateSchema = z
   .object({
     email: z.string().email().optional(),
-    currentPassword: z.string().min(1).max(200),
+    currentPassword: z.string().min(1).max(200).optional(),
     newPassword: z.string().min(8).max(128).optional(),
   })
   .refine((d) => d.email !== undefined || d.newPassword !== undefined, {

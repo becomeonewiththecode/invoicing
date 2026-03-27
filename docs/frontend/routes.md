@@ -2,6 +2,8 @@
 
 SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`, `/login`, `/register`, and `/portal/*` use `AppLayout` (sidebar).
 
+Vendor sidebar quick links include **Admin site** (`/admin`) and **Client site** (`/portal/login`), each opening in a new browser tab.
+
 ## Authenticated routes
 
 | Path | Page | Notes |

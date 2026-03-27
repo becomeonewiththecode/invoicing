@@ -103,16 +103,24 @@ export async function portal2faDisable(password: string): Promise<{ ok: boolean 
   return data;
 }
 
-export async function getPortalAccount(): Promise<{ email: string | null; twoFactorEnabled: boolean }> {
+export async function getPortalAccount(): Promise<{
+  email: string | null;
+  twoFactorEnabled: boolean;
+  canSetPasswordWithoutCurrent?: boolean;
+}> {
   const { data } = await portalClient.get('/portal/account');
   return data;
 }
 
 export async function updatePortalAccount(body: {
   email?: string;
-  currentPassword: string;
+  currentPassword?: string;
   newPassword?: string;
-}): Promise<{ email: string | null; twoFactorEnabled: boolean }> {
+}): Promise<{
+  email: string | null;
+  twoFactorEnabled: boolean;
+  canSetPasswordWithoutCurrent?: boolean;
+}> {
   const { data } = await portalClient.put('/portal/account', body);
   return data;
 }
