@@ -103,7 +103,7 @@ sequenceDiagram
 
   Note over B,E: Project details
   B->>N: GET /api/portal/projects/:projectId (Bearer portal JWT)
-  E->>PG: SELECT project + attachments + external links
+  E->>PG: SELECT project + external_links
   E-->>B: Project object
 ```
 

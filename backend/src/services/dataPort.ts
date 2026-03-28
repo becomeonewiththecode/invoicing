@@ -1,7 +1,11 @@
+import { randomUUID } from 'crypto';
 import pool, { ensureSchema } from '../config/database';
 import redis from '../config/redis';
 
-export const DATA_EXPORT_VERSION = 1 as const;
+/** Current format written by export; import still accepts v1. */
+export const DATA_EXPORT_VERSION = 2 as const;
+
+export type DataExportVersion = 1 | typeof DATA_EXPORT_VERSION;
 
 async function invalidateRevenueCache(userId: string) {
   try {
@@ -29,21 +33,92 @@ export type ExportedProfile = {
   client_counter: number;
 };
 
+export type InvoiceExportRow = Record<string, unknown> & {
+  items: Record<string, unknown>[];
+  payment_reminders: Record<string, unknown>[];
+};
+
 export type DataExportV1 = {
+  version: 1;
+  exportedAt: string;
+  profile: ExportedProfile;
+  clients: Record<string, unknown>[];
+  discount_codes: Record<string, unknown>[];
+  invoices: InvoiceExportRow[];
+};
+
+export type DataExportV2 = {
   version: typeof DATA_EXPORT_VERSION;
   exportedAt: string;
   profile: ExportedProfile;
   clients: Record<string, unknown>[];
   discount_codes: Record<string, unknown>[];
-  invoices: Array<
-    Record<string, unknown> & {
-      items: Record<string, unknown>[];
-      payment_reminders: Record<string, unknown>[];
-    }
-  >;
+  projects: Record<string, unknown>[];
+  project_external_links: Record<string, unknown>[];
+  invoices: InvoiceExportRow[];
 };
 
-export async function exportUserData(userId: string): Promise<DataExportV1> {
+/** Older v2 JSON files may still list legacy `project_attachments` (URLs in file_path). */
+export type DataExportV2ImportFile = DataExportV2 & {
+  project_attachments?: Record<string, unknown>[];
+};
+
+export type DataExportPayload = DataExportV1 | DataExportV2;
+
+const LEGACY_ATTACHMENT_URL = /^https?:\/\//i;
+
+/**
+ * Converts legacy backup rows (project_attachments with http(s) file_path) into project_external_links.
+ * Current exports only include project_external_links.
+ */
+export function normalizeV2ImportData(raw: DataExportV2ImportFile): DataExportV2 {
+  const links = [...raw.project_external_links];
+  const seenPair = new Set<string>();
+  for (const l of links) {
+    seenPair.add(`${String(l.project_id)}|${String(l.url).trim()}`);
+  }
+  const maxOrder = new Map<string, number>();
+  for (const l of links) {
+    const pid = String(l.project_id);
+    const so = Number(l.sort_order ?? 0);
+    maxOrder.set(pid, Math.max(maxOrder.get(pid) ?? -1, so));
+  }
+  for (const a of raw.project_attachments ?? []) {
+    const url = String(a.file_path ?? '').trim();
+    if (!LEGACY_ATTACHMENT_URL.test(url)) continue;
+    const pid = String(a.project_id);
+    const pair = `${pid}|${url}`;
+    if (seenPair.has(pair)) continue;
+    const nextOrder = (maxOrder.get(pid) ?? -1) + 1;
+    maxOrder.set(pid, nextOrder);
+    seenPair.add(pair);
+    const fn = a.file_name != null ? String(a.file_name).trim() : '';
+    links.push({
+      id: randomUUID(),
+      project_id: pid,
+      url,
+      description: fn || null,
+      sort_order: nextOrder,
+      created_at: a.created_at ?? new Date().toISOString(),
+    });
+  }
+  return {
+    version: raw.version,
+    exportedAt: raw.exportedAt,
+    profile: raw.profile,
+    clients: raw.clients,
+    discount_codes: raw.discount_codes,
+    projects: raw.projects,
+    project_external_links: links,
+    invoices: raw.invoices,
+  };
+}
+
+function isV2(data: DataExportPayload): data is DataExportV2 {
+  return data.version === DATA_EXPORT_VERSION;
+}
+
+export async function exportUserData(userId: string): Promise<DataExportV2> {
   const client = await pool.connect();
   try {
     const u = await client.query(
@@ -75,27 +150,45 @@ export async function exportUserData(userId: string): Promise<DataExportV1> {
       await client.query('SELECT * FROM discount_codes WHERE user_id = $1 ORDER BY created_at', [userId])
     ).rows;
 
+    const projects = (await client.query('SELECT * FROM projects WHERE user_id = $1 ORDER BY created_at', [userId]))
+      .rows;
+    const projectIds = projects.map((p) => p.id);
+
+    const project_external_links =
+      projectIds.length > 0
+        ? (
+            await client.query(
+              'SELECT * FROM project_external_links WHERE project_id = ANY($1) ORDER BY sort_order, created_at',
+              [projectIds]
+            )
+          ).rows
+        : [];
+
     const invRows = (
       await client.query('SELECT * FROM invoices WHERE user_id = $1 ORDER BY created_at', [userId])
     ).rows;
 
     const invoiceIds = invRows.map((r) => r.id);
 
-    // Batch-fetch items and reminders for all invoices in two queries instead of 2N
-    const allItems = invoiceIds.length > 0
-      ? (await client.query(
-          'SELECT * FROM invoice_items WHERE invoice_id = ANY($1) ORDER BY sort_order, created_at',
-          [invoiceIds]
-        )).rows
-      : [];
-    const allReminders = invoiceIds.length > 0
-      ? (await client.query(
-          'SELECT * FROM payment_reminders WHERE invoice_id = ANY($1) ORDER BY sent_at',
-          [invoiceIds]
-        )).rows
-      : [];
+    const allItems =
+      invoiceIds.length > 0
+        ? (
+            await client.query(
+              'SELECT * FROM invoice_items WHERE invoice_id = ANY($1) ORDER BY sort_order, created_at',
+              [invoiceIds]
+            )
+          ).rows
+        : [];
+    const allReminders =
+      invoiceIds.length > 0
+        ? (
+            await client.query(
+              'SELECT * FROM payment_reminders WHERE invoice_id = ANY($1) ORDER BY sent_at',
+              [invoiceIds]
+            )
+          ).rows
+        : [];
 
-    // Group by invoice_id
     const itemsByInvoice = new Map<string, Record<string, unknown>[]>();
     for (const it of allItems) {
       const list = itemsByInvoice.get(it.invoice_id) ?? [];
@@ -109,7 +202,7 @@ export async function exportUserData(userId: string): Promise<DataExportV1> {
       remindersByInvoice.set(pr.invoice_id, list);
     }
 
-    const invoices: DataExportV1['invoices'] = invRows.map((inv) => ({
+    const invoices: InvoiceExportRow[] = invRows.map((inv) => ({
       ...inv,
       items: itemsByInvoice.get(inv.id) ?? [],
       payment_reminders: remindersByInvoice.get(inv.id) ?? [],
@@ -121,6 +214,8 @@ export async function exportUserData(userId: string): Promise<DataExportV1> {
       profile,
       clients,
       discount_codes,
+      projects,
+      project_external_links,
       invoices,
     };
   } finally {
@@ -138,31 +233,48 @@ function normStatus(s: string): string {
   return s;
 }
 
+function normTextArray(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map((x) => String(x));
+  return [];
+}
+
+/** JSONB column: accept object/array from DB or parsed backup, or a JSON string. */
+function milestonesToJsonbString(v: unknown): string {
+  if (v == null) return '[]';
+  if (typeof v === 'string') return v;
+  return JSON.stringify(v);
+}
+
 /**
- * Replaces all clients, invoices (and line items / reminders), and discount codes for the user
- * with data from the export. Updates profile fields from export.profile.
- * Does not change password or email.
+ * Replaces clients, projects (v2), invoices (and line items / reminders), and discount codes
+ * for the user with data from the export. v1 omits projects and clears invoice project_id on insert.
+ * Updates profile fields from export.profile. Does not change password or email.
  */
-export async function importUserDataReplace(userId: string, data: DataExportV1): Promise<void> {
+export async function importUserDataReplace(userId: string, data: DataExportPayload): Promise<void> {
   await ensureSchema();
+  const normalized: DataExportPayload = isV2(data)
+    ? normalizeV2ImportData(data as DataExportV2ImportFile)
+    : data;
+  const v2 = isV2(normalized);
+  const projects = v2 ? normalized.projects : [];
+  const projectExternalLinks = v2 ? normalized.project_external_links : [];
+
   const c = await pool.connect();
   try {
     await c.query('BEGIN');
 
-    // Delete current user's data
     await c.query('DELETE FROM invoices WHERE user_id = $1', [userId]);
     await c.query('DELETE FROM clients WHERE user_id = $1', [userId]);
     await c.query('DELETE FROM discount_codes WHERE user_id = $1', [userId]);
 
-    // Also remove any rows whose IDs collide with the backup (e.g. backup from another account).
-    // Order matters: invoices reference clients (ON DELETE RESTRICT), so delete invoices first.
-    const backupClientIds = data.clients.map((r) => r.id);
-    const backupDiscountIds = data.discount_codes.map((r) => r.id);
-    const backupInvoiceIds = data.invoices.map((r) => r.id);
+    const backupClientIds = normalized.clients.map((r) => r.id as string);
+    const backupDiscountIds = normalized.discount_codes.map((r) => r.id as string);
+    const backupInvoiceIds = normalized.invoices.map((r) => r.id as string);
+    const backupProjectIds = projects.map((r) => r.id as string);
+
     if (backupInvoiceIds.length > 0) {
       await c.query('DELETE FROM invoices WHERE id = ANY($1)', [backupInvoiceIds]);
     }
-    // Delete invoices that reference colliding client IDs before deleting those clients
     if (backupClientIds.length > 0) {
       await c.query('DELETE FROM invoices WHERE client_id = ANY($1)', [backupClientIds]);
       await c.query('DELETE FROM clients WHERE id = ANY($1)', [backupClientIds]);
@@ -170,8 +282,13 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
     if (backupDiscountIds.length > 0) {
       await c.query('DELETE FROM discount_codes WHERE id = ANY($1)', [backupDiscountIds]);
     }
+    if (backupProjectIds.length > 0) {
+      await c.query('DELETE FROM project_external_links WHERE project_id = ANY($1)', [backupProjectIds]);
+      await c.query('DELETE FROM project_attachments WHERE project_id = ANY($1)', [backupProjectIds]);
+      await c.query('DELETE FROM projects WHERE id = ANY($1)', [backupProjectIds]);
+    }
 
-    const p = data.profile;
+    const p = normalized.profile;
     await c.query(
       `UPDATE users SET
         business_name = $1,
@@ -205,11 +322,13 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
       ]
     );
 
-    for (const row of data.clients) {
+    for (const row of normalized.clients) {
       await c.query(
         `INSERT INTO clients (
-          id, user_id, customer_number, name, email, phone, company, address, notes, discount_code, created_at, updated_at
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          id, user_id, customer_number, name, email, phone, company, address, notes, discount_code,
+          portal_enabled, portal_login_email, portal_token, portal_password_hash, portal_totp_secret, portal_totp_enabled,
+          created_at, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
         [
           row.id,
           userId,
@@ -221,13 +340,72 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
           row.address ?? null,
           row.notes ?? null,
           row.discount_code ?? null,
+          row.portal_enabled ?? false,
+          row.portal_login_email ?? null,
+          row.portal_token ?? null,
+          row.portal_password_hash ?? null,
+          row.portal_totp_secret ?? null,
+          row.portal_totp_enabled ?? false,
           row.created_at,
           row.updated_at,
         ]
       );
     }
 
-    for (const row of data.discount_codes) {
+    if (v2) {
+      for (const row of projects) {
+        await c.query(
+          `INSERT INTO projects (
+            id, client_id, user_id, name, description, start_date, end_date, status, priority,
+            external_link, external_link_description, budget, hours, hours_is_maximum, dependencies,
+            milestones, team_members, tags, notes, created_at, updated_at
+          ) VALUES (
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::text[],$18::text[],$19,$20,$21
+          )`,
+          [
+            row.id,
+            row.client_id,
+            userId,
+            row.name,
+            row.description ?? null,
+            row.start_date ?? null,
+            row.end_date ?? null,
+            row.status ?? 'not_started',
+            row.priority ?? 'medium',
+            row.external_link ?? null,
+            row.external_link_description ?? null,
+            row.budget ?? null,
+            row.hours ?? null,
+            row.hours_is_maximum ?? false,
+            row.dependencies ?? null,
+            milestonesToJsonbString(row.milestones),
+            normTextArray(row.team_members),
+            normTextArray(row.tags),
+            row.notes ?? null,
+            row.created_at,
+            row.updated_at,
+          ]
+        );
+      }
+
+      for (const row of projectExternalLinks) {
+        await c.query(
+          `INSERT INTO project_external_links (
+            id, project_id, url, description, sort_order, created_at
+          ) VALUES ($1,$2,$3,$4,$5,$6)`,
+          [
+            row.id,
+            row.project_id,
+            row.url,
+            row.description ?? null,
+            row.sort_order ?? 0,
+            row.created_at,
+          ]
+        );
+      }
+    }
+
+    for (const row of normalized.discount_codes) {
       await c.query(
         `INSERT INTO discount_codes (
           id, user_id, code, description, type, value, is_active, created_at
@@ -245,14 +423,16 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
       );
     }
 
-    for (const inv of data.invoices) {
+    for (const inv of normalized.invoices) {
       const st = normStatus(String(inv.status));
+      const projectId = v2 && inv.project_id != null ? inv.project_id : null;
       await c.query(
         `INSERT INTO invoices (
           id, user_id, client_id, invoice_number, status, issue_date, due_date,
           subtotal, tax_rate, tax_amount, discount_code, discount_amount, total, notes,
-          is_recurring, recurrence_interval, next_recurrence_date, sent_at, share_token, created_at, updated_at
-        ) VALUES ($1,$2,$3,$4,$5::invoice_status,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+          is_recurring, recurrence_interval, next_recurrence_date, sent_at, share_token, project_id,
+          created_at, updated_at
+        ) VALUES ($1,$2,$3,$4,$5::invoice_status,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
         [
           inv.id,
           userId,
@@ -273,6 +453,7 @@ export async function importUserDataReplace(userId: string, data: DataExportV1):
           inv.next_recurrence_date ?? null,
           inv.sent_at ?? null,
           inv.share_token ?? null,
+          projectId,
           inv.created_at,
           inv.updated_at,
         ]
