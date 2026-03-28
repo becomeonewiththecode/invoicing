@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import { HiMenu, HiOutlineLogout, HiX } from 'react-icons/hi';
+import { HiMenu, HiX } from 'react-icons/hi';
 import { Sidebar } from './Sidebar';
 import { useAuthStore } from '../../stores/authStore';
 import { Toaster } from 'react-hot-toast';
 
 export function AppLayout() {
-  const { token, logout } = useAuthStore();
+  const { token } = useAuthStore();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -36,22 +36,14 @@ export function AppLayout() {
         </>
       )}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
+        <header className="flex shrink-0 items-center border-b border-gray-200 bg-white px-4 py-3 sm:px-6 lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen((prev) => !prev)}
-            className="inline-flex items-center rounded-lg border border-gray-300 p-2 text-gray-700 hover:bg-gray-100 lg:hidden"
+            className="inline-flex items-center rounded-lg border border-gray-300 p-2 text-gray-700 hover:bg-gray-100"
             aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           >
             {sidebarOpen ? <HiX className="h-5 w-5" /> : <HiMenu className="h-5 w-5" />}
-          </button>
-          <button
-            type="button"
-            onClick={logout}
-            className="flex items-center gap-2 text-sm font-medium text-gray-700 transition-colors hover:text-gray-900"
-          >
-            <HiOutlineLogout className="h-5 w-5 shrink-0" aria-hidden />
-            Sign Out
           </button>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
