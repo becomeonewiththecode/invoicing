@@ -44,7 +44,7 @@ flowchart TB
       subgraph Protected["Protected routes (AppLayout)"]
         DASH["/ DashboardPage\nrevenue stats · chart · recent invoices"]
         INV_LIST["/invoices\nInvoicesPage\npaginated · customer filter button · CSV export"]
-        INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview\noptional project · URL ?clientId & ?projectId"]
+        INV_NEW["/invoices/new\nNewInvoicePage\ncreate · line items · preview\noptional project · conflict check\nURL ?clientId & ?projectId"]
         INV_EDIT["/invoices/:id/edit\nNewInvoicePage (edit mode)"]
         INV_DET["/invoices/:id\nInvoiceDetailPage\nPDF · share · email · status"]
         CL_LIST["/clients\nClientsPage\npaginated · quick edit"]
@@ -84,7 +84,7 @@ flowchart TB
     subgraph API["API modules (Axios)"]
       direction LR
       AUTH_API["auth.ts\nlogin · register · updateAccount"]
-      INV_API["invoices.ts\nCRUD · stats · CSV\nshare · email"]
+      INV_API["invoices.ts\nCRUD · stats · CSV\nfor-project · share · email"]
       CL_API["clients.ts\nCRUD · pagination"]
       PRJ_API["projects.ts\nper-client projects"]
       DISC_API["discounts.ts\nCRUD · generate"]
@@ -249,7 +249,7 @@ sequenceDiagram
 
 ## New invoice and projects
 
-`NewInvoicePage` loads client projects when a client is selected and offers an optional **Related project**. Choosing a project (or opening `/invoices/new` with `clientId` and `projectId` query params) can prefill the **first line** description from the project’s description and the **first line** hours from the project’s hours when those values are set; if the project marks hours as a maximum, line hours are capped accordingly. The **Projects** tab on the client profile (`ClientProjectsTab.tsx`) includes a per-project **Create** link next to **View** and **Download** that deep-links to the new-invoice page with both IDs.
+`NewInvoicePage` loads client projects when a client is selected and offers an optional **Related project**. Choosing a project (or opening `/invoices/new` with `clientId` and `projectId` query params) can prefill the **first line** description from the project’s description and the **first line** hours from the project’s hours when those values are set; if the project marks hours as a maximum, line hours are capped accordingly. When a project is selected, the page loads the client’s invoices to detect **one-invoice-per-project** conflicts: a bordered amber alert with links if matches exist, or—if that fetch fails—a plain amber line (*Selected project already has an invoice, delete existing invoice before creating a new one.*). The **Projects** tab on the client profile (`ClientProjectsTab.tsx`) includes a per-project **Create** link next to **View** and **Download** that deep-links to the new-invoice page with both IDs.
 
 See **[routes.md — New invoice and related projects](routes.md#new-invoice-and-related-projects)** for full behavior and deep links.
 

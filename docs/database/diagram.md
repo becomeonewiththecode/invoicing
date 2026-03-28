@@ -230,5 +230,5 @@ Mermaid `erDiagram` is supported on GitHub and many Markdown viewers; for strict
 
 **Notes**
 
-- **`invoices.project_id`** is nullable (optional related project); the crow’s foot from `projects` to `invoices` reflects invoices that *may* reference a project.
+- **`invoices.project_id`** is nullable (optional related project); the crow’s foot from `projects` to `invoices` reflects invoices that *may* reference a project. The database does **not** enforce a single invoice per project: the API rejects **create** and **draft update** when another non-**`cancelled`** invoice already references the same **`project_id`** (**409** with **`conflicts`**). Cancelled invoices are ignored for that check.
 - `payment_reminders.sent_at` is the time a reminder was logged, not the same field as `invoices.sent_at` (when the invoice was marked sent).

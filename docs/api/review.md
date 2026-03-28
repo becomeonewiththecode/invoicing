@@ -20,7 +20,7 @@ Order matters for Express:
 2. `/api/auth` — no JWT.
 3. **`/api/clients` — two routers in order:** `routes/projects.ts` first (nested **`/:clientId/projects`** CRUD), then `routes/clients.ts` (client list and **`/:id`** CRUD). Registering the projects router first avoids ambiguous matching for client-scoped project paths.
 4. **`/api/invoices/share`** (public) **before** `/api/invoices` so `share` is not parsed as an invoice id.
-5. `/api/invoices` — CRUD, stats, CSV, share-token minting, email helpers.
+5. `/api/invoices` — CRUD, stats, CSV, **`GET /for-project/:projectId`** (registered before **`GET /:id`**), share-token minting, email helpers. Create/update with **`projectId`** returns **409** when another non-**`cancelled`** invoice already uses that project.
 6. `/api/discounts`, `/api/settings`.
 7. Static uploads: `/api/uploads`.
 8. `GET /api/health` — health check.

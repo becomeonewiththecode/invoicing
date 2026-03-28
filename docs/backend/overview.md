@@ -15,7 +15,7 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/auth.ts` | Register, login, change email/password (authenticated) |
 | `routes/projects.ts` | Per-client projects: `/:clientId/projects` and `/:clientId/projects/:projectId` (JWT); mounted on `/api/clients` **before** `clients.ts` |
 | `routes/clients.ts` | Client CRUD, customer numbers |
-| `routes/invoices.ts` | Invoices, `GET /stats/revenue`, `GET /stats/by-client/:clientId`, CSV, share tokens, send-to-company email |
+| `routes/invoices.ts` | Invoices (list with optional `clientId`, **`GET /for-project/:projectId`** for conflict rows), create/update with **409** when a non-cancelled invoice already uses **`projectId`**, `GET /stats/revenue`, `GET /stats/by-client/:clientId`, CSV, share tokens, send-to-company email |
 | `routes/share.ts` | Public invoice by token: read-only view + mark as paid |
 | `routes/discounts.ts` | Discount codes |
 | `routes/settings.ts` | Company profile, defaults, logo upload/delete, SMTP config (GET/PUT), SMTP test email |
@@ -66,7 +66,7 @@ flowchart TB
       AUTH["/api/auth\nregister · login (public)\nchange email/password (protected)"]
       CL["/api/clients\nprojects (nested) · CRUD ·\ncustomer numbers\n(protected)"]
       SH["/api/invoices/share/:token\nview · mark paid\n(public)"]
-      INV["/api/invoices\nCRUD · stats · CSV\nshare · email\n(protected)"]
+      INV["/api/invoices\nCRUD · for-project · stats · CSV\nshare · email\n(protected)"]
       DISC["/api/discounts\nCRUD · generate code\n(protected)"]
       SET["/api/settings\nprofile · logo · SMTP\n(protected)"]
       DATA["/api/data\nexport · import\n(protected)"]
