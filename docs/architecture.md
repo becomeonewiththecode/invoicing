@@ -18,7 +18,7 @@ flowchart TB
             subgraph Routes["Routes"]
                 AUTH_R["/api/auth\nregister · login\nchange email/password"]
                 CLIENT_R["/api/clients\nCRUD · projects per client"]
-                INV_R["/api/invoices\nCRUD · stats · CSV\nshare · send email"]
+                INV_R["/api/invoices\nCRUD · stats · CSV\nfor-project · share · send email"]
                 SHARE_R["/api/invoices/share/:token\npublic view · mark paid"]
                 DISC_R["/api/discounts\nCRUD"]
                 SET_R["/api/settings\nprofile · logo · SMTP"]
@@ -198,4 +198,78 @@ sequenceDiagram
     E->>PG: COMMIT
     E->>RD: Invalidate revenue cache
     E-->>B: 200 { ok: true }
+```
+
+## New invoice: project conflict (SPA + API)
+
+At most **one non-`cancelled`** invoice may reference a given **`project_id`** per user. The **new/edit invoice** page loads **`GET /api/invoices?page=1&limit=100&clientId=...`** when both client and project are selected ( **`limit`** is capped at **100** by the list endpoint), then filters rows client-side for matching **`project_id`** and **non-`cancelled`** status.
+
+- **Conflicts found in list data:** Bordered **amber** alert with invoice numbers (links to **`/invoices/:id`**). **Preview** and **Create/Save** are disabled while the request is in flight or when this list is non-empty.
+- **List request fails:** Plain **amber** line: *Selected project already has an invoice, delete existing invoice before creating a new one.* **Preview** and **Create/Save** stay enabled; the server still enforces the rule on submit (**409** if duplicate).
+
+**`POST /api/invoices`** and **`PUT /api/invoices/:id`** always enforce the rule and return **409** with **`conflicts`** when the UI is bypassed or the client-side list did not reflect the true state.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant SPA as NewInvoicePage
+    participant API as Express /api/invoices
+    participant PG as PostgreSQL
+
+    U->>SPA: Select client + related project
+    SPA->>API: GET /invoices?clientId=&limit=100
+    alt List request fails
+        API-->>SPA: 4xx/5xx or network error
+        SPA-->>U: Amber text: delete existing invoice… (submit still allowed)
+    else List succeeds
+        API->>PG: List invoices for client
+        PG-->>API: Rows (incl. project_id, status)
+        API-->>SPA: { data, pagination }
+        SPA->>SPA: Filter same project_id, status != cancelled
+        alt Conflicts in data
+            SPA-->>U: Amber alert + links; disable Preview / Save
+        else No conflict
+            SPA-->>U: Normal submit / preview
+        end
+    end
+    U->>SPA: Create (optional path)
+    SPA->>API: POST /invoices { projectId, ... }
+    API->>PG: Transaction + conflict check
+    alt Duplicate project
+        API-->>SPA: 409 { error, conflicts }
+    else OK
+        API-->>SPA: 201 created invoice
+    end
+```
+
+## Invoice preview modal (SPA)
+
+Client-only: **`InvoicePreviewModal`** builds a PDF with **jsPDF** (`pdf.ts`), shows it in an **`iframe`**, and lists **`project_external_links`** as HTML **below** the PDF so **`target="_blank"`** works reliably (embedded PDF URI links typically navigate the iframe, not a new tab).
+
+```mermaid
+flowchart TB
+  subgraph Pages["Pages using modal"]
+    P1["InvoicesPage"]
+    P2["InvoiceDetailPage"]
+    P3["NewInvoicePage / edit"]
+  end
+
+  subgraph Modal["InvoicePreviewModal"]
+    H["Header + hint"]
+    I["PDF iframe\nflex-1 min-h-0"]
+    L["ExternalLinksList\nbelow PDF · new tab"]
+    F["Close · Download PDF"]
+  end
+
+  subgraph Client["Browser"]
+    JSPDF["pdf.ts → blob URL"]
+  end
+
+  P1 --> Modal
+  P2 --> Modal
+  P3 --> Modal
+  H --> I
+  I --> L
+  L --> F
+  Modal --> JSPDF
 ```

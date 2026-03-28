@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import pool from '../config/database';
 import redis from '../config/redis';
 import type { PoolClient } from 'pg';
@@ -87,6 +88,25 @@ async function fetchProjectExternalLinksForInvoice(projectId: string | null): Pr
     }
   }
   return out;
+}
+
+const uuidString = z.string().uuid();
+
+/** Invoices already using this project (excluding cancelled). Used to avoid duplicate project links. */
+async function fetchNonCancelledInvoicesForProject(
+  userId: string,
+  projectId: string,
+  excludeInvoiceId: string | null,
+  executor: Pick<typeof pool, 'query'>
+): Promise<{ id: string; invoice_number: string; status: string }[]> {
+  const r = await executor.query<{ id: string; invoice_number: string; status: string }>(
+    `SELECT id, invoice_number, status FROM invoices
+     WHERE user_id = $1 AND project_id = $2 AND status != 'cancelled'
+     AND ($3::uuid IS NULL OR id <> $3::uuid)
+     ORDER BY created_at DESC`,
+    [userId, projectId, excludeInvoiceId]
+  );
+  return r.rows;
 }
 
 // List invoices (optional ?clientId= to filter by client)
@@ -348,6 +368,43 @@ router.post('/:id/send-to-company', rateLimit({ windowMs: 60_000, max: 5 }), asy
   }
 });
 
+// Conflicting invoices for a project (new invoice UX + validation). Register before GET /:id.
+router.get('/for-project/:projectId', async (req: AuthRequest, res: Response) => {
+  try {
+    const pid = uuidString.safeParse(req.params.projectId);
+    if (!pid.success) {
+      return res.status(400).json({ error: 'Invalid project id' });
+    }
+    const excludeRaw = req.query.excludeInvoiceId;
+    const exclude =
+      typeof excludeRaw === 'string' && excludeRaw.length > 0
+        ? uuidString.safeParse(excludeRaw)
+        : null;
+    if (excludeRaw && typeof excludeRaw === 'string' && excludeRaw.length > 0 && exclude && !exclude.success) {
+      return res.status(400).json({ error: 'Invalid exclude invoice id' });
+    }
+
+    const own = await pool.query('SELECT 1 FROM projects WHERE id = $1 AND user_id = $2', [
+      pid.data,
+      req.userId,
+    ]);
+    if (own.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const rows = await fetchNonCancelledInvoicesForProject(
+      req.userId!,
+      pid.data,
+      exclude?.success ? exclude.data : null,
+      pool
+    );
+    res.json({ data: rows });
+  } catch (err) {
+    console.error('Invoices for project error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get single invoice with items
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
@@ -404,6 +461,14 @@ router.post('/', validate(createInvoiceSchema), async (req: AuthRequest, res: Re
       if (pv.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Project not found for this client' });
+      }
+      const conflicts = await fetchNonCancelledInvoicesForProject(req.userId!, projectId, null, client);
+      if (conflicts.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This project is already linked to another invoice',
+          conflicts,
+        });
       }
     }
 
@@ -513,6 +578,20 @@ router.put('/:id', validate(createInvoiceSchema), async (req: AuthRequest, res: 
       if (pv.rows.length === 0) {
         await db.query('ROLLBACK');
         return res.status(400).json({ error: 'Project not found for this client' });
+      }
+      const editingId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const conflicts = await fetchNonCancelledInvoicesForProject(
+        req.userId!,
+        projectId,
+        editingId ?? null,
+        db
+      );
+      if (conflicts.length > 0) {
+        await db.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This project is already linked to another invoice',
+          conflicts,
+        });
       }
     }
 

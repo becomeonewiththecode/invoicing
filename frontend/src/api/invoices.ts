@@ -20,6 +20,19 @@ export async function getInvoice(id: string): Promise<Invoice> {
   return data;
 }
 
+/** Non-cancelled invoices already using this project (excludes `excludeInvoiceId` when editing). */
+export type InvoiceProjectConflict = { id: string; invoice_number: string; status: string };
+
+export async function getInvoicesLinkedToProject(
+  projectId: string,
+  options?: { excludeInvoiceId?: string }
+): Promise<InvoiceProjectConflict[]> {
+  const { data } = await api.get<{ data: InvoiceProjectConflict[] }>(`/invoices/for-project/${projectId}`, {
+    params: options?.excludeInvoiceId ? { excludeInvoiceId: options.excludeInvoiceId } : {},
+  });
+  return data.data;
+}
+
 export type InvoicePayload = {
   clientId: string;
   issueDate: string;

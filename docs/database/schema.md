@@ -176,6 +176,8 @@ The table may still exist from older installs. **`ensureSchema()`** migrates **`
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 
+**Application rule:** At most one **non-`cancelled`** invoice per user may reference a given **`project_id`**; enforced on **POST/PUT** invoices in the API (**409**), not by a unique DB constraint.
+
 Indexes include `idx_invoices_user_id`, `idx_invoices_client_id`, `idx_invoices_status`, `idx_invoices_due_date`, `idx_invoices_project_id`.
 
 ### `invoice_items`

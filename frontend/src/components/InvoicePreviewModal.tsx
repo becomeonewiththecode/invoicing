@@ -108,7 +108,7 @@ export function InvoicePreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="invoice-preview-title">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
           <h2 id="invoice-preview-title" className="text-lg font-semibold text-gray-900">
             {title}
@@ -120,25 +120,36 @@ export function InvoicePreviewModal({
         <p className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100 bg-gray-50">
           {variant === 'draft'
             ? 'Review the PDF below. Use Save or Create on the form to store the invoice—nothing is saved until you submit.'
-            : 'Review the PDF below. Download a copy or close to return.'}
+            : externalLinks.length > 0
+              ? 'Review the PDF below. Links under NOTES also appear after the preview—use those to open in a new tab. Download a copy or close to return.'
+              : 'Review the PDF below. Download a copy or close to return.'}
         </p>
+        {/* Flex-sized iframe (not position:absolute) so embedded PDF link hit targets stay aligned; absolute iframe broke link clicks in some browsers. */}
+        <div className="flex-1 min-h-0 flex flex-col bg-gray-100 overflow-hidden relative min-w-0">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-gray-500 bg-gray-100">
+              Generating preview…
+            </div>
+          )}
+          {error && !loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-red-600 px-4 text-center bg-gray-100">
+              {error}
+            </div>
+          )}
+          {pdfUrl && !loading && (
+            <iframe
+              title="Invoice PDF preview"
+              src={pdfUrl}
+              className="flex-1 min-h-0 w-full min-w-0 border-0 bg-gray-100"
+            />
+          )}
+        </div>
         {externalLinks.length > 0 && (
-          <div className="px-4 py-2 text-sm border-b border-gray-100 bg-white">
-            <p className="text-gray-700 font-medium">External links (open in new tab):</p>
+          <div className="px-4 py-2 text-sm border-t border-gray-200 bg-white shrink-0">
+            <p className="text-gray-700 font-medium">Document links (same as under NOTES — opens in new tab):</p>
             <ExternalLinksList links={externalLinks} className="mt-1 space-y-1 list-none pl-0" />
           </div>
         )}
-        <div className="flex-1 min-h-[320px] bg-gray-100 relative">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-500">Generating preview…</div>
-          )}
-          {error && !loading && (
-            <div className="absolute inset-0 flex items-center justify-center text-red-600 px-4 text-center">{error}</div>
-          )}
-          {pdfUrl && !loading && (
-            <iframe title="Invoice PDF preview" src={pdfUrl} className="w-full h-full min-h-[min(70vh,720px)] border-0 rounded-b-lg" />
-          )}
-        </div>
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-gray-200 shrink-0">
           <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
             Close

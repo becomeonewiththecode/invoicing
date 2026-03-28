@@ -9,7 +9,7 @@ Vendor sidebar quick links include **Admin site** (`/admin`) and **Client site**
 | Path | Page | Notes |
 |------|------|--------|
 | `/` | Dashboard | Revenue stats, recent invoices |
-| `/invoices` | Invoice list | Optional `?clientId=` filter; includes a **Filter by customer** button beside **Create invoice**. Invoice numbers follow per-customer sequence (`INV-<CUSTOMER_NUMBER>-NNNN`). |
+| `/invoices` | Invoice list | Optional `?clientId=` filter; includes a **Filter by customer** button beside **Create invoice**. Row actions include **preview** ([Invoice preview](#invoice-preview-behavior)). Invoice numbers follow per-customer sequence (`INV-<CUSTOMER_NUMBER>-NNNN`). |
 | `/invoices/new` | New invoice | Optional query: **`?clientId=`** (preselect client), **`?projectId=`** (preselect related project — use with `clientId`). See [New invoice and related projects](#new-invoice-and-related-projects) |
 | `/invoices/:id` | Invoice detail | Actions: PDF, email, share link, status, cancel/delete |
 | `/invoices/:id/edit` | Edit invoice | Draft only |
@@ -68,14 +68,31 @@ When you **change** the related project (including the first time it loads from 
 
 Draft **edit** mode does not overwrite saved line items on load; syncing applies when the user changes the related project selection.
 
+#### One invoice per project (non-cancelled)
+
+A **project** may be linked to **at most one** invoice that is **not** in **`cancelled`** status. **`cancelled`** invoices do not block linking the same project again.
+
+When both **Client** and **Related project** are set, the page fetches **`GET /api/invoices`** for that client (**`limit=100`**, the API maximum for list pagination) and derives conflicts by matching **`project_id`** and excluding **`cancelled`**. If a client has more than 100 invoices, only the first page is scanned client-side; the server still returns **409** if a duplicate project link is attempted. (The API also exposes **`GET /api/invoices/for-project/:projectId`** for the same conflict rows; the form uses the list endpoint so conflict UI still works if older deployments lack the dedicated route.)
+
+- **Loading:** Short “checking…” text; **Preview invoice** and **Create invoice** / **Save** are disabled until the request finishes.
+- **Conflict (list loaded):** A bordered **amber** alert with heading *This project is already linked to another invoice* lists existing invoices (links to **`/invoices/:id`**). **Preview** and **Create/Save** stay disabled until you clear the conflict (different project, **None**, or cancel the other invoice).
+- **Conflict check request failed:** If **`GET /api/invoices`** for the conflict check errors, a plain **amber** line appears: *Selected project already has an invoice, delete existing invoice before creating a new one.* **Preview** and **Create/Save** remain enabled; submitting may still succeed or fail with **409** depending on the real server state.
+- **Submit / preview guards:** Handlers refuse to proceed while conflicts are **known from list data** or while the check is **still pending**—not when only the error line above is shown.
+- **Server:** **`POST /api/invoices`** and **`PUT /api/invoices/:id`** (draft) return **409** with **`error`** and **`conflicts`** if the rule is violated; the UI shows that message in a toast. Other API errors that return a string **`error`** field are surfaced when possible instead of a generic failure toast.
+
+See [API reference — Invoices](../api/reference.md#invoices).
+
 ## Invoice preview behavior
 
-The invoice preview modal (`InvoicePreviewModal.tsx`) renders:
+The invoice preview modal (`InvoicePreviewModal.tsx`) is used from **Invoices** (row preview), **Invoice detail**, and **New / edit invoice** (draft preview). It uses a **`max-h-[90vh]`** flex column so **Close** and **Download PDF** stay visible when the PDF is tall or when project **external links** exist.
 
-- embedded PDF preview
-- a dedicated **External links (open in new tab)** list above the PDF when invoice/project links exist
+Layout (top to bottom):
 
-The extra links list is intentional because browser/PDF-viewer handling of embedded PDF links is inconsistent across environments.
+1. Title bar and hint text (if the invoice has project links, the hint points users to the HTML link list below the PDF for **new-tab** behavior).
+2. **PDF** — `iframe` with a **flex-grown** height (`flex-1 min-h-0`), not `position: absolute`, so embedded PDF link hit areas stay aligned with the viewer.
+3. **Document links** — when `project_external_links` exist, an **`ExternalLinksList`** block **below** the PDF (above the footer) with real `<a target="_blank" rel="noopener noreferrer">` links. Labels match the links under **NOTES** in the PDF.
+
+**Why the HTML list exists:** PDF URI annotations inside an embedded viewer usually **navigate the iframe** (same tab context), not a new tab, and behavior varies by browser. The list under the preview is the supported way to open the same URLs in a **new tab** reliably.
 
 ## Public routes
 

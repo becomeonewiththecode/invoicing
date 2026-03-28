@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { createInvoice, updateInvoice, getInvoice, type InvoicePayload } from '../api/invoices';
+import axios from 'axios';
+import { createInvoice, updateInvoice, getInvoice, getInvoices, type InvoicePayload } from '../api/invoices';
 import { getDiscounts } from '../api/discounts';
 import { getClients } from '../api/clients';
 import { getSettings } from '../api/settings';
@@ -125,6 +126,42 @@ export function NewInvoicePage() {
     enabled: Boolean(clientId),
   });
 
+  /** Derive conflicts from the invoice list for this client (same fields as GET /invoices). Avoids relying on
+   *  GET /for-project only — if that route is missing or errors, the list API still drives the amber alert. */
+  const {
+    data: clientInvoicesForConflict,
+    isPending: conflictCheckLoading,
+    isError: conflictCheckError,
+  } = useQuery({
+    queryKey: ['invoices', 'conflict-check', clientId],
+    queryFn: () => getInvoices(1, 100, clientId),
+    enabled: Boolean(clientId?.trim()) && Boolean(projectId?.trim()),
+  });
+
+  const projectInvoiceConflicts = useMemo(() => {
+    const rows = clientInvoicesForConflict?.data;
+    if (!projectId?.trim() || !rows?.length) return [];
+    const pid = projectId.trim();
+    return rows
+      .filter(
+        (inv) =>
+          inv.project_id != null &&
+          String(inv.project_id) === pid &&
+          inv.status !== 'cancelled' &&
+          (!isEdit || !id || inv.id !== id)
+      )
+      .map((inv) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        status: String(inv.status),
+      }));
+  }, [clientInvoicesForConflict, projectId, isEdit, id]);
+
+  const hasProjectInvoiceConflict = projectInvoiceConflicts.length > 0;
+  const conflictCheckPending =
+    Boolean(clientId?.trim()) && Boolean(projectId?.trim()) && conflictCheckLoading;
+  const blockProjectActions = hasProjectInvoiceConflict || conflictCheckPending;
+
   useEffect(() => {
     if (prevClientIdRef.current !== null && prevClientIdRef.current !== clientId) {
       setValue('projectId', '');
@@ -221,7 +258,22 @@ export function NewInvoicePage() {
       toast.success('Invoice created');
       navigate('/invoices');
     },
-    onError: () => toast.error('Failed to create invoice'),
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const msg = (err.response.data as { error?: string })?.error;
+        toast.error(msg || 'This project is already linked to another invoice');
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        return;
+      }
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const msg = (err.response.data as { error?: string }).error;
+        if (typeof msg === 'string' && msg.trim()) {
+          toast.error(msg);
+          return;
+        }
+      }
+      toast.error('Failed to create invoice');
+    },
   });
 
   const updateMutation = useMutation({
@@ -234,7 +286,22 @@ export function NewInvoicePage() {
       toast.success('Invoice updated');
       navigate(`/invoices/${variables.invoiceId}`);
     },
-    onError: () => toast.error('Failed to update invoice'),
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const msg = (err.response.data as { error?: string })?.error;
+        toast.error(msg || 'This project is already linked to another invoice');
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+        return;
+      }
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const msg = (err.response.data as { error?: string }).error;
+        if (typeof msg === 'string' && msg.trim()) {
+          toast.error(msg);
+          return;
+        }
+      }
+      toast.error('Failed to update invoice');
+    },
   });
 
   const onSubmit = (data: InvoiceFormData) => {
@@ -256,6 +323,16 @@ export function NewInvoicePage() {
       );
       return;
     }
+    if (data.projectId?.trim() && blockProjectActions) {
+      if (conflictCheckPending) {
+        toast.error('Still checking this project for existing invoices — try again in a moment.');
+        return;
+      }
+      toast.error(
+        'This project is already linked to another invoice. Choose a different project or open the existing invoice.'
+      );
+      return;
+    }
     if ((settings?.defaultHourlyRate ?? 0) <= 0) {
       toast.error('Set a default hourly rate under Settings before saving');
       return;
@@ -271,6 +348,14 @@ export function NewInvoicePage() {
   const handlePreview = handleSubmit((data) => {
     if (!data.clientId) {
       toast.error('Select a client');
+      return;
+    }
+    if (data.projectId?.trim() && blockProjectActions) {
+      toast.error(
+        conflictCheckPending
+          ? 'Wait for the project check to finish before previewing.'
+          : 'Resolve the project conflict before previewing.'
+      );
       return;
     }
     for (const row of data.items) {
@@ -396,6 +481,39 @@ export function NewInvoicePage() {
                 ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">Choose a project assigned to this client, or leave as none.</p>
+            {projectId && conflictCheckPending && (
+              <p className="mt-2 text-xs text-gray-600">Checking whether this project is already on an invoice…</p>
+            )}
+            {projectId && conflictCheckError && (
+              <p className="mt-2 text-xs text-amber-800">
+                Selected project already has an invoice, delete existing invoice before creating a new one.
+              </p>
+            )}
+            {projectId && projectInvoiceConflicts.length > 0 && (
+              <div
+                className="mt-3 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+                role="alert"
+              >
+                <p className="font-medium">This project is already linked to another invoice</p>
+                <ul className="mt-1.5 list-disc list-inside space-y-0.5">
+                  {projectInvoiceConflicts.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        to={`/invoices/${c.id}`}
+                        className="font-mono text-blue-800 underline hover:text-blue-950"
+                      >
+                        {c.invoice_number}
+                      </Link>
+                      <span className="text-amber-900/90"> ({c.status})</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-amber-900/85">
+                  Select a different project or open the invoice above. Invoices in <strong>cancelled</strong> status do
+                  not block a new link.
+                </p>
+              </div>
+            )}
           </div>
         ) : null}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -567,12 +685,16 @@ export function NewInvoicePage() {
           <button
             type="button"
             onClick={handlePreview}
-            disabled={saving}
+            disabled={saving || blockProjectActions}
             className="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50"
           >
             Preview invoice
           </button>
-          <button type="submit" disabled={saving} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={saving || blockProjectActions}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
             {saving ? (isEdit ? 'Saving...' : 'Creating...') : isEdit ? 'Save changes' : 'Create Invoice'}
           </button>
         </div>

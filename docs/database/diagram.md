@@ -9,6 +9,10 @@ erDiagram
   users ||--o{ backup_snapshots : has
   users ||--o{ backup_policies : has
   clients ||--o{ invoices : has
+  clients ||--o{ projects : has
+  users ||--o{ projects : owns
+  projects ||--o{ project_external_links : has
+  projects ||--o{ invoices : "optional FK project_id"
   invoices ||--o{ invoice_items : contains
   invoices ||--o{ payment_reminders : logs
   support_tickets ||--o{ ticket_messages : has
@@ -60,10 +64,33 @@ erDiagram
     timestamptz updated_at
   }
 
+  projects {
+    uuid id PK
+    uuid client_id FK
+    uuid user_id FK
+    string name
+    text description
+    string status
+    string priority
+    jsonb milestones
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  project_external_links {
+    uuid id PK
+    uuid project_id FK
+    text url
+    text description
+    int sort_order
+    timestamptz created_at
+  }
+
   invoices {
     uuid id PK
     uuid user_id FK
     uuid client_id FK
+    uuid project_id FK "nullable ON DELETE SET NULL"
     string invoice_number
     invoice_status status "draft sent paid late cancelled"
     date issue_date
@@ -201,4 +228,7 @@ erDiagram
 
 Mermaid `erDiagram` is supported on GitHub and many Markdown viewers; for strict PostgreSQL types, column defaults, and indexes, see [schema.md](schema.md).
 
-**Note:** `payment_reminders.sent_at` is the time a reminder was logged, not the same field as `invoices.sent_at` (when the invoice was marked sent).
+**Notes**
+
+- **`invoices.project_id`** is nullable (optional related project); the crow’s foot from `projects` to `invoices` reflects invoices that *may* reference a project. The database does **not** enforce a single invoice per project: the API rejects **create** and **draft update** when another non-**`cancelled`** invoice already references the same **`project_id`** (**409** with **`conflicts`**). Cancelled invoices are ignored for that check.
+- `payment_reminders.sent_at` is the time a reminder was logged, not the same field as `invoices.sent_at` (when the invoice was marked sent).

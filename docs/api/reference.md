@@ -332,11 +332,45 @@ Delete the project (cascades **`project_external_links`**). **Response (204):** 
 
 ## Invoices
 
+**Route order:** In `routes/invoices.ts`, static paths such as **`/stats/*`**, **`/export/csv`**, **`/for-project/:projectId`**, and **`/share`** (when mounted) are registered **before** **`GET /:id`** so segment names are not mistaken for UUIDs. See [API review — route mounting](review.md).
+
 ### GET /invoices
 
-List invoices with pagination. Returns client name and email joined.
+List invoices with pagination. Joins client display fields (`client_name`, `client_email`, etc.). Each row includes invoice columns from **`i.*`**, including **`project_id`** when set.
 
-**Query parameters:** Same as clients (page, limit).
+**Query parameters:**
+
+| Param | Type | Default | Notes |
+|-------|------|---------|--------|
+| page | number | 1 | Page number |
+| limit | number | 20 | Items per page (max per pagination schema) |
+| clientId | string (uuid) | — | If set, only invoices for that client (must belong to the user). **404** if the client is not found for this user. |
+
+**Response (200):** `{ data: InvoiceRow[], pagination: { page, limit, total } }` — same general shape as other list endpoints.
+
+**SPA usage:** The new/edit invoice screen calls this with **`clientId`** and **`limit=100`** (the schema maximum) to detect whether the selected **related project** already appears on another non-**`cancelled`** invoice before submit. If the request fails, the UI still shows a fixed amber message; **POST/PUT** invoices enforce uniqueness regardless.
+
+### GET /invoices/for-project/:projectId
+
+Returns **non-`cancelled`** invoices that already use this project (for UX and integrations). The project must exist and belong to the authenticated user.
+
+**Query parameters:**
+
+| Param | Type | Notes |
+|-------|------|--------|
+| excludeInvoiceId | string (uuid) | Optional. When editing a draft, omit the current invoice from the conflict list. |
+
+**Response (200):**
+
+```json
+{
+  "data": [
+    { "id": "uuid", "invoice_number": "INV-C-00001-0002", "status": "draft" }
+  ]
+}
+```
+
+**Errors:** **400** invalid `projectId` or `excludeInvoiceId`; **404** project not found for this user.
 
 ### GET /invoices/:id
 
@@ -419,6 +453,27 @@ The numeric suffix increments independently for each customer, so every customer
 | isRecurring | boolean | No | Default false |
 | recurrenceInterval | string | No | weekly, monthly, quarterly, yearly |
 | items | array | Yes | At least 1 item required |
+
+**Project uniqueness:** If `projectId` is set, the server rejects the create when **any other** invoice for this user already references that project with a status other than **`cancelled`**.
+
+**Response (409)** — project already linked:
+
+```json
+{
+  "error": "This project is already linked to another invoice",
+  "conflicts": [
+    { "id": "uuid", "invoice_number": "INV-C-00001-0002", "status": "sent" }
+  ]
+}
+```
+
+### PUT /invoices/:id
+
+Update an existing **draft** invoice only. Same JSON body shape and validation as **`POST /invoices`** (camelCase fields). **404** if the invoice is missing, not owned by the user, or not in **`draft`** status.
+
+**Project conflict:** If `projectId` is set, the same uniqueness rule applies as on create, but the invoice being edited is excluded from the conflict check (via `excludeInvoiceId` semantics in the handler).
+
+**Response (409):** Same shape as **`POST /invoices`** when another non-cancelled invoice already uses the project.
 
 ### PATCH /invoices/:id/status
 
@@ -902,6 +957,8 @@ Rate limit analytics. Query: `?hours=24` (max 720).
   "error": "Email already registered"
 }
 ```
+
+Invoice **create/update** with a duplicate **`projectId`** (see [POST /invoices](#post-invoices) / [PUT /invoices/:id](#put-invoicesid)) returns **409** with `error` and an optional **`conflicts`** array of `{ id, invoice_number, status }`.
 
 **Rate limit (429):**
 
