@@ -7,6 +7,7 @@ import {
   HiOutlineSupport,
   HiOutlineShieldCheck,
   HiOutlineGlobeAlt,
+  HiOutlineLogout,
 } from 'react-icons/hi';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -20,7 +21,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className = '', onNavigate }: SidebarProps) {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+
+  const handleSignOut = () => {
+    onNavigate?.();
+    logout();
+  };
 
   return (
     <aside className={`flex min-h-screen w-64 flex-col bg-gray-900 text-white ${className}`}>
@@ -28,7 +34,7 @@ export function Sidebar({ className = '', onNavigate }: SidebarProps) {
         <h1 className="text-xl font-bold">{user?.businessName || 'Invoicing'}</h1>
         <p className="text-sm text-gray-400 mt-1 truncate">{user?.email}</p>
       </div>
-      <nav className="flex-1 px-3">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3">
         <NavLink
           to="/"
           end
@@ -97,8 +103,17 @@ export function Sidebar({ className = '', onNavigate }: SidebarProps) {
           <HiOutlineGlobeAlt className="w-5 h-5 shrink-0" />
           Client site
         </NavLink>
-
       </nav>
+      <div className="shrink-0 border-t border-gray-800 p-3">
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-gray-300 transition-colors hover:bg-gray-800"
+        >
+          <HiOutlineLogout className="h-5 w-5 shrink-0" aria-hidden />
+          Sign Out
+        </button>
+      </div>
     </aside>
   );
 }
