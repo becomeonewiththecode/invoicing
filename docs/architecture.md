@@ -199,3 +199,35 @@ sequenceDiagram
     E->>RD: Invalidate revenue cache
     E-->>B: 200 { ok: true }
 ```
+
+## Invoice preview modal (SPA)
+
+Client-only: **`InvoicePreviewModal`** builds a PDF with **jsPDF** (`pdf.ts`), shows it in an **`iframe`**, and lists **`project_external_links`** as HTML **below** the PDF so **`target="_blank"`** works reliably (embedded PDF URI links typically navigate the iframe, not a new tab).
+
+```mermaid
+flowchart TB
+  subgraph Pages["Pages using modal"]
+    P1["InvoicesPage"]
+    P2["InvoiceDetailPage"]
+    P3["NewInvoicePage / edit"]
+  end
+
+  subgraph Modal["InvoicePreviewModal"]
+    H["Header + hint"]
+    I["PDF iframe\nflex-1 min-h-0"]
+    L["ExternalLinksList\nbelow PDF · new tab"]
+    F["Close · Download PDF"]
+  end
+
+  subgraph Client["Browser"]
+    JSPDF["pdf.ts → blob URL"]
+  end
+
+  P1 --> Modal
+  P2 --> Modal
+  P3 --> Modal
+  H --> I
+  I --> L
+  L --> F
+  Modal --> JSPDF
+```

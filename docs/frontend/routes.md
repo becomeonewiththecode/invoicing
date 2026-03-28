@@ -9,7 +9,7 @@ Vendor sidebar quick links include **Admin site** (`/admin`) and **Client site**
 | Path | Page | Notes |
 |------|------|--------|
 | `/` | Dashboard | Revenue stats, recent invoices |
-| `/invoices` | Invoice list | Optional `?clientId=` filter; includes a **Filter by customer** button beside **Create invoice**. Invoice numbers follow per-customer sequence (`INV-<CUSTOMER_NUMBER>-NNNN`). |
+| `/invoices` | Invoice list | Optional `?clientId=` filter; includes a **Filter by customer** button beside **Create invoice**. Row actions include **preview** ([Invoice preview](#invoice-preview-behavior)). Invoice numbers follow per-customer sequence (`INV-<CUSTOMER_NUMBER>-NNNN`). |
 | `/invoices/new` | New invoice | Optional query: **`?clientId=`** (preselect client), **`?projectId=`** (preselect related project — use with `clientId`). See [New invoice and related projects](#new-invoice-and-related-projects) |
 | `/invoices/:id` | Invoice detail | Actions: PDF, email, share link, status, cancel/delete |
 | `/invoices/:id/edit` | Edit invoice | Draft only |
@@ -70,12 +70,15 @@ Draft **edit** mode does not overwrite saved line items on load; syncing applies
 
 ## Invoice preview behavior
 
-The invoice preview modal (`InvoicePreviewModal.tsx`) renders:
+The invoice preview modal (`InvoicePreviewModal.tsx`) is used from **Invoices** (row preview), **Invoice detail**, and **New / edit invoice** (draft preview). It uses a **`max-h-[90vh]`** flex column so **Close** and **Download PDF** stay visible when the PDF is tall or when project **external links** exist.
 
-- embedded PDF preview
-- a dedicated **External links (open in new tab)** list above the PDF when invoice/project links exist
+Layout (top to bottom):
 
-The extra links list is intentional because browser/PDF-viewer handling of embedded PDF links is inconsistent across environments.
+1. Title bar and hint text (if the invoice has project links, the hint points users to the HTML link list below the PDF for **new-tab** behavior).
+2. **PDF** — `iframe` with a **flex-grown** height (`flex-1 min-h-0`), not `position: absolute`, so embedded PDF link hit areas stay aligned with the viewer.
+3. **Document links** — when `project_external_links` exist, an **`ExternalLinksList`** block **below** the PDF (above the footer) with real `<a target="_blank" rel="noopener noreferrer">` links. Labels match the links under **NOTES** in the PDF.
+
+**Why the HTML list exists:** PDF URI annotations inside an embedded viewer usually **navigate the iframe** (same tab context), not a new tab, and behavior varies by browser. The list under the preview is the supported way to open the same URLs in a **new tab** reliably.
 
 ## Public routes
 

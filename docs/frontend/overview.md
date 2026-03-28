@@ -73,7 +73,7 @@ flowchart TB
 
     subgraph UI["UI components"]
       BADGE["StatusBadge\ncolor-coded invoice status"]
-      PREVIEW["InvoicePreviewModal\nPDF iframe + external links list + download"]
+      PREVIEW["InvoicePreviewModal\nmax-h flex layout · PDF iframe\nlinks below PDF (new tab) · download"]
     end
 
     subgraph State["State management"]
@@ -126,7 +126,9 @@ flowchart TB
   %% Page → Component usage
   INV_DET --> BADGE
   INV_LIST --> BADGE
+  INV_LIST --> PREVIEW
   INV_NEW --> PREVIEW
+  INV_DET --> PREVIEW
   INV_DET --> PDF
   CL_PROF --> BADGE
 ```

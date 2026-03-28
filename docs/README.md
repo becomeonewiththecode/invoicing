@@ -11,9 +11,9 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 | **Tech stack** | [tech-stack.md](tech-stack.md) |
 | **Database** | [database/schema.md](database/schema.md) · [database/diagram.md](database/diagram.md) |
 | **API** | [api/review.md](api/review.md) · [api/reference.md](api/reference.md) |
-| **Architecture** | [architecture.md](architecture.md) — Docker Compose stack, startup sequence, request flow, backup import |
+| **Architecture** | [architecture.md](architecture.md) — Docker Compose stack, startup sequence, request flow, backup import, invoice preview modal |
 | **Backend** | [backend/overview.md](backend/overview.md) |
-| **Frontend** | [frontend/overview.md](frontend/overview.md) · [frontend/routes.md](frontend/routes.md) (routes, client profile, Projects tab, [new invoice + projects](frontend/routes.md#new-invoice-and-related-projects)) |
+| **Frontend** | [frontend/overview.md](frontend/overview.md) · [frontend/routes.md](frontend/routes.md) (routes, client profile, Projects tab, [new invoice + projects](frontend/routes.md#new-invoice-and-related-projects), [invoice preview](frontend/routes.md#invoice-preview-behavior)) |
 | **Central portal** | [frontend/overview.md](frontend/overview.md) · [frontend/routes.md](frontend/routes.md) (main vendor/user app routes) |
 | **Client portal** | [client-portal/overview.md](client-portal/overview.md) · [client-portal/login-and-usage.md](client-portal/login-and-usage.md) |
 | **Admin portal** | [admin/overview.md](admin/overview.md) · [admin/pages.md](admin/pages.md) (per-page reference) |
