@@ -145,26 +145,6 @@ export function PortalProjectDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Documents & links</h2>
 
             <ExternalLinksList links={externalLinksFromProject(q.data)} />
-
-            {q.data.attachments && q.data.attachments.length > 0 && (
-              <div className="mt-5">
-                <p className="text-sm font-medium text-gray-900">Attachments</p>
-                <ul className="mt-2 space-y-1 list-none pl-0">
-                  {q.data.attachments.map((a) => (
-                    <li key={a.id} className="text-sm">
-                      <a
-                        href={a.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sky-700 hover:text-purple-800 hover:underline break-all"
-                      >
-                        {a.file_name || a.file_path}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </section>
         </div>
       )}

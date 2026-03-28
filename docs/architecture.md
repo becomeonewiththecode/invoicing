@@ -193,7 +193,8 @@ sequenceDiagram
     E->>PG: DELETE user's invoices, clients, discount_codes
     E->>PG: DELETE colliding IDs (cross-account)
     E->>PG: UPDATE user profile
-    E->>PG: INSERT clients, discount_codes, invoices, items, reminders
+    E->>PG: INSERT clients; if v2: projects, project_external_links
+    E->>PG: INSERT discount_codes, invoices (with project_id if v2), items, reminders
     E->>PG: COMMIT
     E->>RD: Invalidate revenue cache
     E-->>B: 200 { ok: true }

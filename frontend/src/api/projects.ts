@@ -5,15 +5,6 @@ export interface ProjectMilestone {
   due_date?: string | null;
 }
 
-export interface ProjectAttachment {
-  id: string;
-  file_name: string;
-  file_path: string;
-  file_size_bytes: string;
-  mime_type: string | null;
-  created_at: string;
-}
-
 export interface ProjectExternalLink {
   id: string;
   url: string;
@@ -44,7 +35,6 @@ export interface Project {
   team_members: string[] | null;
   tags: string[] | null;
   notes?: string | null;
-  attachments?: ProjectAttachment[];
   created_at?: string;
   updated_at?: string;
 }
@@ -65,7 +55,6 @@ export interface ProjectPayload {
   teamMembers?: string[];
   tags?: string[];
   notes?: string | null;
-  attachmentUrls?: string[];
 }
 
 export async function getClientProjects(clientId: string): Promise<Project[]> {

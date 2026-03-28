@@ -53,11 +53,13 @@ export async function verifyBackup(snapshotId: string) {
 
     // Basic structural verification
     const valid =
-      data.version === 1 &&
+      (data.version === 1 || data.version === 2) &&
       typeof data.exportedAt === 'string' &&
       data.profile &&
       Array.isArray(data.clients) &&
-      Array.isArray(data.invoices);
+      Array.isArray(data.invoices) &&
+      (data.version !== 2 ||
+        (Array.isArray(data.projects) && Array.isArray(data.project_external_links)));
 
     await pool.query(
       'UPDATE backup_snapshots SET verified = $1, verified_at = NOW() WHERE id = $2',

@@ -332,14 +332,6 @@ router.get('/projects/:projectId', async (req: PortalAuthRequest, res: Response)
     }
     const project = r.rows[0];
 
-    const attachmentsR = await pool.query(
-      `SELECT id, file_name, file_path, file_size_bytes, mime_type, created_at
-       FROM project_attachments
-       WHERE project_id = $1
-       ORDER BY created_at`,
-      [projectId]
-    );
-
     const externalLinksR = await pool.query(
       `SELECT id, url, description, sort_order, created_at
        FROM project_external_links
@@ -350,7 +342,6 @@ router.get('/projects/:projectId', async (req: PortalAuthRequest, res: Response)
 
     res.json({
       ...project,
-      attachments: attachmentsR.rows,
       external_links: externalLinksR.rows,
     });
   } catch (err) {

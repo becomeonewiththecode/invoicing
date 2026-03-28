@@ -150,6 +150,27 @@ export async function ensureSchema(): Promise<void> {
   )`);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_project_external_links_project_id ON project_external_links(project_id)');
 
+  // Legacy: share URLs were stored in project_attachments (file_path). Documents are now project_external_links only.
+  await pool.query(`
+    INSERT INTO project_external_links (project_id, url, description, sort_order, created_at)
+    SELECT
+      pa.project_id,
+      TRIM(pa.file_path),
+      NULLIF(TRIM(pa.file_name), ''),
+      (
+        (SELECT COALESCE(MAX(e.sort_order), -1) FROM project_external_links e WHERE e.project_id = pa.project_id)
+        + ROW_NUMBER() OVER (PARTITION BY pa.project_id ORDER BY pa.created_at)
+      ),
+      pa.created_at
+    FROM project_attachments pa
+    WHERE pa.file_path ~* '^https?://'
+    AND NOT EXISTS (
+      SELECT 1 FROM project_external_links ex
+      WHERE ex.project_id = pa.project_id AND TRIM(ex.url) = TRIM(pa.file_path)
+    )
+  `);
+  await pool.query(`DELETE FROM project_attachments`);
+
   await pool.query(`INSERT INTO project_external_links (project_id, url, description, sort_order)
     SELECT id, TRIM(external_link), NULLIF(TRIM(COALESCE(external_link_description, '')), ''), 0
     FROM projects

@@ -28,60 +28,7 @@ function milestonesToJson(
   );
 }
 
-function fileNameFromUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    const seg = u.pathname.split('/').filter(Boolean).pop();
-    return seg && seg.length > 0 ? seg.slice(0, 255) : u.hostname.slice(0, 255);
-  } catch {
-    return 'attachment';
-  }
-}
-
 type DbExecutor = Pick<Pool | PoolClient, 'query'>;
-
-async function replaceAttachmentUrls(q: DbExecutor, projectId: string, urls: string[]): Promise<void> {
-  await q.query('DELETE FROM project_attachments WHERE project_id = $1', [projectId]);
-  for (const url of urls) {
-    const trimmed = url.trim();
-    if (!trimmed) continue;
-    await q.query(
-      `INSERT INTO project_attachments (project_id, file_name, file_path, file_size_bytes, mime_type)
-       VALUES ($1, $2, $3, 0, 'application/octet-stream')`,
-      [projectId, fileNameFromUrl(trimmed), trimmed]
-    );
-  }
-}
-
-type AttachmentRow = {
-  id: string;
-  file_name: string;
-  file_path: string;
-  file_size_bytes: string;
-  mime_type: string | null;
-  created_at: string;
-};
-
-async function attachAttachmentsToProjects<T extends { id: string }>(projects: T[]): Promise<(T & { attachments: AttachmentRow[] })[]> {
-  if (projects.length === 0) return [];
-  const ids = projects.map((p) => p.id);
-  const att = await pool.query<AttachmentRow & { project_id: string }>(
-    `SELECT project_id, id, file_name, file_path, file_size_bytes, mime_type, created_at
-     FROM project_attachments WHERE project_id = ANY($1::uuid[]) ORDER BY created_at`,
-    [ids]
-  );
-  const byProject = new Map<string, AttachmentRow[]>();
-  for (const row of att.rows) {
-    const { project_id, ...rest } = row;
-    const list = byProject.get(project_id) ?? [];
-    list.push(rest);
-    byProject.set(project_id, list);
-  }
-  return projects.map((p) => ({
-    ...p,
-    attachments: byProject.get(p.id) ?? [],
-  }));
-}
 
 type ExternalLinkRow = {
   id: string;
@@ -133,8 +80,7 @@ async function attachExternalLinksToProjects<T extends { id: string }>(
 }
 
 async function enrichProjectRows<T extends { id: string }>(projects: T[]) {
-  const withAtt = await attachAttachmentsToProjects(projects);
-  return attachExternalLinksToProjects(withAtt);
+  return attachExternalLinksToProjects(projects);
 }
 
 async function fetchProjectEnriched(projectId: string, userId: string) {
@@ -188,7 +134,6 @@ router.post('/:clientId/projects', validate(createProjectSchema), async (req: Au
       teamMembers?: string[];
       tags?: string[];
       notes?: string | null;
-      attachmentUrls?: string[];
     };
 
     const {
@@ -207,7 +152,6 @@ router.post('/:clientId/projects', validate(createProjectSchema), async (req: Au
       teamMembers,
       tags,
       notes,
-      attachmentUrls,
     } = body;
 
     await db.query('BEGIN');
@@ -238,9 +182,6 @@ router.post('/:clientId/projects', validate(createProjectSchema), async (req: Au
     );
     const projectId = ins.rows[0].id as string;
     await replaceExternalLinks(db, projectId, externalLinks);
-    if (attachmentUrls?.length) {
-      await replaceAttachmentUrls(db, projectId, attachmentUrls);
-    }
     await db.query('COMMIT');
 
     const row = await fetchProjectEnriched(projectId, req.userId!);
@@ -333,10 +274,9 @@ router.put('/:clientId/projects/:projectId', validate(updateProjectSchema), asyn
       values.push(body.tags);
     }
 
-    const hasAttachmentUrls = Object.prototype.hasOwnProperty.call(body, 'attachmentUrls');
     const hasExternalLinks = Object.prototype.hasOwnProperty.call(body, 'externalLinks');
 
-    if (setClauses.length === 0 && !hasAttachmentUrls && !hasExternalLinks) {
+    if (setClauses.length === 0 && !hasExternalLinks) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
@@ -347,13 +287,8 @@ router.put('/:clientId/projects/:projectId', validate(updateProjectSchema), asyn
         `UPDATE projects SET ${setClauses.join(', ')} WHERE id = $${i++} AND user_id = $${i}`,
         values
       );
-    } else if (hasAttachmentUrls || hasExternalLinks) {
+    } else if (hasExternalLinks) {
       await pool.query(`UPDATE projects SET updated_at = NOW() WHERE id = $1 AND user_id = $2`, [projectId, req.userId]);
-    }
-
-    if (hasAttachmentUrls) {
-      const urls = (body.attachmentUrls as string[] | undefined) ?? [];
-      await replaceAttachmentUrls(pool, projectId, urls);
     }
 
     if (hasExternalLinks) {

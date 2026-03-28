@@ -162,8 +162,6 @@ function formToPayload(f: FormState, requireName: boolean): ProjectPayload | nul
     teamMembers: parseCommaList(f.teamMembers),
     tags: parseCommaList(f.tags),
     notes: f.notes.trim() || null,
-    /** No attachment UI — clear any legacy rows on save */
-    attachmentUrls: [],
   };
 }
 

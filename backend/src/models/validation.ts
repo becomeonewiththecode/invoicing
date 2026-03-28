@@ -132,8 +132,6 @@ export const createProjectSchema = z.object({
   teamMembers: z.array(z.string().max(255)).max(100).optional(),
   tags: z.array(z.string().max(100)).max(50).optional(),
   notes: z.string().max(10000).optional().nullable(),
-  /** Share links only (Google Docs/Drive or Microsoft 365); stored as rows, no server files */
-  attachmentUrls: z.array(projectAttachmentUrlSchema).max(50).optional(),
 });
 
 export const updateProjectSchema = createProjectSchema.partial();

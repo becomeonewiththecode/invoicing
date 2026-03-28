@@ -288,7 +288,7 @@ Nested under each client. **Authentication:** Bearer JWT required. All routes ve
 
 ### GET /clients/:clientId/projects
 
-List all projects for the client. Response is a JSON array of project objects, each including **`attachments`** (rows from `project_attachments`) and **`external_links`** (rows from `project_external_links`).
+List all projects for the client. Response is a JSON array of project objects, each including **`external_links`** (rows from `project_external_links`). Document links are share URLs only (Google Docs/Drive or Microsoft 365); the app does not store project files on the server.
 
 ### POST /clients/:clientId/projects
 
@@ -302,7 +302,7 @@ Create a project. **Request body (JSON, camelCase):**
 | endDate | string \| null | No | `YYYY-MM-DD` |
 | status | string | No | Default `not_started`; values: `not_started`, `planning`, `in_progress`, `on_hold`, `completed`, `cancelled` |
 | priority | string | No | Default `medium`; values: `low`, `medium`, `high`, `urgent` |
-| externalLinks | array | No | Up to 20 entries: `{ url, description? }`. Each **url** must be a **Google Docs/Drive** or **Microsoft 365** share link (same rules as `attachmentUrls`). Stored in `project_external_links`; replaces existing rows when sent on create/update. |
+| externalLinks | array | No | Up to 20 entries: `{ url, description? }`. Each **url** must be a **Google Docs/Drive** or **Microsoft 365** share link (see validation in `backend/src/models/validation.ts`). Stored in `project_external_links`; on create/update, sending this field **replaces** all existing link rows for the project. |
 | budget | number \| null | No | Non-negative |
 | hours | number \| null | No | Non-negative; use with `hoursIsMaximum` |
 | hoursIsMaximum | boolean | No | Default `false`. If `true`, `hours` is a **maximum** (cap); if `false`, treat as estimate / planned / non-cap |
@@ -311,23 +311,22 @@ Create a project. **Request body (JSON, camelCase):**
 | teamMembers | string[] | No | Stored as PostgreSQL `text[]` |
 | tags | string[] | No | Stored as PostgreSQL `text[]` |
 | notes | string \| null | No | |
-| attachmentUrls | string[] | No | **Share links only** — each URL must be a **Google Docs/Drive** or **Microsoft 365** (SharePoint, OneDrive, Office online, etc.) link. Stored as rows in `project_attachments` (no server-side file storage). The web app sends **`attachmentUrls: []`** on create/update so any legacy `project_attachments` rows are cleared. Other API clients may still set `attachmentUrls` explicitly. |
 
-**Response (201):** Created project including `attachments` and `external_links`.
+**Response (201):** Created project including `external_links`.
 
 ### GET /clients/:clientId/projects/:projectId
 
-Get one project (must belong to `:clientId`). **Response (200):** Project object with `attachments` and `external_links`.
+Get one project (must belong to `:clientId`). **Response (200):** Project object with `external_links`.
 
 ### PUT /clients/:clientId/projects/:projectId
 
-Partial update. Same fields as POST, all optional. If **`attachmentUrls`** is present in the body, existing attachment rows for that project are **replaced** with the new list. If **`externalLinks`** is present, existing **`project_external_links`** rows are **replaced** with the new list.
+Partial update. Same fields as POST, all optional. If **`externalLinks`** is present, existing **`project_external_links`** rows are **replaced** with the new list.
 
-**Response (200):** Updated project with `attachments` and `external_links`.
+**Response (200):** Updated project with `external_links`.
 
 ### DELETE /clients/:clientId/projects/:projectId
 
-Delete the project (cascades attachment and external-link rows). **Response (204):** No body.
+Delete the project (cascades **`project_external_links`**). **Response (204):** No body.
 
 ---
 
@@ -587,11 +586,16 @@ Download a JSON backup of the authenticated user’s data.
 
 **Response (200):** `Content-Type: application/json; charset=utf-8`, `Content-Disposition: attachment` with a dated filename (e.g. `invoicing-backup-2026-03-21.json`).
 
-**Payload shape (version 1):** `version` (number, currently `1`), `exportedAt` (ISO timestamp), `profile` (user settings columns as stored in the DB), `clients`, `discount_codes`, `invoices` (each invoice includes nested `items` and `payment_reminders`). Login credentials are **not** included.
+**Payload shape:**
+
+- **`version`: `1`** — `exportedAt`, `profile`, `clients`, `discount_codes`, `invoices` (each invoice includes nested `items` and `payment_reminders`). Projects are **not** included; restored invoices get `project_id = NULL`.
+- **`version`: `2`** (current export) — Same entities plus **`projects`**, **`project_external_links`**, and invoice rows retain **`project_id`** when present. Document links are only in `project_external_links` (no separate attachment list).
+
+Login credentials are **not** included in any version.
 
 ### POST /data/import
 
-Replace **all** of the user’s clients, discount codes, and invoices (including line items and payment reminders) with the contents of a valid export file, and update the user row from `profile` in the file.
+Replace **all** of the user’s clients, discount codes, and invoices (including line items and payment reminders) with the contents of a valid export file, update the user row from `profile` in the file, and for **`version` 2** also replace **projects** and **project external links**. For **`version` 1**, existing projects for that user are removed indirectly when clients are replaced (cascade) and invoice `project_id` is not restored.
 
 **Rate limit:** 3 requests per minute per IP.
 
@@ -599,10 +603,21 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 
 ```json
 {
-  "data": { "version": 1, "exportedAt": "...", "profile": {}, "clients": [], "discount_codes": [], "invoices": [] },
+  "data": {
+    "version": 2,
+    "exportedAt": "...",
+    "profile": {},
+    "clients": [],
+    "discount_codes": [],
+    "projects": [],
+    "project_external_links": [],
+    "invoices": []
+  },
   "confirmReplace": true
 }
 ```
+
+Use **`version`: `1`** with the older shape (no `projects` / `project_external_links`) for legacy files; the server still accepts them.
 
 `confirmReplace` must be the literal boolean **`true`** (safety guard for clients and scripts).
 
@@ -617,10 +632,11 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 
 **Errors:** **400** if the body fails validation. Validation includes:
 
-- Schema check: each client, discount code, invoice, line item, and payment reminder is validated for required fields, correct types, and valid UUIDs. Numeric fields (amounts, rates, quantities) accept both numbers and numeric strings to handle PostgreSQL `DECIMAL` column serialisation.
+- Schema check: each client, discount code, invoice, line item, and payment reminder is validated for required fields, correct types, and valid UUIDs. For **`version` 2**, `projects` and `project_external_links` are validated too (each link’s `project_id` must exist in the backup’s `projects`; each invoice `project_id`, if set, must reference a project in the backup). Numeric fields (amounts, rates, quantities) accept both numbers and numeric strings to handle PostgreSQL `DECIMAL` column serialisation.
 - Referential integrity: every invoice's `client_id` must reference a client present in the backup's `clients` array.
 - Duplicate detection: no two records of the same entity type may share an `id`.
-- `version` must be `1`; `confirmReplace` must be `true`.
+- `version` must be **`1`** or **`2`**; `confirmReplace` must be `true`.
+- **Legacy v2 files** may still include an optional **`project_attachments`** array (older exports). On import, rows whose `file_path` is an `http(s)` URL are merged into **`project_external_links`**; the app no longer persists document metadata in `project_attachments`.
 
 **500** on database or server errors (the import runs inside a transaction and rolls back on failure). All validation failures are logged to the server console with a `Data import validation error:` prefix.
 
@@ -629,6 +645,7 @@ Replace **all** of the user’s clients, discount codes, and invoices (including
 - Before the import transaction, the server runs **`ensureSchema()`** (same as on API startup) so missing `invoices` columns such as `sent_at` and `share_token` are added when possible. See [database schema — Runtime schema upgrades](../database/schema.md#runtime-schema-upgrades).
 - The import handles **cross-account ID collisions**: if the backup's UUIDs already exist in the database (e.g. restoring a backup exported from a different account), those rows are deleted by ID before inserting the backup data.
 - Import does not upload logo files; only `logo_url` (or equivalent profile field) is restored if present. Revenue cache in Redis is invalidated after a successful import.
+- **`version` 2** restores portal-related columns on **`clients`** when present in the backup.
 
 ---
 

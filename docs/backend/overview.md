@@ -22,7 +22,7 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `routes/dataPort.ts` | `GET /export`, `POST /import` — authenticated JSON backup / restore; numeric fields use `z.coerce.number()` to accept both numbers and DB string decimals; validation failures logged to console |
 | `routes/tickets.ts` | User-facing support ticket submission |
 | `routes/admin/` | Admin panel routes: dashboard, users, moderation, tickets, health, backups, rate limits — all require JWT + admin role |
-| `services/dataPort.ts` | Builds export payload (batched queries); calls `ensureSchema()` then transactional replace on import with strict Zod validation, referential integrity, duplicate-ID checks, and cross-account ID collision removal |
+| `services/dataPort.ts` | Builds export payload (batched queries): **v2** includes `projects`, `project_external_links`, and invoice `project_id`; **v1** omits projects. Import normalizes legacy backup `project_attachments` (http URLs) into links. Calls `ensureSchema()` then transactional replace with Zod validation, referential integrity, duplicate-ID checks, and cross-account ID collision removal |
 | `services/mail.ts` | Nodemailer SMTP transport; resolves config from per-user DB settings then env vars as fallback; used by send-to-company and SMTP test |
 | `services/invoiceEmailHtml.ts` | HTML + plain-text email templates for invoice summaries |
 | `services/adminDashboard.ts` | Admin stats, user growth, user list/detail, role updates |
