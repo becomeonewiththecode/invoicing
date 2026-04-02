@@ -6,7 +6,7 @@ import { getAdminTickets } from '../../api/admin';
 const statusColors: Record<string, string> = {
   open: 'bg-green-100 text-green-700',
   in_progress: 'bg-blue-100 text-blue-700',
-  closed: 'bg-gray-100 text-gray-700',
+  closed: 'bg-gray-100 text-text-secondary',
 };
 
 const priorityColors: Record<string, string> = {
@@ -34,7 +34,7 @@ export function AdminTicketsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Support Tickets</h1>
+      <h1 className="text-2xl font-bold text-text mb-6">Support Tickets</h1>
 
       <div className="flex flex-wrap gap-3 mb-4">
         <input
@@ -42,12 +42,12 @@ export function AdminTicketsPage() {
           placeholder="Search..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="rounded-lg border border-input-border px-4 py-2 text-sm focus:border-focus focus:outline-none focus:ring-1 focus:ring-focus"
         />
         <select
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className="rounded-lg border border-input-border px-3 py-2 text-sm"
         >
           <option value="">All Statuses</option>
           <option value="open">Open</option>
@@ -57,7 +57,7 @@ export function AdminTicketsPage() {
         <select
           value={priority}
           onChange={(e) => { setPriority(e.target.value); setPage(1); }}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className="rounded-lg border border-input-border px-3 py-2 text-sm"
         >
           <option value="">All Priorities</option>
           <option value="low">Low</option>
@@ -67,29 +67,29 @@ export function AdminTicketsPage() {
         </select>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-surface rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-surface-alt">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Updated</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Subject</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">User</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Priority</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Updated</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-border">
             {isPending && (
-              <tr><td colSpan={5} className="px-6 py-4 text-center text-gray-500">Loading...</td></tr>
+              <tr><td colSpan={5} className="px-6 py-4 text-center text-text-muted">Loading...</td></tr>
             )}
             {data?.data.map((ticket) => (
-              <tr key={ticket.id} className="hover:bg-gray-50">
+              <tr key={ticket.id} className="hover:bg-surface-alt">
                 <td className="px-6 py-4 text-sm">
-                  <Link to={`/admin/tickets/${ticket.id}`} className="text-indigo-600 hover:text-indigo-800">
+                  <Link to={`/admin/tickets/${ticket.id}`} className="text-primary hover:text-primary-hover">
                     {ticket.subject}
                   </Link>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-700">{ticket.user_email}</td>
+                <td className="px-6 py-4 text-sm text-text-secondary">{ticket.user_email}</td>
                 <td className="px-6 py-4 text-sm">
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[ticket.status] || ''}`}>
                     {ticket.status.replace('_', ' ')}
@@ -100,18 +100,18 @@ export function AdminTicketsPage() {
                     {ticket.priority}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{new Date(ticket.updated_at).toLocaleDateString()}</td>
+                <td className="px-6 py-4 text-sm text-text-muted">{new Date(ticket.updated_at).toLocaleDateString()}</td>
               </tr>
             ))}
             {data && data.data.length === 0 && (
-              <tr><td colSpan={5} className="px-6 py-4 text-center text-gray-500">No tickets found</td></tr>
+              <tr><td colSpan={5} className="px-6 py-4 text-center text-text-muted">No tickets found</td></tr>
             )}
           </tbody>
         </table>
 
         {data && data.pagination.total > data.pagination.limit && (
-          <div className="flex items-center justify-between border-t border-gray-200 px-6 py-3">
-            <p className="text-sm text-gray-500">Page {page} of {Math.ceil(data.pagination.total / data.pagination.limit)}</p>
+          <div className="flex items-center justify-between border-t border-border px-6 py-3">
+            <p className="text-sm text-text-muted">Page {page} of {Math.ceil(data.pagination.total / data.pagination.limit)}</p>
             <div className="flex gap-2">
               <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border px-3 py-1 text-sm disabled:opacity-50">Previous</button>
               <button disabled={page >= Math.ceil(data.pagination.total / data.pagination.limit)} onClick={() => setPage(page + 1)} className="rounded border px-3 py-1 text-sm disabled:opacity-50">Next</button>

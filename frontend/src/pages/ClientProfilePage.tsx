@@ -32,8 +32,8 @@ const STATS_ROWS: {
   totalKey: keyof ClientInvoiceStats;
   color: string;
 }[] = [
-  { label: 'Draft', countKey: 'draft_count', totalKey: 'draft_total', color: 'text-gray-700' },
-  { label: 'Sent', countKey: 'sent_count', totalKey: 'sent_total', color: 'text-blue-600' },
+  { label: 'Draft', countKey: 'draft_count', totalKey: 'draft_total', color: 'text-text-secondary' },
+  { label: 'Sent', countKey: 'sent_count', totalKey: 'sent_total', color: 'text-primary' },
   { label: 'Paid', countKey: 'paid_count', totalKey: 'paid_total', color: 'text-green-600' },
   { label: 'Late', countKey: 'late_count', totalKey: 'late_total', color: 'text-red-600' },
 ];
@@ -168,14 +168,14 @@ export function ClientProfilePage() {
   };
 
   if (!clientId) {
-    return <p className="text-gray-500">Missing client.</p>;
+    return <p className="text-text-muted">Missing client.</p>;
   }
 
   if (clientQuery.isError) {
     return (
       <div className="text-center py-8">
         <p className="text-red-600 mb-4">Client not found.</p>
-        <Link to="/clients" className="text-blue-600 hover:underline">
+        <Link to="/clients" className="text-primary hover:underline">
           Back to clients
         </Link>
       </div>
@@ -183,7 +183,7 @@ export function ClientProfilePage() {
   }
 
   if (clientQuery.isPending || !clientQuery.data) {
-    return <p className="text-gray-400 py-8 text-center">Loading client…</p>;
+    return <p className="text-text-faint py-8 text-center">Loading client…</p>;
   }
 
   const client = clientQuery.data;
@@ -193,16 +193,16 @@ export function ClientProfilePage() {
     <div className="space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link to="/clients" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link to="/clients" className="text-sm text-text-muted hover:text-text-secondary">
             &larr; Back to clients
           </Link>
           <h1 className="text-2xl font-bold mt-2">{formatClientLabel(client)}</h1>
-          <p className="text-sm text-gray-500 mt-1">Customer # {client.customer_number ?? '—'}</p>
+          <p className="text-sm text-text-muted mt-1">Customer # {client.customer_number ?? '—'}</p>
         </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Link
             to={`/invoices?clientId=${encodeURIComponent(clientId)}`}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium text-center sm:w-auto"
+            className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors text-sm font-medium text-center sm:w-auto"
           >
             Full invoice list
           </Link>
@@ -245,7 +245,7 @@ export function ClientProfilePage() {
             <button
               type="button"
               onClick={() => setDeleteConfirm(null)}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+              className="px-4 py-2 border border-input-border rounded-lg hover:bg-surface-alt text-sm"
             >
               Cancel
             </button>
@@ -254,7 +254,7 @@ export function ClientProfilePage() {
       )}
 
       {/* Tab bar */}
-      <div className="-mt-4 flex overflow-x-auto border-b border-gray-200">
+      <div className="-mt-4 flex overflow-x-auto border-b border-border">
         {([
           { key: 'details' as ProfileTab, label: 'Details' },
           { key: 'invoices' as ProfileTab, label: 'Invoices' },
@@ -273,8 +273,8 @@ export function ClientProfilePage() {
             }}
             className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-secondary hover:border-input-border'
             }`}
           >
             {tab.label}
@@ -285,43 +285,43 @@ export function ClientProfilePage() {
       {/* Details tab */}
       {activeTab === 'details' && (
         <section id="details">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Client details</h2>
-          <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-text mb-4">Client details</h2>
+          <form onSubmit={handleSubmit(onSubmit)} className="bg-surface rounded-xl shadow-sm border border-border p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customer #</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Customer #</label>
                 <input
                   readOnly
                   value={client.customer_number ?? '—'}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-surface-alt text-text-secondary"
                 />
               </div>
               <div />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                <input {...register('name', { required: 'Name is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                <label className="block text-sm font-medium text-text-secondary mb-1">Name *</label>
+                <input {...register('name', { required: 'Name is required' })} className="w-full px-3 py-2 border border-input-border rounded-lg" />
                 {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input type="email" {...register('email', { required: 'Email is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                <label className="block text-sm font-medium text-text-secondary mb-1">Email *</label>
+                <input type="email" {...register('email', { required: 'Email is required' })} className="w-full px-3 py-2 border border-input-border rounded-lg" />
                 {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input {...register('phone')} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                <label className="block text-sm font-medium text-text-secondary mb-1">Phone</label>
+                <input {...register('phone')} className="w-full px-3 py-2 border border-input-border rounded-lg" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                <input {...register('company')} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                <label className="block text-sm font-medium text-text-secondary mb-1">Company</label>
+                <input {...register('company')} className="w-full px-3 py-2 border border-input-border rounded-lg" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <input {...register('address')} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                <label className="block text-sm font-medium text-text-secondary mb-1">Address</label>
+                <input {...register('address')} className="w-full px-3 py-2 border border-input-border rounded-lg" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Default discount code</label>
-                <select {...register('discountCode')} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                <label className="block text-sm font-medium text-text-secondary mb-1">Default discount code</label>
+                <select {...register('discountCode')} className="w-full px-3 py-2 border border-input-border rounded-lg bg-surface">
                   <option value="">No discount</option>
                   {client.discount_code?.trim() &&
                     !(discounts ?? []).some((d) => d.is_active && d.code === client.discount_code) && (
@@ -341,30 +341,30 @@ export function ClientProfilePage() {
                 {(discounts ?? []).filter((d) => d.is_active).length === 0 && (
                   <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mt-2">
                     No discount codes yet.{' '}
-                    <Link to="/discounts" className="text-blue-600 hover:underline font-medium">
+                    <Link to="/discounts" className="text-primary hover:underline font-medium">
                       Create a code
                     </Link>
                     .
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-text-muted mt-1">
                   Codes are managed in{' '}
-                  <Link to="/discounts" className="text-blue-600 hover:underline">
+                  <Link to="/discounts" className="text-primary hover:underline">
                     Discount codes
                   </Link>
                   .
                 </p>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea {...register('notes')} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                <label className="block text-sm font-medium text-text-secondary mb-1">Notes</label>
+                <textarea {...register('notes')} rows={2} className="w-full px-3 py-2 border border-input-border rounded-lg" />
               </div>
             </div>
             <div className="flex justify-end mt-4">
               <button
                 type="submit"
                 disabled={updateMutation.isPending}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50"
               >
                 {updateMutation.isPending ? 'Saving…' : 'Save changes'}
               </button>
@@ -378,30 +378,30 @@ export function ClientProfilePage() {
         <div className="space-y-10">
           {/* Invoice status */}
           <section id="invoice-status">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice status</h2>
-            <p className="text-sm text-gray-600 mb-4">Counts and totals for this client only.</p>
-            {statsQuery.isPending && <p className="text-gray-400">Loading stats…</p>}
+            <h2 className="text-lg font-semibold text-text mb-4">Invoice status</h2>
+            <p className="text-sm text-text-secondary mb-4">Counts and totals for this client only.</p>
+            {statsQuery.isPending && <p className="text-text-faint">Loading stats…</p>}
             {statsQuery.isError && <p className="text-red-600">Could not load invoice stats.</p>}
             {s && (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                  <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                    <p className="text-sm font-medium text-gray-500">Total revenue</p>
+                  <div className="bg-surface rounded-xl border border-border p-5 shadow-sm">
+                    <p className="text-sm font-medium text-text-muted">Total revenue</p>
                     <p className="text-2xl font-bold tabular-nums mt-1 text-green-700">{money(s.total_revenue)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                    <p className="text-sm font-medium text-gray-500">Total tax collected</p>
+                  <div className="bg-surface rounded-xl border border-border p-5 shadow-sm">
+                    <p className="text-sm font-medium text-text-muted">Total tax collected</p>
                     <p className="text-2xl font-bold tabular-nums mt-1 text-amber-600">{money(s.total_tax)}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {STATS_ROWS.map((row) => (
-                    <div key={row.label} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                      <p className="text-sm font-medium text-gray-500">{row.label}</p>
+                    <div key={row.label} className="bg-surface rounded-xl border border-border p-5 shadow-sm">
+                      <p className="text-sm font-medium text-text-muted">{row.label}</p>
                       <p className={`text-2xl font-bold tabular-nums mt-1 ${row.color}`}>
                         {Number(s[row.countKey] ?? 0)} invoices
                       </p>
-                      <p className="text-sm text-gray-600 mt-2 tabular-nums">Total {money(s[row.totalKey])}</p>
+                      <p className="text-sm text-text-secondary mt-2 tabular-nums">Total {money(s[row.totalKey])}</p>
                     </div>
                   ))}
                 </div>
@@ -411,51 +411,51 @@ export function ClientProfilePage() {
 
           {/* Invoice list */}
           <section id="invoices">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoices</h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <h2 className="text-lg font-semibold text-text mb-4">Invoices</h2>
+            <p className="text-sm text-text-secondary mb-4">
               Open an invoice or use{' '}
-              <Link to={`/invoices?clientId=${encodeURIComponent(clientId)}`} className="text-blue-600 hover:underline font-medium">
+              <Link to={`/invoices?clientId=${encodeURIComponent(clientId)}`} className="text-primary hover:underline font-medium">
                 filtered list
               </Link>{' '}
               for exports and pagination.
             </p>
-            {invoicesQuery.isPending && <p className="text-gray-400">Loading invoices…</p>}
+            {invoicesQuery.isPending && <p className="text-text-faint">Loading invoices…</p>}
             {invoicesQuery.isError && <p className="text-red-600">Could not load invoices.</p>}
             {invoicesQuery.data && invoicesQuery.data.data.length === 0 && (
-              <p className="text-gray-500 py-4">No invoices for this client yet.</p>
+              <p className="text-text-muted py-4">No invoices for this client yet.</p>
             )}
             {invoicesQuery.data && invoicesQuery.data.data.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-surface-alt border-b">
                     <tr>
-                      <th className="text-left px-4 py-3 font-medium text-gray-500">Invoice #</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-500">Due</th>
-                      <th className="text-right px-4 py-3 font-medium text-gray-500">Revenue</th>
-                      <th className="text-right px-4 py-3 font-medium text-gray-500">Tax</th>
-                      <th className="text-right px-4 py-3 font-medium text-gray-500">Total</th>
+                      <th className="text-left px-4 py-3 font-medium text-text-muted">Invoice #</th>
+                      <th className="text-left px-4 py-3 font-medium text-text-muted">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-text-muted">Due</th>
+                      <th className="text-right px-4 py-3 font-medium text-text-muted">Revenue</th>
+                      <th className="text-right px-4 py-3 font-medium text-text-muted">Tax</th>
+                      <th className="text-right px-4 py-3 font-medium text-text-muted">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {invoicesQuery.data.data.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-gray-50">
+                      <tr key={inv.id} className="hover:bg-surface-alt">
                         <td className="px-4 py-3">
-                          <Link to={`/invoices/${inv.id}`} className="font-medium text-blue-600 hover:text-blue-800 hover:underline">
+                          <Link to={`/invoices/${inv.id}`} className="font-medium text-primary hover:text-primary-hover hover:underline">
                             {inv.invoice_number}
                           </Link>
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={inv.status} />
                         </td>
-                        <td className="px-4 py-3 text-gray-600">{inv.due_date?.slice(0, 10) ?? '—'}</td>
+                        <td className="px-4 py-3 text-text-secondary">{inv.due_date?.slice(0, 10) ?? '—'}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{money(String(Number(inv.total) - Number(inv.tax_amount)))}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{money(String(inv.tax_amount))}</td>
                         <td className="px-4 py-3 text-right tabular-nums font-medium">{money(String(inv.total))}</td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 border-t font-semibold">
+                  <tfoot className="bg-surface-alt border-t font-semibold">
                     <tr>
                       <td className="px-4 py-3" colSpan={3}>Totals</td>
                       <td className="px-4 py-3 text-right tabular-nums">
@@ -485,11 +485,11 @@ export function ClientProfilePage() {
 
       {activeTab === 'portal' && (
         <section id="portal">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Client portal</h2>
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 space-y-4">
-            <p className="text-sm text-gray-600">
-              Clients open <span className="font-medium text-gray-800">/portal</span> or{' '}
-              <span className="font-medium text-gray-800">/client-portal</span> and sign in with the access link
+          <h2 className="text-lg font-semibold text-text mb-4">Client portal</h2>
+          <div className="bg-surface-alt rounded-xl border border-border p-6 space-y-4">
+            <p className="text-sm text-text-secondary">
+              Clients open <span className="font-medium text-text">/portal</span> or{' '}
+              <span className="font-medium text-text">/client-portal</span> and sign in with the access link
               and password below. Draft invoices are hidden; they can view invoices and projects.
             </p>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -512,21 +512,21 @@ export function ClientProfilePage() {
                   });
                 }}
                 disabled={portalMutation.isPending}
-                className="rounded border-gray-300"
+                className="rounded border-input-border"
               />
-              <span className="text-sm font-medium text-gray-800">Enable client portal</span>
+              <span className="text-sm font-medium text-text">Enable client portal</span>
             </label>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Portal password</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Portal password</label>
               <input
                 type="password"
                 value={portalPassword}
                 onChange={(e) => setPortalPassword(e.target.value)}
                 placeholder={client.portal_has_password ? 'New password (optional)' : 'Required when enabling'}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg max-w-md bg-white"
+                className="w-full px-3 py-2 border border-input-border rounded-lg max-w-md bg-surface"
                 autoComplete="new-password"
               />
-              <span className="text-xs text-gray-500 mt-1 block">
+              <span className="text-xs text-text-muted mt-1 block">
                 At least 8 characters. Leave blank to keep the current password if the portal is already enabled.
               </span>
             </div>
@@ -544,7 +544,7 @@ export function ClientProfilePage() {
                     ...(portalPassword.trim() ? { password: portalPassword.trim() } : {}),
                   });
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 text-sm font-medium"
               >
                 Save portal password
               </button>
@@ -562,25 +562,31 @@ export function ClientProfilePage() {
             </div>
             {client.portal_enabled && client.portal_token && (
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-1">Sign-in link</p>
-                <div className="flex flex-col sm:flex-row gap-2 items-start">
-                  <code className="text-xs text-gray-800 bg-white border border-gray-200 rounded px-2 py-1.5 break-all max-w-full flex-1">
+                <p className="text-sm font-medium text-text-secondary mb-1">Sign-in link</p>
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={`${window.location.origin}/portal/login?token=${client.portal_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline bg-surface border border-border rounded px-2 py-1.5 break-all flex-1"
+                  >
                     {`${window.location.origin}/portal/login?token=${client.portal_token}`}
-                  </code>
+                  </a>
                   <button
                     type="button"
                     onClick={() => {
-                      void navigator.clipboard.writeText(
-                        `${window.location.origin}/portal/login?token=${client.portal_token}`
+                      const url = `${window.location.origin}/portal/login?token=${client.portal_token}`;
+                      navigator.clipboard.writeText(url).then(
+                        () => toast.success('Copied'),
+                        () => toast.error('Failed to copy')
                       );
-                      toast.success('Copied');
                     }}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 shrink-0 bg-white"
+                    className="px-3 py-1.5 text-sm border border-input-border rounded-lg hover:bg-surface-alt shrink-0 bg-surface"
                   >
                     Copy
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-text-muted mt-2">
                   Clients can turn on two-factor authentication in the portal under Security after they sign in.
                 </p>
               </div>

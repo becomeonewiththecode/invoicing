@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { resetAdminPassword } from '../../api/admin';
+import { ThemePickerPanel } from '../../components/ThemePickerPanel';
 import { useAuthStore } from '../../stores/authStore';
 
 interface PasswordForm {
@@ -36,6 +37,11 @@ export function AdminSettingsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Settings</h1>
+
+      <ThemePickerPanel
+        description="Color theme for the admin panel, main app, and client portal in this browser."
+        className="max-w-2xl mb-8"
+      />
 
       <div className="bg-white rounded-lg shadow p-6 max-w-lg">
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Reset Password</h2>

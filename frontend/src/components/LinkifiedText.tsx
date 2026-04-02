@@ -18,7 +18,7 @@ function LinkifiedLine({ line }: { line: string }) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-blue-600 hover:underline break-all"
+        className="text-primary hover:underline break-all"
       >
         {url}
       </a>

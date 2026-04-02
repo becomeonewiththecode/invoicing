@@ -119,31 +119,31 @@ export function InvoicesPage() {
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold">Invoices</h1>
         <div className="flex flex-wrap gap-2 sm:gap-3">
-          <button onClick={handleExport} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+          <button onClick={handleExport} className="px-4 py-2 border border-input-border rounded-lg hover:bg-surface-alt transition-colors">
             Export CSV
           </button>
           <button
             type="button"
             onClick={() => setFilterPickerOpen((prev) => !prev)}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 border border-input-border rounded-lg hover:bg-surface-alt transition-colors"
           >
             Filter by customer
           </button>
-          <Link to="/invoices/new" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <Link to="/invoices/new" className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors">
             Create invoice
           </Link>
         </div>
       </div>
 
       {filterPickerOpen && (
-        <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[220px] flex-1">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Customer</label>
+              <label className="mb-1 block text-sm font-medium text-text-secondary">Customer</label>
               <select
                 value={selectedClientId}
                 onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-input-border px-3 py-2 text-sm"
               >
                 <option value="">All customers</option>
                 {clientsQuery.data?.data.map((client) => (
@@ -159,7 +159,7 @@ export function InvoicesPage() {
             <button
               type="button"
               onClick={applySelectedClientFilter}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
+              className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-hover text-sm font-medium"
             >
               Apply filter
             </button>
@@ -169,7 +169,7 @@ export function InvoicesPage() {
                 clearClientFilter();
                 setSelectedClientId('');
               }}
-              className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-sm"
+              className="px-4 py-2 rounded-lg border border-input-border hover:bg-surface-alt text-sm"
             >
               Clear
             </button>
@@ -187,22 +187,22 @@ export function InvoicesPage() {
       )}
 
       {clientIdFilter && filterClient && !filterClientMissing && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg text-sm">
-          <p className="text-gray-800">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-primary-light border border-primary-light-border rounded-lg text-sm">
+          <p className="text-text">
             Showing invoices for{' '}
             <span className="font-semibold">{formatClientLabel(filterClient)}</span>
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Link
               to={`/clients/${encodeURIComponent(clientIdFilter)}#invoice-status`}
-              className="text-blue-700 font-medium hover:underline"
+              className="text-primary font-medium hover:underline"
             >
               Client profile
             </Link>
             <button
               type="button"
               onClick={clearClientFilter}
-              className="text-blue-700 font-medium hover:underline"
+              className="text-primary font-medium hover:underline"
             >
               Show all invoices
             </button>
@@ -210,15 +210,15 @@ export function InvoicesPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-sm overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-surface-alt border-b">
             <tr>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Invoice #</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Client</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Status</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Due Date</th>
-              <th className="text-right px-6 py-3 text-sm font-medium text-gray-500">Total</th>
+              <th className="text-left px-6 py-3 text-sm font-medium text-text-muted">Invoice #</th>
+              <th className="text-left px-6 py-3 text-sm font-medium text-text-muted">Client</th>
+              <th className="text-left px-6 py-3 text-sm font-medium text-text-muted">Status</th>
+              <th className="text-left px-6 py-3 text-sm font-medium text-text-muted">Due Date</th>
+              <th className="text-right px-6 py-3 text-sm font-medium text-text-muted">Total</th>
               <th className="px-6 py-3"></th>
             </tr>
           </thead>
@@ -226,16 +226,16 @@ export function InvoicesPage() {
             {invoicesError ? (
               <tr><td colSpan={6} className="text-center py-8 text-red-600">Could not load invoices.</td></tr>
             ) : showLoading ? (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={6} className="text-center py-8 text-text-faint">Loading...</td></tr>
             ) : data?.data.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-400">No invoices found</td></tr>
+              <tr><td colSpan={6} className="text-center py-8 text-text-faint">No invoices found</td></tr>
             ) : (
               data?.data.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/invoices/${invoice.id}`)}>
+                <tr key={invoice.id} className="hover:bg-surface-alt cursor-pointer" onClick={() => navigate(`/invoices/${invoice.id}`)}>
                   <td className="px-6 py-4 font-medium">{invoice.invoice_number}</td>
-                  <td className="px-6 py-4 text-gray-600">{formatInvoiceClientLabel(invoice)}</td>
+                  <td className="px-6 py-4 text-text-secondary">{formatInvoiceClientLabel(invoice)}</td>
                   <td className="px-6 py-4"><StatusBadge status={invoice.status} /></td>
-                  <td className="px-6 py-4 text-gray-600">{invoice.due_date}</td>
+                  <td className="px-6 py-4 text-text-secondary">{invoice.due_date}</td>
                   <td className="px-6 py-4 text-right font-medium">${Number(invoice.total).toFixed(2)}</td>
                   <td className="px-6 py-4 text-right space-x-3 whitespace-nowrap">
                     <button
@@ -244,7 +244,7 @@ export function InvoicesPage() {
                         e.stopPropagation();
                         setPreviewId(invoice.id);
                       }}
-                      className="text-gray-700 hover:text-gray-900 text-sm font-medium"
+                      className="text-text-secondary hover:text-text text-sm font-medium"
                     >
                       Preview
                     </button>
@@ -253,7 +253,7 @@ export function InvoicesPage() {
                         <Link
                           to={`/invoices/${invoice.id}/edit`}
                           onClick={(e) => e.stopPropagation()}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="text-primary hover:text-primary-hover text-sm font-medium"
                         >
                           Edit
                         </Link>
@@ -285,7 +285,7 @@ export function InvoicesPage() {
             >
               Previous
             </button>
-            <span className="px-3 py-1 text-gray-600">Page {page} of {totalPages}</span>
+            <span className="px-3 py-1 text-text-secondary">Page {page} of {totalPages}</span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}

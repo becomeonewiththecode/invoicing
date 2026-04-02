@@ -185,19 +185,19 @@ function ProjectFields({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="md:col-span-2">
-        <label htmlFor={`${idPrefix}-name`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-name`} className="block text-sm font-medium text-text-secondary mb-1">
           Project name *
         </label>
         <input
           id={`${idPrefix}-name`}
           value={form.name}
           onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
           required
         />
       </div>
       <div className="md:col-span-2">
-        <label htmlFor={`${idPrefix}-desc`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-desc`} className="block text-sm font-medium text-text-secondary mb-1">
           Description
         </label>
         <textarea
@@ -205,11 +205,11 @@ function ProjectFields({
           value={form.description}
           onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
         />
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-start`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-start`} className="block text-sm font-medium text-text-secondary mb-1">
           Start date
         </label>
         <input
@@ -217,11 +217,11 @@ function ProjectFields({
           type="date"
           value={form.startDate}
           onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
         />
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-end`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-end`} className="block text-sm font-medium text-text-secondary mb-1">
           End date
         </label>
         <input
@@ -229,18 +229,18 @@ function ProjectFields({
           type="date"
           value={form.endDate}
           onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
         />
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-status`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-status`} className="block text-sm font-medium text-text-secondary mb-1">
           Status
         </label>
         <select
           id={`${idPrefix}-status`}
           value={form.status}
           onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+          className="w-full px-3 py-2 border border-input-border rounded-lg bg-surface"
         >
           {STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -250,14 +250,14 @@ function ProjectFields({
         </select>
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-priority`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-priority`} className="block text-sm font-medium text-text-secondary mb-1">
           Priority
         </label>
         <select
           id={`${idPrefix}-priority`}
           value={form.priority}
           onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+          className="w-full px-3 py-2 border border-input-border rounded-lg bg-surface"
         >
           {PRIORITY_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -268,7 +268,7 @@ function ProjectFields({
       </div>
       <div className="md:col-span-2 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-gray-700">Documents</span>
+          <span className="text-sm font-medium text-text-secondary">Documents</span>
           <button
             type="button"
             onClick={() =>
@@ -277,7 +277,7 @@ function ProjectFields({
                 externalLinks: [...prev.externalLinks, { url: '', description: '' }],
               }))
             }
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-primary hover:underline"
           >
             + Add link
           </button>
@@ -285,12 +285,12 @@ function ProjectFields({
         {form.externalLinks.map((row, idx) => (
           <div
             key={idx}
-            className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50/80"
+            className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 p-3 border border-border rounded-lg bg-surface-alt/80"
           >
             <div>
               <label
                 htmlFor={`${idPrefix}-link-url-${idx}`}
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-text-secondary mb-1"
               >
                 URL
               </label>
@@ -306,13 +306,13 @@ function ProjectFields({
                   })
                 }
                 placeholder="https://…"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-input-border rounded-lg"
               />
             </div>
             <div>
               <label
                 htmlFor={`${idPrefix}-link-desc-${idx}`}
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-text-secondary mb-1"
               >
                 Description
               </label>
@@ -328,7 +328,7 @@ function ProjectFields({
                   })
                 }
                 placeholder="e.g. SOW, requirements"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-input-border rounded-lg"
               />
             </div>
             <div className="flex items-end pb-0.5 md:justify-end">
@@ -351,12 +351,12 @@ function ProjectFields({
             </div>
           </div>
         ))}
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-text-muted">
           Optional. Google Docs or Microsoft 365 share links — you control who can access each link.
         </p>
       </div>
       <div className="md:col-span-2">
-        <label htmlFor={`${idPrefix}-team`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-team`} className="block text-sm font-medium text-text-secondary mb-1">
           Team members
         </label>
         <input
@@ -364,11 +364,11 @@ function ProjectFields({
           value={form.teamMembers}
           onChange={(e) => setForm((p) => ({ ...p, teamMembers: e.target.value }))}
           placeholder="Comma-separated names or emails"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
         />
       </div>
       <div className="md:col-span-2">
-        <label htmlFor={`${idPrefix}-tags`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-tags`} className="block text-sm font-medium text-text-secondary mb-1">
           Tags
         </label>
         <input
@@ -376,11 +376,11 @@ function ProjectFields({
           value={form.tags}
           onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
           placeholder="Comma-separated"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
         />
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-budget`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-budget`} className="block text-sm font-medium text-text-secondary mb-1">
           Budget
         </label>
         <input
@@ -390,11 +390,11 @@ function ProjectFields({
           step="0.01"
           value={form.budget}
           onChange={(e) => setForm((p) => ({ ...p, budget: e.target.value }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg tabular-nums"
+          className="w-full px-3 py-2 border border-input-border rounded-lg tabular-nums"
         />
       </div>
       <div>
-        <label htmlFor={`${idPrefix}-hours`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-hours`} className="block text-sm font-medium text-text-secondary mb-1">
           Hours
         </label>
         <input
@@ -405,7 +405,7 @@ function ProjectFields({
           value={form.hours}
           onChange={(e) => setForm((p) => ({ ...p, hours: e.target.value }))}
           placeholder="e.g. 40"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg tabular-nums"
+          className="w-full px-3 py-2 border border-input-border rounded-lg tabular-nums"
         />
       </div>
       <div className="md:col-span-2">
@@ -414,18 +414,18 @@ function ProjectFields({
             type="checkbox"
             checked={form.hoursIsMaximum}
             onChange={(e) => setForm((p) => ({ ...p, hoursIsMaximum: e.target.checked }))}
-            className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="mt-1 rounded border-input-border text-primary focus:ring-focus"
           />
           <span>
-            <span className="block text-sm font-medium text-gray-700">Hours value is a maximum (cap)</span>
-            <span className="block text-xs text-gray-500 mt-0.5">
+            <span className="block text-sm font-medium text-text-secondary">Hours value is a maximum (cap)</span>
+            <span className="block text-xs text-text-muted mt-0.5">
               When unchecked, the hours field is an estimate or planned amount, not a cap.
             </span>
           </span>
         </label>
       </div>
       <div className="md:col-span-2">
-        <label htmlFor={`${idPrefix}-deps`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-deps`} className="block text-sm font-medium text-text-secondary mb-1">
           Dependencies
         </label>
         <textarea
@@ -434,11 +434,11 @@ function ProjectFields({
           onChange={(e) => setForm((p) => ({ ...p, dependencies: e.target.value }))}
           rows={2}
           placeholder="Other projects or deliverables this work depends on"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
         />
       </div>
       <div className="md:col-span-2">
-        <span className="block text-sm font-medium text-gray-700 mb-2">Milestones</span>
+        <span className="block text-sm font-medium text-text-secondary mb-2">Milestones</span>
         <div className="space-y-2">
           {form.milestones.map((row, i) => (
             <div key={i} className="flex flex-wrap gap-2 items-end">
@@ -451,7 +451,7 @@ function ProjectFields({
                   value={row.title}
                   onChange={(e) => setMilestone(i, 'title', e.target.value)}
                   placeholder="Milestone title"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-input-border rounded-lg text-sm"
                 />
               </div>
               <div className="w-40">
@@ -463,7 +463,7 @@ function ProjectFields({
                   type="date"
                   value={row.dueDate}
                   onChange={(e) => setMilestone(i, 'dueDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-input-border rounded-lg text-sm"
                 />
               </div>
               <button
@@ -490,13 +490,13 @@ function ProjectFields({
               milestones: [...prev.milestones, { title: '', dueDate: '' }],
             }))
           }
-          className="mt-2 text-sm text-blue-600 hover:underline"
+          className="mt-2 text-sm text-primary hover:underline"
         >
           + Add milestone
         </button>
       </div>
       <div className="md:col-span-2">
-        <label htmlFor={`${idPrefix}-notes`} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={`${idPrefix}-notes`} className="block text-sm font-medium text-text-secondary mb-1">
           Notes
         </label>
         <textarea
@@ -504,7 +504,7 @@ function ProjectFields({
           value={form.notes}
           onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          className="w-full px-3 py-2 border border-input-border rounded-lg"
         />
       </div>
     </div>
@@ -630,8 +630,8 @@ export function ClientProjectsTab({
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Projects</h2>
-          <p className="text-sm text-gray-600 mt-1">Track work for this client: dates, team, budget, hours, and links.</p>
+          <h2 className="text-lg font-semibold text-text">Projects</h2>
+          <p className="text-sm text-text-secondary mt-1">Track work for this client: dates, team, budget, hours, and links.</p>
         </div>
         {!showNew && (
           <button
@@ -640,19 +640,19 @@ export function ClientProjectsTab({
               setShowNew(true);
               setNewForm(emptyForm());
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover text-sm font-medium"
           >
             Add project
           </button>
         )}
       </div>
 
-      {projectsQuery.isPending && <p className="text-gray-400">Loading projects…</p>}
+      {projectsQuery.isPending && <p className="text-text-faint">Loading projects…</p>}
       {projectsQuery.isError && <p className="text-red-600">Could not load projects.</p>}
 
       {showNew && (
-        <form onSubmit={submitNew} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-          <h3 className="text-base font-semibold text-gray-900">New project</h3>
+        <form onSubmit={submitNew} className="bg-surface rounded-xl shadow-sm border border-border p-6 space-y-4">
+          <h3 className="text-base font-semibold text-text">New project</h3>
           <ProjectFields form={newForm} setForm={setNewForm} idPrefix="new" />
           <div className="flex justify-end gap-2 pt-2">
             <button
@@ -661,14 +661,14 @@ export function ClientProjectsTab({
                 setShowNew(false);
                 setNewForm(emptyForm());
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+              className="px-4 py-2 border border-input-border rounded-lg hover:bg-surface-alt text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createMut.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover text-sm font-medium disabled:opacity-50"
             >
               {createMut.isPending ? 'Creating…' : 'Create project'}
             </button>
@@ -677,18 +677,18 @@ export function ClientProjectsTab({
       )}
 
       {sorted.length === 0 && !projectsQuery.isPending && !showNew && (
-        <p className="text-gray-500 py-6 text-center border border-dashed border-gray-200 rounded-xl">
+        <p className="text-text-muted py-6 text-center border border-dashed border-border rounded-xl">
           No projects yet. Add one to get started.
         </p>
       )}
 
       {sorted.map((p) => (
-        <div key={p.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div key={p.id} className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden">
           {editingId === p.id && editForm ? (
             <form onSubmit={submitEdit} className="p-6 space-y-4">
               <div className="flex flex-wrap justify-between gap-2 items-center">
-                <h3 className="text-base font-semibold text-gray-900">Edit project</h3>
-                <button type="button" onClick={cancelEdit} className="text-sm text-gray-600 hover:underline">
+                <h3 className="text-base font-semibold text-text">Edit project</h3>
+                <button type="button" onClick={cancelEdit} className="text-sm text-text-secondary hover:underline">
                   Cancel
                 </button>
               </div>
@@ -707,7 +707,7 @@ export function ClientProjectsTab({
                 <button
                   type="submit"
                   disabled={updateMut.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover text-sm font-medium disabled:opacity-50"
                 >
                   {updateMut.isPending ? 'Saving…' : 'Save changes'}
                 </button>
@@ -715,45 +715,19 @@ export function ClientProjectsTab({
             </form>
           ) : (
             <div className="p-6">
+              {/* Header: title + actions */}
               <div className="flex flex-wrap justify-between gap-3 items-start">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900">{p.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{p.description || '—'}</p>
-                  <ExternalLinksList links={externalLinksFromProject(p)} />
-                  <dl className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs text-gray-500">
-                    <div>
-                      <dt className="font-medium text-gray-700">Status</dt>
-                      <dd className="capitalize">{p.status.replace(/_/g, ' ')}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-700">Priority</dt>
-                      <dd className="capitalize">{p.priority}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-700">Start</dt>
-                      <dd>{p.start_date?.slice(0, 10) ?? '—'}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-700">End</dt>
-                      <dd>{p.end_date?.slice(0, 10) ?? '—'}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-700">Hours</dt>
-                      <dd className="tabular-nums">
-                        {p.hours != null && p.hours !== ''
-                          ? `${Number(p.hours).toLocaleString(undefined, { maximumFractionDigits: 2 })}${
-                              p.hours_is_maximum ? ' max' : ''
-                            }`
-                          : '—'}
-                      </dd>
-                    </div>
-                  </dl>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-text">{p.name}</h3>
+                  {p.description && p.description !== '—' && (
+                    <p className="text-sm text-text-secondary mt-1 line-clamp-2">{p.description}</p>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => setPdfPreviewProject(p)}
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                    className="px-3 py-1.5 border border-input-border rounded-lg hover:bg-surface-alt text-sm"
                   >
                     View
                   </button>
@@ -772,17 +746,60 @@ export function ClientProjectsTab({
                         toast.error('Could not download PDF');
                       }
                     }}
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                    className="px-3 py-1.5 border border-input-border rounded-lg hover:bg-surface-alt text-sm"
                   >
                     Download
                   </button>
                   <button
                     type="button"
                     onClick={() => startEdit(p)}
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                    className="px-3 py-1.5 border border-input-border rounded-lg hover:bg-surface-alt text-sm"
                   >
                     Edit
                   </button>
+                </div>
+              </div>
+
+              {/* Metadata grid */}
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 rounded-lg bg-surface-alt border border-border px-4 py-3">
+                <div>
+                  <dt className="text-xs font-medium text-text-muted uppercase tracking-wide">Status</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-text capitalize">{p.status.replace(/_/g, ' ')}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-text-muted uppercase tracking-wide">Priority</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-text capitalize">{p.priority}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-text-muted uppercase tracking-wide">Start</dt>
+                  <dd className="mt-0.5 text-sm text-text tabular-nums">{p.start_date?.slice(0, 10) ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-text-muted uppercase tracking-wide">End</dt>
+                  <dd className="mt-0.5 text-sm text-text tabular-nums">{p.end_date?.slice(0, 10) ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-text-muted uppercase tracking-wide">Hours</dt>
+                  <dd className="mt-0.5 text-sm text-text tabular-nums">
+                    {p.hours != null && p.hours !== ''
+                      ? `${Number(p.hours).toLocaleString(undefined, { maximumFractionDigits: 2 })}${
+                          p.hours_is_maximum ? ' max' : ''
+                        }`
+                      : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-text-muted uppercase tracking-wide">Documents</dt>
+                  <dd className="mt-0.5 text-sm">
+                    {externalLinksFromProject(p).length > 0 ? (
+                      <ExternalLinksList
+                        links={externalLinksFromProject(p)}
+                        className="text-sm space-y-0.5 list-none pl-0"
+                      />
+                    ) : (
+                      <span className="text-text">—</span>
+                    )}
+                  </dd>
                 </div>
               </div>
             </div>
