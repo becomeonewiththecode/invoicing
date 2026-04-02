@@ -1,7 +1,13 @@
 server {
     listen 80;
+    server_name __SERVER_NAME__;
+
     root /usr/share/nginx/html;
     index index.html;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
 
     # Avoid stale SPA shell after redeploys (JS chunks are hashed and safe to cache)
     location = /index.html {
