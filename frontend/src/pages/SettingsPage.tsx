@@ -9,6 +9,7 @@ import type { SmtpSettings } from '../api/settings';
 import { downloadAccountBackup, importAccountBackup } from '../api/data';
 import { updateAccount } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
+import { ThemePickerPanel } from '../components/ThemePickerPanel';
 import { resolveApiAssetUrl } from '../utils/resolveApiUrl';
 
 interface SettingsForm {
@@ -263,7 +264,7 @@ export function SettingsPage() {
   };
 
   if (isPending && !settings) {
-    return <div className="text-center py-8 text-gray-400">Loading settings...</div>;
+    return <div className="text-center py-8 text-text-faint">Loading settings...</div>;
   }
 
   return (
@@ -271,7 +272,7 @@ export function SettingsPage() {
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* Tab bar */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex border-b border-border mb-6">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -279,8 +280,8 @@ export function SettingsPage() {
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
               activeTab === tab.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-secondary hover:border-input-border'
             }`}
           >
             {tab.label}
@@ -291,7 +292,9 @@ export function SettingsPage() {
       {/* General tab */}
       {activeTab === 'general' && (
         <>
-          <p className="text-gray-600 text-sm mb-6">
+          <ThemePickerPanel className="mb-6" />
+
+          <p className="text-text-secondary text-sm mb-6">
             Company name, tax rate, phone, and website are required and appear on invoices. Tax rate is the default
             percentage applied to new invoices (before discounts). Use <strong>Pay to</strong> below for payment
             instructions shown at the bottom of every invoice (PDF, shared link, and email).

@@ -23,6 +23,7 @@ The **client portal** lets your end clients view their account dashboard, projec
   - Lists projects tracked under the client
   - Each project includes a clear **View project** link to open `/portal/projects/:projectId`
 - **Account** (`/portal/account`)
+  - **Appearance:** same four **UI themes** as the vendor app (browser-local); see [Frontend overview — UI themes](../frontend/overview.md#ui-themes)
   - Sets a login **email (username)** for Email+Password sign-in
   - Changes the portal password (current password required for normal email-login sessions; token-login sessions can set a new password without the current one)
 - **Security** (`/portal/security`)
@@ -39,7 +40,7 @@ After login, the portal header/welcome area shows the client's **company name** 
 
 ## Look and feel
 
-The client portal uses its own layout (`PortalLayout`) and does not reuse the main app sidebar. Styling is **Tailwind** with a **light sky-blue and purple** accent palette (gradients and chips on primary actions), **neutral grays** for body copy and labels (using slightly **darker gray** text than the main app for readability on soft backgrounds), and semantic colors for errors and invoice status badges.
+The client portal uses its own layout (`PortalLayout`) — top header and tab-style nav — and does not reuse the main app sidebar. The **global theme** (canvas, primary, sidebar tokens where reused) is the same as the vendor app: pick a palette under **Account → Appearance** or from vendor/admin settings; the choice is stored in **`localStorage`** and applies across `/portal`, `/`, and `/admin` in that browser. The portal shell may still use fixed gradient/header accents from its layout, while content that uses semantic Tailwind tokens (`bg-surface`, `text-text`, …) follows the selected theme.
 
 ## Backend data model (summary)
 

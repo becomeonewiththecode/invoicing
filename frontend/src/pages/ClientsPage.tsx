@@ -140,7 +140,7 @@ export function ClientsPage() {
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold">Clients</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-text-muted mt-1">
             Click a client name or Profile to open their page (details, invoice status, and invoice links).
           </p>
         </div>
@@ -148,7 +148,7 @@ export function ClientsPage() {
           {selectedClientId && (
             <Link
               to={`/clients/${encodeURIComponent(selectedClientId)}#invoices`}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
             >
               View profile
             </Link>
@@ -157,13 +157,13 @@ export function ClientsPage() {
             type="button"
             onClick={() => setSelectedClientId(null)}
             disabled={!selectedClientId}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+            className="px-4 py-2 border border-input-border rounded-lg text-text-secondary hover:bg-surface-alt disabled:opacity-40 disabled:pointer-events-none transition-colors"
           >
             Clear selection
           </button>
           <button
             onClick={() => setDraft((d) => (d?.type === 'create' ? null : { type: 'create' }))}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
           >
             {draft?.type === 'create' ? 'Cancel' : 'New Client'}
           </button>
@@ -171,48 +171,48 @@ export function ClientsPage() {
       </div>
 
       {draft && (
-        <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-surface rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text mb-4">
             {draft.type === 'edit' ? 'Edit client' : 'New client'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {draft.type === 'edit' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customer #</label>
+                <label className="block text-sm font-medium text-text-secondary mb-1">Customer #</label>
                 <input
                   readOnly
                   value={draft.client.customer_number ?? '—'}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-surface-alt text-text-secondary"
                 />
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-              <input {...register('name', { required: 'Name is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-medium text-text-secondary mb-1">Name *</label>
+              <input {...register('name', { required: 'Name is required' })} className="w-full px-3 py-2 border border-input-border rounded-lg" />
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-              <input type="email" {...register('email', { required: 'Email is required' })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-medium text-text-secondary mb-1">Email *</label>
+              <input type="email" {...register('email', { required: 'Email is required' })} className="w-full px-3 py-2 border border-input-border rounded-lg" />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input {...register('phone')} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-medium text-text-secondary mb-1">Phone</label>
+              <input {...register('phone')} className="w-full px-3 py-2 border border-input-border rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-              <input {...register('company')} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-medium text-text-secondary mb-1">Company</label>
+              <input {...register('company')} className="w-full px-3 py-2 border border-input-border rounded-lg" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-              <input {...register('address')} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-medium text-text-secondary mb-1">Address</label>
+              <input {...register('address')} className="w-full px-3 py-2 border border-input-border rounded-lg" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Default discount code</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Default discount code</label>
               <select
                 {...register('discountCode')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                className="w-full px-3 py-2 border border-input-border rounded-lg bg-surface"
               >
                 <option value="">No discount</option>
                 {draft.type === 'edit' &&
@@ -236,37 +236,37 @@ export function ClientsPage() {
               {(discounts ?? []).filter((d) => d.is_active).length === 0 && (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mt-2">
                   No discount codes yet.{' '}
-                  <Link to="/discounts" className="text-blue-600 hover:underline font-medium">
+                  <Link to="/discounts" className="text-primary hover:underline font-medium">
                     Create a code
                   </Link>{' '}
                   first (percent or fixed amount), then choose it from the list above.
                 </p>
               )}
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-text-muted mt-1">
                 This code is applied to every invoice for this client. Codes are managed in{' '}
-                <Link to="/discounts" className="text-blue-600 hover:underline">
+                <Link to="/discounts" className="text-primary hover:underline">
                   Discount codes
                 </Link>
                 .
               </p>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-              <textarea {...register('notes')} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-medium text-text-secondary mb-1">Notes</label>
+              <textarea {...register('notes')} rows={2} className="w-full px-3 py-2 border border-input-border rounded-lg" />
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-4">
             <button
               type="button"
               onClick={() => setDraft(null)}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              className="px-6 py-2 border border-input-border rounded-lg text-text-secondary hover:bg-surface-alt"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50"
             >
               {draft.type === 'edit'
                 ? updateMutation.isPending
@@ -280,37 +280,37 @@ export function ClientsPage() {
         </form>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-xl shadow-sm overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-surface-alt border-b">
             <tr>
-              <th scope="col" className="w-12 px-3 py-3 text-sm font-medium text-gray-500">
+              <th scope="col" className="w-12 px-3 py-3 text-sm font-medium text-text-muted">
                 <span className="sr-only">Select</span>
               </th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Client</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Email</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Phone</th>
+              <th className="text-left px-6 py-3 text-sm font-medium text-text-muted">Client</th>
+              <th className="text-left px-6 py-3 text-sm font-medium text-text-muted">Email</th>
+              <th className="text-left px-6 py-3 text-sm font-medium text-text-muted">Phone</th>
               <th className="px-6 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {isPending ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={5} className="text-center py-8 text-text-faint">Loading...</td></tr>
             ) : isError ? (
               <tr><td colSpan={5} className="text-center py-8 text-red-600">Could not load clients{error instanceof Error ? `: ${error.message}` : ''}</td></tr>
             ) : (data?.data?.length ?? 0) === 0 ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-400">No clients found</td></tr>
+              <tr><td colSpan={5} className="text-center py-8 text-text-faint">No clients found</td></tr>
             ) : (
               data!.data.map((client) => (
                 <tr
                   key={client.id}
-                  className={`hover:bg-gray-50 ${selectedClientId === client.id ? 'bg-blue-50/90' : ''}`}
+                  className={`hover:bg-surface-alt ${selectedClientId === client.id ? 'bg-primary-light' : ''}`}
                 >
                   <td className="px-3 py-4 align-middle">
                     <input
                       type="radio"
                       name="client-selection"
-                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 border-input-border text-primary focus:ring-focus"
                       checked={selectedClientId === client.id}
                       onChange={() => setSelectedClientId(client.id)}
                       aria-label={`Select ${formatClientLabel(client)}`}
@@ -319,29 +319,29 @@ export function ClientsPage() {
                   <td className="px-6 py-4">
                     <Link
                       to={`/clients/${encodeURIComponent(client.id)}`}
-                      className="font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                      className="font-medium text-primary hover:text-primary-hover hover:underline"
                     >
                       {formatClientLabel(client)}
                     </Link>
                     {client.company?.trim() &&
                       client.name.trim() &&
                       client.name.trim() !== client.company.trim() && (
-                        <span className="block text-sm text-gray-500 mt-0.5">{client.name}</span>
+                        <span className="block text-sm text-text-muted mt-0.5">{client.name}</span>
                       )}
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{client.email}</td>
-                  <td className="px-6 py-4 text-gray-600">{client.phone || '-'}</td>
+                  <td className="px-6 py-4 text-text-secondary">{client.email}</td>
+                  <td className="px-6 py-4 text-text-secondary">{client.phone || '-'}</td>
                   <td className="px-6 py-4 text-right space-x-3 whitespace-nowrap">
                     <Link
                       to={`/clients/${encodeURIComponent(client.id)}`}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="text-primary hover:text-primary-hover text-sm font-medium"
                     >
                       Profile
                     </Link>
                     <button
                       type="button"
                       onClick={() => setDraft({ type: 'edit', client })}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="text-primary hover:text-primary-hover text-sm font-medium"
                     >
                       Quick edit
                     </button>
@@ -362,7 +362,7 @@ export function ClientsPage() {
         {totalPages > 1 && (
           <div className="flex justify-center gap-2 p-4 border-t">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 rounded border disabled:opacity-50">Previous</button>
-            <span className="px-3 py-1 text-gray-600">Page {page} of {totalPages}</span>
+            <span className="px-3 py-1 text-text-secondary">Page {page} of {totalPages}</span>
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1 rounded border disabled:opacity-50">Next</button>
           </div>
         )}

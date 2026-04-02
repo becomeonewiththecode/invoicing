@@ -1,3 +1,140 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* ── Theme: Starter (Default — Stripe-inspired blue) ── */
+  :root,
+  [data-theme="starter"] {
+    --color-primary: #635BFF;
+    --color-primary-hover: #5046E5;
+    --color-primary-light: #EEF0FF;
+    --color-primary-light-border: #D4D6FF;
+    --color-primary-text: #4338CA;
+
+    --color-sidebar-bg: #0A2540;
+    --color-sidebar-text: #E2E8F0;
+    --color-sidebar-muted: #94A3B8;
+    --color-sidebar-hover: #163354;
+    --color-sidebar-active: #635BFF;
+    --color-sidebar-border: #1E3A5F;
+
+    /* Page canvas — visibly tinted vs white cards */
+    --color-bg: #E6EDF8;
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #E8EEF5;
+
+    --color-border: #E2E8F0;
+    --color-input-border: #CBD5E1;
+
+    --color-text: #1A1F36;
+    --color-text-secondary: #475569;
+    --color-text-muted: #64748B;
+    --color-text-faint: #94A3B8;
+
+    --color-focus-ring: #635BFF;
+  }
+
+  /* ── Theme: Forest (GitHub-inspired green) ── */
+  [data-theme="forest"] {
+    --color-primary: #238636;
+    --color-primary-hover: #2EA043;
+    --color-primary-light: #ECFDF5;
+    --color-primary-light-border: #BBF7D0;
+    --color-primary-text: #166534;
+
+    --color-sidebar-bg: #161B22;
+    --color-sidebar-text: #E6EDF3;
+    --color-sidebar-muted: #8B949E;
+    --color-sidebar-hover: #21262D;
+    --color-sidebar-active: #238636;
+    --color-sidebar-border: #30363D;
+
+    --color-bg: #E5EEE8;
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #E8F0EB;
+
+    --color-border: #D0D7DE;
+    --color-input-border: #C5CCD3;
+
+    --color-text: #1F2328;
+    --color-text-secondary: #57606A;
+    --color-text-muted: #656D76;
+    --color-text-faint: #8B949E;
+
+    --color-focus-ring: #238636;
+  }
+
+  /* ── Theme: Twilight (Grey & black — monochrome) ── */
+  [data-theme="twilight"] {
+    --color-primary: #27272A;
+    --color-primary-hover: #18181B;
+    --color-primary-light: #F4F4F5;
+    --color-primary-light-border: #E4E4E7;
+    --color-primary-text: #18181B;
+
+    --color-sidebar-bg: #0A0A0A;
+    --color-sidebar-text: #FAFAFA;
+    --color-sidebar-muted: #A1A1AA;
+    --color-sidebar-hover: #27272A;
+    --color-sidebar-active: #52525B;
+    --color-sidebar-border: #27272A;
+
+    --color-bg: #E2E2E6;
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #E4E4E7;
+
+    --color-border: #D4D4D8;
+    --color-input-border: #A1A1AA;
+
+    --color-text: #18181B;
+    --color-text-secondary: #52525B;
+    --color-text-muted: #71717A;
+    --color-text-faint: #A1A1AA;
+
+    --color-focus-ring: #3F3F46;
+  }
+
+  /* ── Theme: Ember (Warm coral/red) ── */
+  [data-theme="ember"] {
+    --color-primary: #E04545;
+    --color-primary-hover: #CC3A3A;
+    --color-primary-light: #FEF2F2;
+    --color-primary-light-border: #FECACA;
+    --color-primary-text: #B91C1C;
+
+    --color-sidebar-bg: #F7F6F3;
+    --color-sidebar-text: #37352F;
+    --color-sidebar-muted: #9B9A97;
+    --color-sidebar-hover: #EEEDEA;
+    --color-sidebar-active: #E04545;
+    --color-sidebar-border: #E3E2DE;
+
+    --color-bg: #F5EDE8;
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #F0E8E2;
+
+    --color-border: #E3E2DE;
+    --color-input-border: #C8C7C3;
+
+    --color-text: #37352F;
+    --color-text-secondary: #5A5955;
+    --color-text-muted: #787774;
+    --color-text-faint: #9B9A97;
+
+    --color-focus-ring: #E04545;
+  }
+
+  /* Paint the full viewport; otherwise body stays browser-white behind the app shell */
+  html {
+    background-color: var(--color-bg);
+  }
+  body {
+    min-height: 100%;
+    background-color: var(--color-bg);
+  }
+  #root {
+    min-height: 100vh;
+    background-color: var(--color-bg);
+  }
+}

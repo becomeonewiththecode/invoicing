@@ -51,65 +51,65 @@ export function AdminUserDetailPage() {
     },
   });
 
-  if (isPending) return <div className="text-gray-500">Loading...</div>;
-  if (!user) return <div className="text-gray-500">User not found</div>;
+  if (isPending) return <div className="text-text-muted">Loading...</div>;
+  if (!user) return <div className="text-text-muted">User not found</div>;
 
   return (
     <div>
-      <Link to="/admin/users" className="text-sm text-indigo-600 hover:text-indigo-800 mb-4 inline-block">
+      <Link to="/admin/users" className="text-sm text-primary hover:text-primary-hover mb-4 inline-block">
         &larr; Back to Users
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{user.email}</h1>
+      <h1 className="text-2xl font-bold text-text mb-6">{user.email}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">User Info</h2>
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">Business</dt>
-              <dd className="text-gray-900">{user.business_name || '-'}</dd>
+              <dt className="text-text-muted">Business</dt>
+              <dd className="text-text">{user.business_name || '-'}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Phone</dt>
-              <dd className="text-gray-900">{user.business_phone || '-'}</dd>
+              <dt className="text-text-muted">Phone</dt>
+              <dd className="text-text">{user.business_phone || '-'}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Website</dt>
-              <dd className="text-gray-900">{user.business_website || '-'}</dd>
+              <dt className="text-text-muted">Website</dt>
+              <dd className="text-text">{user.business_website || '-'}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Clients</dt>
-              <dd className="text-gray-900">{user.client_count}</dd>
+              <dt className="text-text-muted">Clients</dt>
+              <dd className="text-text">{user.client_count}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Invoices</dt>
-              <dd className="text-gray-900">{user.invoice_count}</dd>
+              <dt className="text-text-muted">Invoices</dt>
+              <dd className="text-text">{user.invoice_count}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Revenue</dt>
-              <dd className="text-gray-900">${Number(user.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}</dd>
+              <dt className="text-text-muted">Revenue</dt>
+              <dd className="text-text">${Number(user.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Joined</dt>
-              <dd className="text-gray-900">{new Date(user.created_at).toLocaleDateString()}</dd>
+              <dt className="text-text-muted">Joined</dt>
+              <dd className="text-text">{new Date(user.created_at).toLocaleDateString()}</dd>
             </div>
           </dl>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">Role Management</h2>
           <div className="flex items-center gap-4">
             <select
               value={user.role}
               onChange={(e) => roleMutation.mutate(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="rounded-lg border border-input-border px-3 py-2 text-sm focus:border-focus focus:outline-none"
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-              user.role === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'
+              user.role === 'admin' ? 'bg-primary-light text-primary' : 'bg-surface-alt text-text-secondary'
             }`}>
               {user.role}
             </span>
@@ -128,7 +128,7 @@ export function AdminUserDetailPage() {
                 <select
                   value={flagForm.contentType}
                   onChange={(e) => setFlagForm({ ...flagForm, contentType: e.target.value })}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className="w-full rounded border border-input-border px-3 py-2 text-sm"
                 >
                   <option value="">Select content type...</option>
                   <option value="business_name">Business Name</option>
@@ -139,14 +139,14 @@ export function AdminUserDetailPage() {
                   placeholder="Content snippet..."
                   value={flagForm.contentSnippet}
                   onChange={(e) => setFlagForm({ ...flagForm, contentSnippet: e.target.value })}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className="w-full rounded border border-input-border px-3 py-2 text-sm"
                   rows={2}
                 />
                 <input
                   placeholder="Reason (optional)"
                   value={flagForm.reason}
                   onChange={(e) => setFlagForm({ ...flagForm, reason: e.target.value })}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className="w-full rounded border border-input-border px-3 py-2 text-sm"
                 />
                 <button
                   onClick={() => flagMutation.mutate()}
@@ -162,9 +162,9 @@ export function AdminUserDetailPage() {
       </div>
 
       {/* Danger zone */}
-      <div className="bg-white rounded-lg shadow p-6 border border-red-200">
+      <div className="bg-surface rounded-lg shadow p-6 border border-red-200">
         <h2 className="text-lg font-semibold text-red-700 mb-2">Danger zone</h2>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-text-secondary mb-4">
           Permanently delete this user and all associated data: clients, invoices, discount codes, tickets, backups, and content flags. This action cannot be undone.
         </p>
         {!showDeleteConfirm ? (
@@ -176,14 +176,14 @@ export function AdminUserDetailPage() {
           </button>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-text-secondary">
               Type <strong>{user.email}</strong> to confirm:
             </p>
             <input
               type="text"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded border border-input-border px-3 py-2 text-sm"
               placeholder={user.email}
               autoComplete="off"
             />
@@ -197,7 +197,7 @@ export function AdminUserDetailPage() {
               </button>
               <button
                 onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
-                className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="rounded border border-input-border px-4 py-2 text-sm text-text-secondary hover:bg-surface-alt"
               >
                 Cancel
               </button>

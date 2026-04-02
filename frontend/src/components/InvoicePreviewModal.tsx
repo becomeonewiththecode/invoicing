@@ -96,9 +96,9 @@ export function InvoicePreviewModal({
   if (!invoice) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true">
-        <div className="bg-white rounded-xl shadow-xl px-8 py-6 flex items-center gap-4">
-          <span className="text-gray-600">Loading invoice…</span>
-          <button type="button" onClick={onClose} className="text-sm text-blue-600 hover:underline">
+        <div className="bg-surface rounded-xl shadow-xl px-8 py-6 flex items-center gap-4">
+          <span className="text-text-secondary">Loading invoice…</span>
+          <button type="button" onClick={onClose} className="text-sm text-primary hover:underline">
             Cancel
           </button>
         </div>
@@ -108,16 +108,16 @@ export function InvoicePreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="invoice-preview-title">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
-          <h2 id="invoice-preview-title" className="text-lg font-semibold text-gray-900">
+      <div className="bg-surface rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <h2 id="invoice-preview-title" className="text-lg font-semibold text-text">
             {title}
           </h2>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700" aria-label="Close">
+          <button type="button" onClick={onClose} className="p-2 rounded-lg text-text-muted hover:bg-surface-alt hover:text-text-secondary" aria-label="Close">
             <HiOutlineX className="w-5 h-5" />
           </button>
         </div>
-        <p className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100 bg-gray-50">
+        <p className="px-4 py-2 text-sm text-text-secondary border-b border-border bg-surface-alt">
           {variant === 'draft'
             ? 'Review the PDF below. Use Save or Create on the form to store the invoice—nothing is saved until you submit.'
             : externalLinks.length > 0
@@ -125,14 +125,14 @@ export function InvoicePreviewModal({
               : 'Review the PDF below. Download a copy or close to return.'}
         </p>
         {/* Flex-sized iframe (not position:absolute) so embedded PDF link hit targets stay aligned; absolute iframe broke link clicks in some browsers. */}
-        <div className="flex-1 min-h-0 flex flex-col bg-gray-100 overflow-hidden relative min-w-0">
+        <div className="flex-1 min-h-0 flex flex-col bg-surface-alt overflow-hidden relative min-w-0">
           {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center text-gray-500 bg-gray-100">
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-text-muted bg-surface-alt">
               Generating preview…
             </div>
           )}
           {error && !loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center text-red-600 px-4 text-center bg-gray-100">
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-red-600 px-4 text-center bg-surface-alt">
               {error}
             </div>
           )}
@@ -140,25 +140,25 @@ export function InvoicePreviewModal({
             <iframe
               title="Invoice PDF preview"
               src={pdfUrl}
-              className="flex-1 min-h-0 w-full min-w-0 border-0 bg-gray-100"
+              className="flex-1 min-h-0 w-full min-w-0 border-0 bg-surface-alt"
             />
           )}
         </div>
         {externalLinks.length > 0 && (
-          <div className="px-4 py-2 text-sm border-t border-gray-200 bg-white shrink-0">
-            <p className="text-gray-700 font-medium">Document links (same as under NOTES — opens in new tab):</p>
+          <div className="px-4 py-2 text-sm border-t border-border bg-surface shrink-0">
+            <p className="text-text-secondary font-medium">Document links (same as under NOTES — opens in new tab):</p>
             <ExternalLinksList links={externalLinks} className="mt-1 space-y-1 list-none pl-0" />
           </div>
         )}
-        <div className="flex justify-end gap-3 px-4 py-3 border-t border-gray-200 shrink-0">
-          <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+        <div className="flex justify-end gap-3 px-4 py-3 border-t border-border shrink-0">
+          <button type="button" onClick={onClose} className="px-4 py-2 border border-input-border rounded-lg text-text-secondary hover:bg-surface-alt">
             Close
           </button>
           <button
             type="button"
             onClick={handleDownload}
             disabled={!invoice || loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50"
           >
             Download PDF
           </button>

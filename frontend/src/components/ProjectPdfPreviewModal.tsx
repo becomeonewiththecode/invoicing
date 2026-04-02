@@ -84,9 +84,9 @@ export function ProjectPdfPreviewModal({ open, onClose, project, clientLabel }: 
   if (!project) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true">
-        <div className="bg-white rounded-xl shadow-xl px-8 py-6 flex items-center gap-4">
-          <span className="text-gray-600">Loading…</span>
-          <button type="button" onClick={onClose} className="text-sm text-blue-600 hover:underline">
+        <div className="bg-surface rounded-xl shadow-xl px-8 py-6 flex items-center gap-4">
+          <span className="text-text-secondary">Loading…</span>
+          <button type="button" onClick={onClose} className="text-sm text-primary hover:underline">
             Cancel
           </button>
         </div>
@@ -105,26 +105,26 @@ export function ProjectPdfPreviewModal({ open, onClose, project, clientLabel }: 
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+        className="bg-surface rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
-          <h2 id="project-pdf-preview-title" className="text-lg font-semibold text-gray-900 truncate pr-2">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <h2 id="project-pdf-preview-title" className="text-lg font-semibold text-text truncate pr-2">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 shrink-0"
+            className="p-2 rounded-lg text-text-muted hover:bg-surface-alt hover:text-text-secondary shrink-0"
             aria-label="Close"
           >
             <HiOutlineX className="w-5 h-5" />
           </button>
         </div>
-        <p className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100 bg-gray-50">
+        <p className="px-4 py-2 text-sm text-text-secondary border-b border-border bg-surface-alt">
           Preview the PDF below. Download a copy or close to return.
         </p>
-        <div className="flex-1 min-h-[320px] bg-gray-100 relative">
+        <div className="flex-1 min-h-[320px] bg-surface-alt relative">
           {error && (
             <div className="absolute inset-0 flex items-center justify-center text-red-600 px-4 text-center">{error}</div>
           )}
@@ -137,11 +137,11 @@ export function ProjectPdfPreviewModal({ open, onClose, project, clientLabel }: 
             />
           )}
         </div>
-        <div className="flex justify-end gap-3 px-4 py-3 border-t border-gray-200 shrink-0">
+        <div className="flex justify-end gap-3 px-4 py-3 border-t border-border shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 border border-input-border rounded-lg text-text-secondary hover:bg-surface-alt"
           >
             Close
           </button>
@@ -149,7 +149,7 @@ export function ProjectPdfPreviewModal({ open, onClose, project, clientLabel }: 
             type="button"
             onClick={handleDownload}
             disabled={!pdfUrl || !!error}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50"
           >
             Download PDF
           </button>

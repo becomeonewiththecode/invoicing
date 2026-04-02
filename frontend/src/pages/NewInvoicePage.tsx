@@ -398,21 +398,21 @@ export function NewInvoicePage() {
   });
 
   if (isEdit && invoiceLoading) {
-    return <div className="text-center py-8 text-gray-400">Loading invoice...</div>;
+    return <div className="text-center py-8 text-text-faint">Loading invoice...</div>;
   }
   if (isEdit && invoiceError) {
     return (
       <div className="text-center py-8">
         <p className="text-red-600 mb-4">Could not load this invoice.</p>
-        <Link to="/invoices" className="text-blue-600 hover:underline">Back to Invoices</Link>
+        <Link to="/invoices" className="text-primary hover:underline">Back to Invoices</Link>
       </div>
     );
   }
   if (isEdit && existingInvoice && existingInvoice.status !== 'draft') {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-700 mb-4">Only draft invoices can be edited.</p>
-        <Link to={`/invoices/${existingInvoice.id}`} className="text-blue-600 hover:underline">View invoice</Link>
+        <p className="text-text-secondary mb-4">Only draft invoices can be edited.</p>
+        <Link to={`/invoices/${existingInvoice.id}`} className="text-primary hover:underline">View invoice</Link>
       </div>
     );
   }
@@ -423,25 +423,25 @@ export function NewInvoicePage() {
     <div>
       <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Edit Invoice' : 'New Invoice'}</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl shadow-sm p-8 space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-surface rounded-xl shadow-sm p-8 space-y-6">
         {/* Customer #, Client & Dates */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer #</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Customer #</label>
             <input
               readOnly
               value={selectedClient?.customer_number ?? '—'}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 font-mono text-sm"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-surface-alt text-text font-mono text-sm"
               aria-live="polite"
             />
           </div>
           <div>
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1">
-              <label className="text-sm font-medium text-gray-700">Client</label>
+              <label className="text-sm font-medium text-text-secondary">Client</label>
               {selectedClient && (
                 <Link
                   to={`/clients/${encodeURIComponent(selectedClient.id)}#details`}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                  className="text-sm font-medium text-primary hover:text-primary-hover hover:underline"
                 >
                   View / edit client
                 </Link>
@@ -449,7 +449,7 @@ export function NewInvoicePage() {
             </div>
             <select
               {...register('clientId', { required: 'Client is required' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-input-border rounded-lg focus:ring-2 focus:ring-focus"
             >
               <option value="">Select a client</option>
               {clientsData?.data.map((c) => (
@@ -463,13 +463,13 @@ export function NewInvoicePage() {
         </div>
         {clientId ? (
           <div className="max-w-xl">
-            <label htmlFor="invoice-project" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="invoice-project" className="block text-sm font-medium text-text-secondary mb-1">
               Related project (optional)
             </label>
             <select
               id="invoice-project"
               {...register('projectId')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-3 py-2 border border-input-border rounded-lg focus:ring-2 focus:ring-focus bg-surface"
             >
               <option value="">None</option>
               {[...clientProjects]
@@ -480,9 +480,9 @@ export function NewInvoicePage() {
                   </option>
                 ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">Choose a project assigned to this client, or leave as none.</p>
+            <p className="text-xs text-text-muted mt-1">Choose a project assigned to this client, or leave as none.</p>
             {projectId && conflictCheckPending && (
-              <p className="mt-2 text-xs text-gray-600">Checking whether this project is already on an invoice…</p>
+              <p className="mt-2 text-xs text-text-secondary">Checking whether this project is already on an invoice…</p>
             )}
             {projectId && conflictCheckError && (
               <p className="mt-2 text-xs text-amber-800">
@@ -500,7 +500,7 @@ export function NewInvoicePage() {
                     <li key={c.id}>
                       <Link
                         to={`/invoices/${c.id}`}
-                        className="font-mono text-blue-800 underline hover:text-blue-950"
+                        className="font-mono text-primary underline hover:text-primary-hover"
                       >
                         {c.invoice_number}
                       </Link>
@@ -518,23 +518,23 @@ export function NewInvoicePage() {
         ) : null}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
-            <input type="date" {...register('issueDate', { required: true })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+            <label className="block text-sm font-medium text-text-secondary mb-1">Issue Date</label>
+            <input type="date" {...register('issueDate', { required: true })} className="w-full px-3 py-2 border border-input-border rounded-lg" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-            <input type="date" {...register('dueDate', { required: true })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+            <label className="block text-sm font-medium text-text-secondary mb-1">Due Date</label>
+            <input type="date" {...register('dueDate', { required: true })} className="w-full px-3 py-2 border border-input-border rounded-lg" />
           </div>
         </div>
 
         {/* Line items: description + hours; rate comes from Settings */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Line items</label>
-          <p className="text-xs text-gray-500 mb-2">
+          <label className="block text-sm font-medium text-text-secondary mb-2">Line items</label>
+          <p className="text-xs text-text-muted mb-2">
             Each line uses your default hourly rate from Settings × hours worked.
           </p>
           {projectId && selectedProject && (projectHoursPositive != null || hasProjectDescription) && (
-            <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-2 space-y-1">
+            <div className="text-xs text-text-secondary bg-surface-alt border border-border rounded-lg px-3 py-2 mb-2 space-y-1">
               {hasProjectDescription && (
                 <p>
                   The first line description is filled from the project. You can edit it or replace it.
@@ -552,12 +552,12 @@ export function NewInvoicePage() {
               )}
             </div>
           )}
-          <div className="grid grid-cols-12 gap-3 mb-2 text-xs text-gray-500">
+          <div className="grid grid-cols-12 gap-3 mb-2 text-xs text-text-muted">
             <div className="col-span-7 md:col-span-8">
-              <span className="font-medium text-gray-500 uppercase tracking-wide">Description</span>
+              <span className="font-medium text-text-muted uppercase tracking-wide">Description</span>
             </div>
             <div className="col-span-4 md:col-span-3">
-              <span className="font-medium text-gray-500 uppercase tracking-wide">Hours</span>
+              <span className="font-medium text-text-muted uppercase tracking-wide">Hours</span>
             </div>
             <div className="col-span-1" />
           </div>
@@ -570,13 +570,13 @@ export function NewInvoicePage() {
                       {...register(`items.${index}.description`)}
                       placeholder="Describe work performed"
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-y min-h-[4.5rem] text-sm"
+                      className="w-full px-3 py-2 border border-input-border rounded-lg resize-y min-h-[4.5rem] text-sm"
                     />
                   ) : (
                     <input
                       {...register(`items.${index}.description`)}
                       placeholder="Describe work performed"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-3 py-2 border border-input-border rounded-lg"
                     />
                   )}
                 </div>
@@ -603,7 +603,7 @@ export function NewInvoicePage() {
                           }
                         : {}),
                     })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg tabular-nums"
+                    className="w-full px-3 py-2 border border-input-border rounded-lg tabular-nums"
                     aria-label={`Hours for line ${index + 1}`}
                   />
                 </div>
@@ -620,29 +620,29 @@ export function NewInvoicePage() {
           <button
             type="button"
             onClick={() => append({ description: '', hours: 1 })}
-            className="mt-3 flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+            className="mt-3 flex items-center gap-1 text-sm text-primary hover:text-primary"
           >
             <HiOutlinePlus className="w-4 h-4" /> Add Item
           </button>
-          <p className="text-right text-sm text-gray-500 mt-2">Subtotal: ${subtotal.toFixed(2)}</p>
+          <p className="text-right text-sm text-text-muted mt-2">Subtotal: ${subtotal.toFixed(2)}</p>
         </div>
 
         {/* Tax, Discount, Notes */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Tax Rate (%)</label>
             <input
               readOnly
               value={settings ? String(settings.defaultTaxRate) : '—'}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-surface-alt text-text"
               aria-describedby="invoice-tax-rate-hint"
             />
-            <p id="invoice-tax-rate-hint" className="text-xs text-gray-500 mt-1">
+            <p id="invoice-tax-rate-hint" className="text-xs text-text-muted mt-1">
               From company settings. Change it under Settings.
             </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Discount</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Discount</label>
             <input
               readOnly
               value={
@@ -650,20 +650,20 @@ export function NewInvoicePage() {
                   ? selectedClient.discount_code
                   : '—'
               }
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-800"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-surface-alt text-text"
               aria-label="Client default discount code"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-text-muted mt-1">
               From the client profile. Change it under Clients.
             </p>
           </div>
           <div className="flex items-end gap-4">
             <label className="flex items-center gap-2">
               <input type="checkbox" {...register('isRecurring')} className="rounded" />
-              <span className="text-sm text-gray-700">Recurring</span>
+              <span className="text-sm text-text-secondary">Recurring</span>
             </label>
             {watch('isRecurring') && (
-              <select {...register('recurrenceInterval')} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              <select {...register('recurrenceInterval')} className="px-3 py-2 border border-input-border rounded-lg text-sm">
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -674,26 +674,26 @@ export function NewInvoicePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-          <textarea {...register('notes')} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Optional notes..." />
+          <label className="block text-sm font-medium text-text-secondary mb-1">Notes</label>
+          <textarea {...register('notes')} rows={3} className="w-full px-3 py-2 border border-input-border rounded-lg" placeholder="Optional notes..." />
         </div>
 
         <div className="flex flex-wrap justify-end gap-3">
-          <button type="button" onClick={() => navigate(isEdit ? `/invoices/${id}` : '/invoices')} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+          <button type="button" onClick={() => navigate(isEdit ? `/invoices/${id}` : '/invoices')} className="px-6 py-2 border border-input-border rounded-lg hover:bg-surface-alt">
             Cancel
           </button>
           <button
             type="button"
             onClick={handlePreview}
             disabled={saving || blockProjectActions}
-            className="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+            className="px-6 py-2 border border-primary text-primary rounded-lg hover:bg-primary-light disabled:opacity-50"
           >
             Preview invoice
           </button>
           <button
             type="submit"
             disabled={saving || blockProjectActions}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50"
           >
             {saving ? (isEdit ? 'Saving...' : 'Creating...') : isEdit ? 'Save changes' : 'Create Invoice'}
           </button>

@@ -20,7 +20,7 @@ export function ExternalLinksList({ links, className = 'text-sm mt-2 space-y-1 l
             href={l.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-primary hover:underline"
             title={l.description?.trim() ? l.url : undefined}
           >
             {l.description?.trim() || l.url}

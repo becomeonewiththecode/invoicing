@@ -19,7 +19,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="relative flex min-h-screen bg-gray-50">
+    <div className="relative flex min-h-screen bg-bg">
       <Sidebar className="hidden lg:flex" />
       {sidebarOpen && (
         <>
@@ -36,17 +36,17 @@ export function AppLayout() {
         </>
       )}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center border-b border-gray-200 bg-white px-4 py-3 sm:px-6 lg:hidden">
+        <header className="flex shrink-0 items-center border-b border-border bg-surface px-4 py-3 sm:px-6 lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen((prev) => !prev)}
-            className="inline-flex items-center rounded-lg border border-gray-300 p-2 text-gray-700 hover:bg-gray-100"
+            className="inline-flex items-center rounded-lg border border-input-border p-2 text-text-secondary hover:bg-surface-alt"
             aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           >
             {sidebarOpen ? <HiX className="h-5 w-5" /> : <HiMenu className="h-5 w-5" />}
           </button>
         </header>
-        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-auto bg-bg p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

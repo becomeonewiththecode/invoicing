@@ -91,17 +91,17 @@ export function PortalSecurityPage() {
   return (
     <div className="space-y-8 max-w-lg">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Security</h1>
-        <p className="text-gray-700 mt-1 text-sm">
+        <h1 className="text-2xl font-bold text-text">Security</h1>
+        <p className="text-text-secondary mt-1 text-sm">
           Add an authenticator app for a second step when you sign in to the client portal.
         </p>
       </div>
 
-      <section className="bg-white rounded-xl border border-sky-100 p-6 shadow-sm">
-        <h2 className="font-semibold text-gray-900">Two-factor authentication</h2>
-        <p className="text-sm text-gray-700 mt-2">
+      <section className="bg-surface rounded-xl border border-border p-6 shadow-sm">
+        <h2 className="font-semibold text-text">Two-factor authentication</h2>
+        <p className="text-sm text-text-secondary mt-2">
           Status:{' '}
-          <span className={twoFactorEnabled ? 'text-purple-800 font-medium' : 'text-gray-800'}>
+          <span className={twoFactorEnabled ? 'text-primary font-medium' : 'text-text'}>
             {twoFactorEnabled ? 'Enabled' : 'Off'}
           </span>
         </p>
@@ -113,7 +113,7 @@ export function PortalSecurityPage() {
                 type="button"
                 onClick={() => setupMutation.mutate()}
                 disabled={setupMutation.isPending}
-                className="px-4 py-2 bg-gradient-to-r from-sky-600 to-purple-700 text-white rounded-lg hover:from-sky-700 hover:to-purple-800 disabled:opacity-50 text-sm font-medium shadow-sm"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 text-sm font-medium shadow-sm"
               >
                 {setupMutation.isPending ? 'Preparing…' : 'Set up authenticator'}
               </button>
@@ -122,16 +122,16 @@ export function PortalSecurityPage() {
               <>
                 <div className="flex flex-col items-center gap-2">
                   <img src={setup.qrDataUrl} alt="QR code for authenticator" className="rounded-lg border" />
-                  <p className="text-xs text-gray-600 break-all text-center">{setup.otpauthUrl}</p>
+                  <p className="text-xs text-text-secondary break-all text-center">{setup.otpauthUrl}</p>
                 </div>
                 <form
                   onSubmit={enableForm.handleSubmit((f) => enableMutation.mutate(f.code.trim()))}
                   className="space-y-2"
                 >
-                  <label className="block text-sm font-medium text-gray-800">Verification code</label>
+                  <label className="block text-sm font-medium text-text">Verification code</label>
                   <input
                     {...enableForm.register('code', { required: 'Enter the 6-digit code' })}
-                    className="w-full px-3 py-2 border border-gray-400 rounded-lg tracking-widest"
+                    className="w-full px-3 py-2 border border-input-border rounded-lg tracking-widest"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     placeholder="123456"
@@ -143,14 +143,14 @@ export function PortalSecurityPage() {
                     <button
                       type="submit"
                       disabled={enableMutation.isPending}
-                      className="px-4 py-2 bg-gradient-to-r from-sky-600 to-purple-700 text-white rounded-lg hover:from-sky-700 hover:to-purple-800 disabled:opacity-50 text-sm shadow-sm"
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 text-sm shadow-sm"
                     >
                       {enableMutation.isPending ? 'Verifying…' : 'Enable 2FA'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setSetup(null)}
-                      className="px-4 py-2 border border-gray-400 rounded-lg text-sm hover:bg-gray-100"
+                      className="px-4 py-2 border border-input-border rounded-lg text-sm hover:bg-surface-alt"
                     >
                       Cancel
                     </button>
@@ -166,11 +166,11 @@ export function PortalSecurityPage() {
             onSubmit={disableForm.handleSubmit((f) => disableMutation.mutate(f.password))}
             className="mt-4 space-y-3"
           >
-            <p className="text-sm text-gray-700">Enter your portal password to turn off 2FA.</p>
+            <p className="text-sm text-text-secondary">Enter your portal password to turn off 2FA.</p>
             <input
               type="password"
               {...disableForm.register('password', { required: 'Password required' })}
-              className="w-full px-3 py-2 border border-gray-400 rounded-lg"
+              className="w-full px-3 py-2 border border-input-border rounded-lg"
               autoComplete="current-password"
             />
             {disableForm.formState.errors.password && (

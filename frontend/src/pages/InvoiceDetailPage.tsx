@@ -98,8 +98,8 @@ export function InvoiceDetailPage() {
     doc.save(`${invoice.invoice_number}.pdf`);
   };
 
-  if (isPending) return <div className="text-center py-8 text-gray-400">Loading...</div>;
-  if (!invoice) return <div className="text-center py-8 text-gray-400">Invoice not found</div>;
+  if (isPending) return <div className="text-center py-8 text-text-faint">Loading...</div>;
+  if (!invoice) return <div className="text-center py-8 text-text-faint">Invoice not found</div>;
 
   const nextStatusMap: Partial<Record<InvoiceStatus, { label: string; status: InvoiceStatus }>> = {
     draft: { label: 'Mark as Sent', status: 'sent' },
@@ -118,32 +118,32 @@ export function InvoiceDetailPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 text-sm">
-        <button type="button" onClick={() => navigate('/invoices')} className="text-gray-500 hover:text-gray-700">
+        <button type="button" onClick={() => navigate('/invoices')} className="text-text-muted hover:text-text-secondary">
           &larr; Back to Invoices
         </button>
-        <span className="text-gray-300" aria-hidden>
+        <span className="text-text-faint" aria-hidden>
           |
         </span>
         <Link
           to={`/clients/${encodeURIComponent(invoice.client_id)}`}
-          className="text-blue-600 hover:text-blue-800 font-medium"
+          className="text-primary hover:text-primary-hover font-medium"
         >
           Client profile
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-8">
+      <div className="bg-surface rounded-xl shadow-sm p-8">
         {/* Header */}
         <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-start mb-6">
           <div>
             <h1 className="text-2xl font-bold">{invoice.invoice_number}</h1>
             <StatusBadge status={invoice.status} />
             {invoice.project_name ? (
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-text-secondary mt-2">
                 Project:{' '}
                 <Link
                   to={`/clients/${encodeURIComponent(invoice.client_id)}#projects`}
-                  className="text-blue-600 hover:underline"
+                  className="text-primary hover:underline"
                 >
                   {invoice.project_name}
                 </Link>
@@ -154,14 +154,14 @@ export function InvoiceDetailPage() {
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
-              className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+              className="px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary-light transition-colors"
             >
               Preview
             </button>
             {invoice.status === 'draft' && (
               <Link
                 to={`/invoices/${invoice.id}/edit`}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-input-border rounded-lg hover:bg-surface-alt transition-colors"
               >
                 Edit
               </Link>
@@ -169,7 +169,7 @@ export function InvoiceDetailPage() {
             <button
               type="button"
               onClick={handleDownloadPdf}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 border border-input-border rounded-lg hover:bg-surface-alt transition-colors"
             >
               Generate PDF
             </button>
@@ -177,7 +177,7 @@ export function InvoiceDetailPage() {
               type="button"
               disabled={emailToCompanyMutation.isPending}
               onClick={() => emailToCompanyMutation.mutate()}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-4 py-2 border border-input-border rounded-lg hover:bg-surface-alt transition-colors disabled:opacity-50"
             >
               {emailToCompanyMutation.isPending ? 'Sending…' : 'Email to company'}
             </button>
@@ -198,7 +198,7 @@ export function InvoiceDetailPage() {
             {nextAction && (
               <button
                 onClick={() => statusMutation.mutate({ status: nextAction.status })}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
               >
                 {nextAction.label}
               </button>
@@ -207,9 +207,9 @@ export function InvoiceDetailPage() {
         </div>
 
         {/* Public share link — separate block so it is not lost in the action row */}
-        <div className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h2 className="text-sm font-semibold text-gray-900">Public share link</h2>
-          <p className="text-xs text-gray-600 mt-1 mb-3">
+        <div className="mb-8 rounded-lg border border-border bg-surface-alt p-4">
+          <h2 className="text-sm font-semibold text-text">Public share link</h2>
+          <p className="text-xs text-text-secondary mt-1 mb-3">
             Create a link anyone can open to view this invoice (no login). Paste it into email or chat.
           </p>
           <div className="flex flex-wrap gap-2 items-center">
@@ -230,7 +230,7 @@ export function InvoiceDetailPage() {
                   shareMutation.mutate();
                 }
               }}
-              className="px-4 py-2 border border-gray-300 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 text-sm font-medium"
+              className="px-4 py-2 border border-input-border bg-surface rounded-lg hover:bg-surface-alt transition-colors disabled:opacity-50 text-sm font-medium"
             >
               {shareMutation.isPending ? 'Creating…' : invoice.share_token ? 'Copy share link' : 'Create share link'}
             </button>
@@ -246,8 +246,15 @@ export function InvoiceDetailPage() {
             )}
           </div>
           {publicShareDisplayUrl && (
-            <p className="mt-3 text-xs font-mono text-gray-700 break-all bg-white border border-gray-200 rounded px-3 py-2">
-              {publicShareDisplayUrl}
+            <p className="mt-3 text-xs font-mono break-all bg-surface border border-border rounded px-3 py-2">
+              <a
+                href={publicShareDisplayUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                {publicShareDisplayUrl}
+              </a>
             </p>
           )}
         </div>
@@ -256,46 +263,46 @@ export function InvoiceDetailPage() {
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
-              <h3 className="text-sm font-medium text-gray-500">Bill To</h3>
+              <h3 className="text-sm font-medium text-text-muted">Bill To</h3>
               <Link
                 to={`/clients?edit=${encodeURIComponent(invoice.client_id)}`}
-                className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                className="text-xs font-medium text-primary hover:text-primary-hover hover:underline"
               >
                 Client profile
               </Link>
             </div>
-            <p className="font-medium text-gray-900">{formatInvoiceClientLabel(invoice)}</p>
+            <p className="font-medium text-text">{formatInvoiceClientLabel(invoice)}</p>
             {invoice.client_company?.trim() &&
               invoice.client_name?.trim() &&
               invoice.client_name.trim() !== invoice.client_company.trim() && (
-                <p className="text-sm text-gray-600 mt-1">Contact: {invoice.client_name}</p>
+                <p className="text-sm text-text-secondary mt-1">Contact: {invoice.client_name}</p>
               )}
-            {invoice.client_email && <p className="text-gray-600 mt-1">{invoice.client_email}</p>}
-            {invoice.client_address && <p className="text-gray-600">{invoice.client_address}</p>}
+            {invoice.client_email && <p className="text-text-secondary mt-1">{invoice.client_email}</p>}
+            {invoice.client_address && <p className="text-text-secondary">{invoice.client_address}</p>}
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-500">Issue Date: <span className="text-gray-900">{invoice.issue_date}</span></p>
-            <p className="text-sm text-gray-500">Due Date: <span className="text-gray-900">{invoice.due_date}</span></p>
+            <p className="text-sm text-text-muted">Issue Date: <span className="text-text">{invoice.issue_date}</span></p>
+            <p className="text-sm text-text-muted">Due Date: <span className="text-text">{invoice.due_date}</span></p>
             {invoice.is_recurring && (
-              <p className="text-sm text-blue-600 mt-1">Recurring ({invoice.recurrence_interval})</p>
+              <p className="text-sm text-primary mt-1">Recurring ({invoice.recurrence_interval})</p>
             )}
           </div>
         </div>
 
         {/* Totals live in tfoot so columns align with line items (grid-cols-4 used equal widths and did not match the table). */}
-        <table className="mb-8 w-full border-collapse border border-gray-300 text-sm">
+        <table className="mb-8 w-full border-collapse border border-input-border text-sm">
           <thead>
-            <tr className="bg-gray-50">
-              <th className="border border-gray-300 px-4 py-3 text-left align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+            <tr className="bg-surface-alt">
+              <th className="border border-input-border px-4 py-3 text-left align-middle text-xs font-bold uppercase tracking-wide text-text-muted">
                 Description
               </th>
-              <th className="border border-gray-300 px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+              <th className="border border-input-border px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-text-muted">
                 Hours
               </th>
-              <th className="border border-gray-300 px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+              <th className="border border-input-border px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-text-muted">
                 Rate
               </th>
-              <th className="border border-gray-300 px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-gray-500">
+              <th className="border border-input-border px-4 py-3 text-right align-middle text-xs font-bold uppercase tracking-wide text-text-muted">
                 Amount
               </th>
             </tr>
@@ -303,55 +310,55 @@ export function InvoiceDetailPage() {
           <tbody>
             {invoice.items?.map((item, i) => (
               <tr key={i}>
-                <td className="border border-gray-300 px-4 py-3 align-middle text-left leading-normal text-gray-900">
+                <td className="border border-input-border px-4 py-3 align-middle text-left leading-normal text-text">
                   <LinkifiedText text={item.description} preserveLineBreaks />
                 </td>
-                <td className="border border-gray-300 px-4 py-3 align-middle text-right leading-normal tabular-nums text-gray-900">
+                <td className="border border-input-border px-4 py-3 align-middle text-right leading-normal tabular-nums text-text">
                   {item.quantity}
                 </td>
-                <td className="border border-gray-300 px-4 py-3 align-middle text-right leading-normal tabular-nums text-gray-900">
+                <td className="border border-input-border px-4 py-3 align-middle text-right leading-normal tabular-nums text-text">
                   ${Number(item.unit_price ?? item.unitPrice ?? 0).toFixed(2)}
                 </td>
-                <td className="border border-gray-300 px-4 py-3 align-middle text-right leading-normal tabular-nums font-medium text-gray-900">
+                <td className="border border-input-border px-4 py-3 align-middle text-right leading-normal tabular-nums font-medium text-text">
                   ${Number(item.amount).toFixed(2)}
                 </td>
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-gray-50/80">
+          <tfoot className="bg-surface-alt/80">
             <tr>
-              <td colSpan={2} className="border border-gray-300" aria-hidden />
-              <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-500">Subtotal</td>
-              <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+              <td colSpan={2} className="border border-input-border" aria-hidden />
+              <td className="border border-input-border px-4 py-2 align-middle text-left text-text-muted">Subtotal</td>
+              <td className="border border-input-border px-4 py-2 align-middle text-right tabular-nums text-text">
                 ${Number(invoice.subtotal).toFixed(2)}
               </td>
             </tr>
             {Number(invoice.discount_amount) > 0 && (
               <tr>
-                <td colSpan={2} className="border border-gray-300" aria-hidden />
-                <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-500">
+                <td colSpan={2} className="border border-input-border" aria-hidden />
+                <td className="border border-input-border px-4 py-2 align-middle text-left text-text-muted">
                   Discount{invoice.discount_code && ` (${invoice.discount_code})`}
                 </td>
-                <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+                <td className="border border-input-border px-4 py-2 align-middle text-right tabular-nums text-text">
                   -${Number(invoice.discount_amount).toFixed(2)}
                 </td>
               </tr>
             )}
             {Number(invoice.tax_amount) > 0 && (
               <tr>
-                <td colSpan={2} className="border border-gray-300" aria-hidden />
-                <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-500">
+                <td colSpan={2} className="border border-input-border" aria-hidden />
+                <td className="border border-input-border px-4 py-2 align-middle text-left text-text-muted">
                   Tax ({invoice.tax_rate}%)
                 </td>
-                <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+                <td className="border border-input-border px-4 py-2 align-middle text-right tabular-nums text-text">
                   ${Number(invoice.tax_amount).toFixed(2)}
                 </td>
               </tr>
             )}
             <tr className="font-bold text-base">
-              <td colSpan={2} className="border border-gray-300" aria-hidden />
-              <td className="border border-gray-300 px-4 py-2 align-middle text-left text-gray-900">Total</td>
-              <td className="border border-gray-300 px-4 py-2 align-middle text-right tabular-nums text-gray-900">
+              <td colSpan={2} className="border border-input-border" aria-hidden />
+              <td className="border border-input-border px-4 py-2 align-middle text-left text-text">Total</td>
+              <td className="border border-input-border px-4 py-2 align-middle text-right tabular-nums text-text">
                 ${Number(invoice.total).toFixed(2)}
               </td>
             </tr>
@@ -360,9 +367,9 @@ export function InvoiceDetailPage() {
 
         {(invoice.notes?.trim() || externalLinksFromInvoicePayload(invoice.project_external_links).length > 0) && (
           <div className="mt-8 pt-6 border-t">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
+            <h3 className="text-sm font-medium text-text-muted mb-2">Notes</h3>
             {invoice.notes?.trim() ? (
-              <p className="text-gray-600 whitespace-pre-line">
+              <p className="text-text-secondary whitespace-pre-line">
                 <LinkifiedText text={invoice.notes} preserveLineBreaks />
               </p>
             ) : null}
@@ -374,9 +381,9 @@ export function InvoiceDetailPage() {
         )}
 
         {companySettings?.payableText?.trim() && (
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Pay to</h3>
-            <p className="text-gray-700 whitespace-pre-line">{companySettings.payableText.trim()}</p>
+          <div className="mt-8 pt-6 border-t border-border">
+            <h3 className="text-sm font-medium text-text-muted mb-2">Pay to</h3>
+            <p className="text-text-secondary whitespace-pre-line">{companySettings.payableText.trim()}</p>
           </div>
         )}
       </div>

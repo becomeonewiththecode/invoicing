@@ -11,7 +11,10 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | `src/components/layout/AdminLayout.tsx` | Responsive admin layout: desktop sidebar + mobile drawer; shows admin login if not authenticated as admin |
 | `src/components/layout/AdminSidebar.tsx` | Admin navigation links (desktop and mobile drawer) |
 | `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
-| `src/stores/` | Zustand auth store (persisted); `isAdmin()` helper for role check |
+| `src/stores/` | Zustand **auth** store (persisted); `isAdmin()` helper for role check; **`themeStore.ts`** — selected palette + `localStorage` + `document.documentElement.dataset.theme` |
+| `src/components/ThemePickerPanel.tsx` | Shared **Appearance** UI (four themes); used by Settings, portal Account, admin Settings |
+| `src/index.css` | Theme tokens: `--color-bg`, `--color-surface`, `--color-primary`, `--color-sidebar-*`, etc., per `[data-theme="…"]`; `html` / `body` / `#root` use `--color-bg` for full-viewport canvas |
+| `tailwind.config.js` | Maps semantic colors to CSS variables (`bg-bg`, `text-text`, `border-border`, `bg-sidebar-bg`, …) |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
 | `src/pages/portal/` | **Client portal** pages (login, dashboard, invoices, projects, project detail, account, security); `PortalLayout` (no main sidebar) |
 | `src/components/portal/` | `PortalLayout.tsx` and shared portal chrome |
@@ -50,7 +53,7 @@ flowchart TB
         CL_LIST["/clients\nClientsPage\npaginated · quick edit"]
         CL_PROF["/clients/:clientId\nClientProfilePage\nDetails · Invoices · Projects"]
         DISC["/discounts\nDiscountsPage"]
-        SETT["/settings\nSettingsPage\nGeneral · Discounts · Email · Backup · Account"]
+        SETT["/settings\nSettingsPage\nGeneral · Appearance · Discounts · Email · Backup · Account"]
         SUPPORT["/support\nSupportPage\nuser ticket submission"]
       end
       subgraph Admin["Admin routes (AdminLayout)"]
@@ -61,6 +64,7 @@ flowchart TB
         ADM_TIX["/admin/tickets\nAdminTicketsPage"]
         ADM_BACK["/admin/backups\nAdminBackupsPage"]
         ADM_RL["/admin/rate-limits\nAdminRateLimitsPage"]
+        ADM_SET["/admin/settings\nAdminSettingsPage\npassword · Appearance"]
       end
     end
 
@@ -79,6 +83,7 @@ flowchart TB
     subgraph State["State management"]
       RQ["TanStack React Query\nserver state · 30s stale time\nauto cache invalidation"]
       ZS["Zustand AuthStore\nuser · token · localStorage"]
+      ZTHEME["Zustand ThemeStore\ntheme key · localStorage\ndata-theme on <html>"]
     end
 
     subgraph API["API modules (Axios)"]
@@ -113,8 +118,10 @@ flowchart TB
   %% State flow
   Protected --> RQ
   Protected --> ZS
+  Protected --> ZTHEME
   Admin --> RQ
   Admin --> ZS
+  Admin --> ZTHEME
   SHARE --> RQ
   LOGIN --> ZS
   REG --> ZS
@@ -246,6 +253,37 @@ sequenceDiagram
 ```
 
 **Dev server:** Vite serves on port **5173** and can proxy `/api` to the backend (see `vite.config.ts`).
+
+## UI themes
+
+Four palettes — **Starter** (blue-violet), **Forest** (green), **Twilight** (grey/black), **Ember** (warm coral) — are defined as CSS custom properties in `src/index.css` under `:root` / `[data-theme="…"]`. Tailwind’s `extend.colors` maps utility classes such as `bg-bg` (page canvas), `bg-surface` (cards), `text-text`, `border-border`, and `bg-sidebar-bg` to those variables so vendor app, admin, and portal screens stay consistent when the user switches themes.
+
+Persistence: `src/stores/themeStore.ts` (Zustand) writes the selected key to `localStorage`, sets `document.documentElement.dataset.theme`, and is loaded from `main.tsx` on startup. Users can change the theme from **Settings → General → Appearance**, **Client portal → Account**, or **Admin → Settings** (shared `ThemePickerPanel` component).
+
+### Theming data flow
+
+```mermaid
+flowchart LR
+  subgraph UI["Picker UI"]
+    A["ThemePickerPanel"]
+  end
+  subgraph Store["Client state"]
+    Z["themeStore\nZustand"]
+    LS[("localStorage")]
+  end
+  subgraph DOM["Document"]
+    H["html[data-theme]"]
+    CSS["CSS variables\n--color-bg …"]
+  end
+  A -->|"setTheme()"| Z
+  Z --> LS
+  Z --> H
+  H --> CSS
+  subgraph Boot["Startup"]
+    M["main.tsx imports\nthemeStore side effect"]
+  end
+  M --> H
+```
 
 ## New invoice and projects
 

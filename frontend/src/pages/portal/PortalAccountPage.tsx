@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { getPortalAccount, updatePortalAccount } from '../../api/portal';
+import { ThemePickerPanel } from '../../components/ThemePickerPanel';
 
 type Form = {
   email: string;
@@ -100,45 +101,47 @@ export function PortalAccountPage() {
   return (
     <div className="space-y-6 max-w-lg">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Account</h1>
-        <p className="text-gray-700 mt-1 text-sm">
+        <h1 className="text-2xl font-bold text-text">Account</h1>
+        <p className="text-text-secondary mt-1 text-sm">
           Set a login email (username) and update your portal password.
         </p>
       </div>
 
-      {accountQuery.isPending && <p className="text-gray-500">Loading account…</p>}
+      <ThemePickerPanel description="Color theme for the client portal and the rest of the app in this browser." />
+
+      {accountQuery.isPending && <p className="text-text-muted">Loading account…</p>}
       {accountQuery.isError && <p className="text-red-600">Could not load account.</p>}
 
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-xl border border-sky-100 shadow-sm p-6 space-y-4"
+        className="bg-surface rounded-xl border border-border shadow-sm p-6 space-y-4"
       >
         <div>
-          <label className="block text-sm font-medium text-gray-800 mb-1">Login email</label>
+          <label className="block text-sm font-medium text-text mb-1">Login email</label>
           <input
             type="email"
             autoComplete="email"
             {...register('email')}
-            className="w-full px-3 py-2 border border-gray-400 rounded-lg"
+            className="w-full px-3 py-2 border border-input-border rounded-lg"
             placeholder="you@example.com"
           />
-          <p className="text-xs text-gray-600 mt-1">
+          <p className="text-xs text-text-secondary mt-1">
             Once set, you can sign in using Email + Password on the portal login page.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-800 mb-1">
+          <label className="block text-sm font-medium text-text mb-1">
             Current portal password {canSetPasswordWithoutCurrent ? '(optional)' : '*'}
           </label>
           <input
             type="password"
             autoComplete="current-password"
             {...register('currentPassword')}
-            className="w-full px-3 py-2 border border-gray-400 rounded-lg"
+            className="w-full px-3 py-2 border border-input-border rounded-lg"
           />
           {canSetPasswordWithoutCurrent ? (
-            <p className="text-xs text-gray-600 mt-1">
+            <p className="text-xs text-text-secondary mt-1">
               You signed in with an access token, so you can set a new password without the current one.
             </p>
           ) : errors.currentPassword ? (
@@ -148,35 +151,35 @@ export function PortalAccountPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1">New password</label>
+            <label className="block text-sm font-medium text-text mb-1">New password</label>
             <input
               type="password"
               autoComplete="new-password"
               {...register('newPassword')}
-              className="w-full px-3 py-2 border border-gray-400 rounded-lg"
+              className="w-full px-3 py-2 border border-input-border rounded-lg"
               placeholder="Leave blank to keep"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1">Confirm new password</label>
+            <label className="block text-sm font-medium text-text mb-1">Confirm new password</label>
             <input
               type="password"
               autoComplete="new-password"
               {...register('confirmNewPassword')}
-              className="w-full px-3 py-2 border border-gray-400 rounded-lg"
+              className="w-full px-3 py-2 border border-input-border rounded-lg"
               placeholder="Repeat new password"
             />
           </div>
         </div>
 
         {Boolean(newPassword || confirmNewPassword) && newPassword.trim().length > 0 && newPassword.trim().length < 8 && (
-          <p className="text-purple-900 text-sm bg-sky-50 border border-purple-200/60 rounded-lg px-3 py-2">
+          <p className="text-text text-sm bg-surface-alt border border-border rounded-lg px-3 py-2">
             New passwords must be at least 8 characters.
           </p>
         )}
 
         {saveMessage && (
-          <p className="text-sm text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
+          <p className="text-sm text-text bg-surface-alt border border-border rounded-lg px-3 py-2">
             {saveMessage}
           </p>
         )}
@@ -188,7 +191,7 @@ export function PortalAccountPage() {
             className={`px-5 py-2.5 text-white rounded-lg disabled:opacity-50 text-sm font-medium shadow-sm transition-colors ${
               justSaved
                 ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-600 hover:to-emerald-700'
-                : 'bg-gradient-to-r from-sky-600 to-purple-700 hover:from-sky-700 hover:to-purple-800'
+                : 'bg-primary hover:bg-primary-hover'
             }`}
           >
             {updateMutation.isPending ? 'Saving…' : justSaved ? 'Saved' : 'Save changes'}
