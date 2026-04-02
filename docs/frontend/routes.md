@@ -17,7 +17,7 @@ Vendor sidebar quick links include **Admin site** (`/admin`) and **Client site**
 | `/clients/:clientId` | **Client profile** | See below |
 | `/clients/:clientId/stats` | — | **Redirects** to `/clients/:clientId#invoice-status` |
 | `/discounts` | Discount codes | No sidebar link; accessible via Settings → Discounts tab |
-| `/settings` | Company settings | Tabbed layout: **General** (business info, logo), **Discounts** (link to manage codes), **Email** (SMTP config, test button, company email), **Backup** (export/import JSON), **Account** (change login email and password) |
+| `/settings` | Company settings | Tabbed layout: **General** (**Appearance** theme picker, business info, logo), **Discounts** (link to manage codes), **Email** (SMTP config, test button, company email), **Backup** (export/import JSON), **Account** (change login email and password) |
 
 ## Client profile (`/clients/:clientId`)
 

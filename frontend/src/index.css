@@ -19,9 +19,10 @@
     --color-sidebar-active: #635BFF;
     --color-sidebar-border: #1E3A5F;
 
-    --color-bg: #F6F9FC;
+    /* Page canvas — visibly tinted vs white cards */
+    --color-bg: #E6EDF8;
     --color-surface: #FFFFFF;
-    --color-surface-alt: #F1F5F9;
+    --color-surface-alt: #E8EEF5;
 
     --color-border: #E2E8F0;
     --color-input-border: #CBD5E1;
@@ -49,9 +50,9 @@
     --color-sidebar-active: #238636;
     --color-sidebar-border: #30363D;
 
-    --color-bg: #F6F8FA;
+    --color-bg: #E5EEE8;
     --color-surface: #FFFFFF;
-    --color-surface-alt: #F0F3F6;
+    --color-surface-alt: #E8F0EB;
 
     --color-border: #D0D7DE;
     --color-input-border: #C5CCD3;
@@ -79,7 +80,7 @@
     --color-sidebar-active: #52525B;
     --color-sidebar-border: #27272A;
 
-    --color-bg: #F4F4F5;
+    --color-bg: #E2E2E6;
     --color-surface: #FFFFFF;
     --color-surface-alt: #E4E4E7;
 
@@ -109,9 +110,9 @@
     --color-sidebar-active: #E04545;
     --color-sidebar-border: #E3E2DE;
 
-    --color-bg: #FFFFFF;
+    --color-bg: #F5EDE8;
     --color-surface: #FFFFFF;
-    --color-surface-alt: #F7F6F3;
+    --color-surface-alt: #F0E8E2;
 
     --color-border: #E3E2DE;
     --color-input-border: #C8C7C3;
@@ -122,5 +123,18 @@
     --color-text-faint: #9B9A97;
 
     --color-focus-ring: #E04545;
+  }
+
+  /* Paint the full viewport; otherwise body stays browser-white behind the app shell */
+  html {
+    background-color: var(--color-bg);
+  }
+  body {
+    min-height: 100%;
+    background-color: var(--color-bg);
+  }
+  #root {
+    min-height: 100vh;
+    background-color: var(--color-bg);
   }
 }

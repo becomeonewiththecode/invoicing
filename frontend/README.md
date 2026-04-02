@@ -1,6 +1,12 @@
-# React + TypeScript + Vite
+# Frontend (Invoicing SPA)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vite + React + TypeScript. Product docs (routes, diagrams, **UI themes**, PDF flow) live in **[`docs/frontend/`](../docs/frontend/overview.md)** — start with [`overview.md`](../docs/frontend/overview.md) (includes Mermaid architecture diagrams and the theming section).
+
+---
+
+## React + TypeScript + Vite (tooling)
+
+The template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
 

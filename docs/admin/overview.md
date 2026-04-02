@@ -19,7 +19,7 @@ Standalone management interface at `/admin`. Separate layout, sidebar, and login
 | `AdminLayout` | `frontend/src/components/layout/AdminLayout.tsx` | Auth guard, responsive header ("Admin Panel" + sign-out), desktop sidebar + mobile drawer, `<Outlet />` |
 | `AdminSidebar` | `frontend/src/components/layout/AdminSidebar.tsx` | Dark nav sidebar used in desktop mode and the mobile slide-in drawer |
 
-**Sidebar links:** Dashboard, Users, Moderation, Tickets, Backups, Rate Limits, Settings.
+**Sidebar links:** Dashboard, Users, Moderation, Tickets, Backups, Rate Limits, Settings (password + **Appearance** / UI theme — see [Admin pages — Settings](pages.md)).
 
 ## Architecture diagrams
 

@@ -227,7 +227,9 @@ Existing configs shown in a table with inline-editable fields (save on blur):
 
 **File:** `AdminSettingsPage.tsx`
 
-Single card with a password change form. Displays the current admin email (read-only) with three fields:
+**Appearance** — At the top of the page, the shared **`ThemePickerPanel`** offers the same four **UI themes** as the vendor app (browser-local `localStorage`, `data-theme` on `<html>`). See [Frontend overview — UI themes](../frontend/overview.md#ui-themes).
+
+**Password** — Single card with a password change form. Displays the current admin email (read-only) with three fields:
 
 | Field | Validation |
 |-------|------------|

@@ -46,7 +46,7 @@ export function AppLayout() {
             {sidebarOpen ? <HiX className="h-5 w-5" /> : <HiMenu className="h-5 w-5" />}
           </button>
         </header>
-        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-auto bg-bg p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

@@ -11,6 +11,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 - **Invoices + projects** — Optional related project on each invoice; the new-invoice form can prefill line 1 from the project description and hours, and enforce a hours cap when the project marks hours as a maximum. Only **one non-cancelled** invoice may use a given project; the UI shows an amber warning with links and blocks preview/save when the conflict list loads and matches, shows a fixed amber line if that check request fails, and the API returns **409** on create/update if the rule is violated ([details](docs/frontend/routes.md#new-invoice-and-related-projects))  
 - **Discounts** — Percent or fixed codes  
 - **Company profile** — Tax rate, address, logo, optional company email for invoice copy emails; **Account** tab to change login email and password
+- **UI themes** — Four browser-local palettes (**Starter**, **Forest**, **Twilight**, **Ember**) via CSS variables and Tailwind tokens; choose in **Settings → General → Appearance**, **Client portal → Account**, or **Admin → Settings**
 - **Dashboard** — Revenue stats (cached in Redis)  
 - **PDF** — Client-side invoice PDFs (jsPDF)  
 - **Share links** — Generate a public URL for any invoice; clients can view and mark as paid without logging in

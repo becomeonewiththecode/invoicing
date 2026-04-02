@@ -273,3 +273,7 @@ flowchart TB
   L --> F
   Modal --> JSPDF
 ```
+
+## SPA UI themes (browser)
+
+The static SPA bundle does not change per theme server-side: **themes are client-only**. `index.html` loads JS that applies `data-theme` on `<html>` and CSS variables for the canvas, sidebar, and accents. See **[Frontend overview — UI themes](frontend/overview.md#ui-themes)** for stores, pickers, and the Mermaid flow diagram.
