@@ -246,8 +246,15 @@ export function InvoiceDetailPage() {
             )}
           </div>
           {publicShareDisplayUrl && (
-            <p className="mt-3 text-xs font-mono text-gray-700 break-all bg-white border border-gray-200 rounded px-3 py-2">
-              {publicShareDisplayUrl}
+            <p className="mt-3 text-xs font-mono break-all bg-white border border-gray-200 rounded px-3 py-2">
+              <a
+                href={publicShareDisplayUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                {publicShareDisplayUrl}
+              </a>
             </p>
           )}
         </div>

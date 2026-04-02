@@ -17,6 +17,15 @@ export function SharedInvoicePage() {
     enabled: !!token,
   });
 
+  const markPaidMutation = useMutation({
+    mutationFn: () => markSharedInvoicePaid(token!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shared-invoice', token] });
+      toast.success('Invoice marked as paid');
+    },
+    onError: () => toast.error('Failed to update invoice status'),
+  });
+
   if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-400">
@@ -35,15 +44,6 @@ export function SharedInvoicePage() {
       </div>
     );
   }
-
-  const markPaidMutation = useMutation({
-    mutationFn: () => markSharedInvoicePaid(token!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shared-invoice', token] });
-      toast.success('Invoice marked as paid');
-    },
-    onError: () => toast.error('Failed to update invoice status'),
-  });
 
   const canMarkPaid = invoice.status === 'sent' || invoice.status === 'late';
 
