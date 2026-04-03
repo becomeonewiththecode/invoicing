@@ -46,7 +46,7 @@ flowchart TB
 **Notes**
 
 - **Postgres:** **`maxwayne/invoice-postgres:1.0`** (prod) bakes `schema.sql`; empty **`pgdata`** runs init scripts on first container start. Persistent data lives in the **`pgdata`** volume only.
-- **TLS:** **`ssl_certs`** holds PEMs read by nginx; **`acme_webroot`** serves HTTP-01 challenges. Neither path is under the git repo—see [guide.md](guide.md#tls-lets-encrypt-with-acmesh).
+- **TLS:** **`ssl_certs`** holds PEMs read by nginx; **`acme_webroot`** serves HTTP-01 challenges. Neither path is under the git repo—see **[tls.md](tls.md)**.
 - The browser uses nginx for the SPA; nginx forwards `/api` to the **`backend`** service on the Docker network.
 - **Uploads:** company logos and similar files use the **`uploads_data`** volume at **`/app/uploads`** in the backend container.
 - The backend runs **`ensureSchema()`** on startup against PostgreSQL (idempotent column/enum upgrades). See [Runtime schema upgrades](../docs/database/schema.md#runtime-schema-upgrades).
