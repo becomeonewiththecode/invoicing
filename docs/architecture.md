@@ -7,8 +7,8 @@ flowchart TB
     Browser["Browser\n(user)"]
 
     subgraph Docker["Docker Compose network"]
-        subgraph FE["frontend  :80 / :443"]
-            NGINX["nginx\n· serves React SPA\n· proxies /api → backend:3001\n· Docker DNS re-resolution\n· TLS: ssl_certs volume · ACME: acme_webroot"]
+        subgraph FE["frontend :80 / :443"]
+            NGINX["nginx\n- serves React SPA\n- proxies /api to backend port 3001\n- Docker DNS re-resolution\n- TLS via ssl_certs volume, ACME via acme_webroot"]
         end
 
         subgraph BE["backend  :3001"]
@@ -19,7 +19,7 @@ flowchart TB
                 AUTH_R["/api/auth\nregister · login\nchange email/password"]
                 CLIENT_R["/api/clients\nCRUD · projects per client"]
                 INV_R["/api/invoices\nCRUD · stats · CSV\nfor-project · share · send email"]
-                SHARE_R["/api/invoices/share/:token\npublic view · mark paid"]
+                SHARE_R["/api/invoices/share/{token}\npublic view · mark paid"]
                 DISC_R["/api/discounts\nCRUD"]
                 SET_R["/api/settings\nprofile · logo · SMTP"]
                 DATA_R["/api/data\nexport · import"]
@@ -61,8 +61,8 @@ flowchart TB
             SCHEMA["ensureSchema()\nidempotent ALTERs\non startup + import"]
         end
 
-        subgraph PG["postgres  :5432 (invoice-postgres image)"]
-            PGDB[("PostgreSQL 16 · invoicing DB\nschema baked in image · data: pgdata volume")]
+        subgraph PG["postgres :5432, invoice-postgres image"]
+            PGDB[("PostgreSQL 16, invoicing DB\nschema in image, data on pgdata volume")]
         end
 
         subgraph RD["redis  :6379"]
@@ -73,7 +73,7 @@ flowchart TB
     SMTP_EXT["External SMTP\n(optional)"]
 
     %% Browser → Frontend
-    Browser -- "HTTP :80\nSPA assets + /api proxy" --> NGINX
+    Browser -- "HTTP port 80\nSPA assets + /api proxy" --> NGINX
 
     %% Frontend → Backend
     NGINX -- "/api/*\nreverse proxy" --> EXPRESS
@@ -116,22 +116,22 @@ sequenceDiagram
     participant DC as Docker Compose
     participant PG as PostgreSQL
     participant RD as Redis
-    participant BE as Backend (Express)
-    participant FE as Frontend (nginx)
+    participant BE as "Backend (Express)"
+    participant FE as "Frontend (nginx)"
 
     DC->>PG: Start container
     DC->>RD: Start container
     PG-->>DC: Healthcheck passes (pg_isready)
     RD-->>DC: Healthcheck passes (redis-cli ping)
-    DC->>BE: Start container (depends_on: postgres, redis healthy)
-    BE->>PG: ensureSchema() — idempotent ALTERs + admin tables
-    BE->>PG: Seed admin user (if ADMIN_EMAIL set and not exists)
+    DC->>BE: Start container (depends_on postgres and redis healthy)
+    BE->>PG: ensureSchema() idempotent ALTERs + admin tables
+    BE->>PG: Seed admin user if ADMIN_EMAIL set and missing
     BE->>BE: Start node-cron jobs (reminders, recurrence, backups)
-    BE->>BE: Listen on 0.0.0.0:3001
+    BE->>BE: Listen on 0.0.0.0 port 3001
     BE-->>DC: Healthcheck passes (GET /api/health)
-    DC->>FE: Start container (depends_on: backend healthy)
-    FE->>FE: nginx listens on :80
-    Note over FE,BE: Browser → nginx :80 → /api proxy → backend:3001
+    DC->>FE: Start container (depends_on backend healthy)
+    FE->>FE: nginx listens on port 80
+    Note over FE,BE: Browser to nginx port 80, /api proxy to backend port 3001
 ```
 
 ## Request flow
@@ -139,8 +139,8 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant N as nginx (:80)
-    participant E as Express (:3001)
+    participant N as "nginx port 80"
+    participant E as "Express port 3001"
     participant PG as PostgreSQL
     participant RD as Redis
 
@@ -148,13 +148,13 @@ sequenceDiagram
     N-->>B: index.html + JS/CSS bundles
 
     B->>N: POST /api/auth/login
-    N->>E: proxy_pass → backend:3001
+    N->>E: proxy_pass to backend port 3001
     E->>PG: Verify credentials
     PG-->>E: User row
     E-->>N: JWT token
     N-->>B: 200 { token }
 
-    B->>N: GET /api/invoices (Authorization: Bearer ...)
+    B->>N: GET /api/invoices (Bearer token)
     N->>E: proxy_pass
     E->>E: JWT verify + rate limit
     E->>PG: SELECT invoices
@@ -185,7 +185,7 @@ sequenceDiagram
     participant PG as PostgreSQL
     participant RD as Redis
 
-    B->>E: POST /api/data/import { data, confirmReplace: true }
+    B->>E: POST /api/data/import with confirmReplace true
     E->>E: Zod schema validation
     E->>E: Referential integrity + duplicate ID checks
     E->>PG: ensureSchema()
@@ -193,11 +193,11 @@ sequenceDiagram
     E->>PG: DELETE user's invoices, clients, discount_codes
     E->>PG: DELETE colliding IDs (cross-account)
     E->>PG: UPDATE user profile
-    E->>PG: INSERT clients; if v2: projects, project_external_links
+    E->>PG: INSERT clients; if v2 projects and project_external_links
     E->>PG: INSERT discount_codes, invoices (with project_id if v2), items, reminders
     E->>PG: COMMIT
     E->>RD: Invalidate revenue cache
-    E-->>B: 200 { ok: true }
+    E-->>B: 200 ok true
 ```
 
 ## New invoice: project conflict (SPA + API)
@@ -213,14 +213,14 @@ At most **one non-`cancelled`** invoice may reference a given **`project_id`** p
 sequenceDiagram
     participant U as User
     participant SPA as NewInvoicePage
-    participant API as Express /api/invoices
+    participant API as "Express /api/invoices"
     participant PG as PostgreSQL
 
     U->>SPA: Select client + related project
     SPA->>API: GET /invoices?clientId=&limit=100
     alt List request fails
         API-->>SPA: 4xx/5xx or network error
-        SPA-->>U: Amber text: delete existing invoice… (submit still allowed)
+        SPA-->>U: Amber text, delete existing invoice (submit still allowed)
     else List succeeds
         API->>PG: List invoices for client
         PG-->>API: Rows (incl. project_id, status)
@@ -254,7 +254,7 @@ flowchart TB
     P3["NewInvoicePage / edit"]
   end
 
-  subgraph Modal["InvoicePreviewModal"]
+  subgraph IPModal["InvoicePreviewModal"]
     H["Header + hint"]
     I["PDF iframe\nflex-1 min-h-0"]
     L["ExternalLinksList\nbelow PDF · new tab"]
@@ -262,16 +262,16 @@ flowchart TB
   end
 
   subgraph Client["Browser"]
-    JSPDF["pdf.ts → blob URL"]
+    JSPDF["pdf.ts to blob URL"]
   end
 
-  P1 --> Modal
-  P2 --> Modal
-  P3 --> Modal
+  P1 --> IPModal
+  P2 --> IPModal
+  P3 --> IPModal
   H --> I
   I --> L
   L --> F
-  Modal --> JSPDF
+  IPModal --> JSPDF
 ```
 
 ## SPA UI themes (browser)
