@@ -9,7 +9,7 @@ Production and container deployment for the invoicing app.
 | File | Description |
 |------|-------------|
 | [docker-compose-build.yml](docker-compose-build.yml) | Compose with `build:` for **postgres** (schema baked in), **backend**, and **frontend** — use when developing or building images from this repo on the host |
-| [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with `image: invoice-postgres:1.0`, `invoice-backend:1.0`, `invoice-frontend:1.0` — use when all images are built elsewhere and tagged (no rebuild on deploy) |
+| [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with Docker Hub images **`maxwayne/invoice-postgres:1.0`**, **`maxwayne/invoice-backend:1.0`**, **`maxwayne/invoice-frontend:1.0`** — use when pulling pre-built images (no rebuild on deploy) |
 | [postgres/Dockerfile](postgres/Dockerfile) | Builds `invoice-postgres:1.0` with `schema.sql` in the image (no bind mount from the repo at runtime) |
 | [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, TLS (acme.sh), port notes |
 | [diagram.md](diagram.md) | Mermaid deployment diagram: images, named volumes (`pgdata`, `uploads_data`, `acme_webroot`, `ssl_certs`), traffic flow |
@@ -20,7 +20,7 @@ Production and container deployment for the invoicing app.
 | Goal | File | Typical command (from `deployment/`) |
 |------|------|----------------------------------------|
 | Build and run from source | `docker-compose-build.yml` | `docker compose -f docker-compose-build.yml up -d --build` |
-| Run pre-built images only | `docker-compose-prod.yml` | `docker compose -f docker-compose-prod.yml up -d` (after `docker pull` / `docker load` and tags **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, **`invoice-frontend:1.0`**) |
+| Run pre-built images only | `docker-compose-prod.yml` | `docker compose -f docker-compose-prod.yml up -d` (after `docker pull` for **`maxwayne/invoice-*:1.0`** or equivalent) |
 
 Optional: in `deployment/`, set `export COMPOSE_FILE=docker-compose-build.yml` (or `docker-compose-prod.yml`) so you can omit `-f` for that shell session.
 
@@ -52,7 +52,7 @@ cd deployment
 docker compose -f docker-compose-build.yml build postgres backend frontend
 ```
 
-Tag and push **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, and **`invoice-frontend:1.0`** to your registry as needed.
+Tag and push **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, and **`invoice-frontend:1.0`** to Docker Hub (e.g. **`maxwayne/invoice-*:1.0`**) or your registry as needed.
 
 ---
 
