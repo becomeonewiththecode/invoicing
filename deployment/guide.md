@@ -8,8 +8,8 @@ Two files live in **`deployment/`**:
 
 | File | Use when |
 |------|----------|
-| **`docker-compose-build.yml`** | You build images from this repo (`build:` for backend and frontend). Development, CI image build, or any host where you run `docker compose build` / `up --build`. |
-| **`docker-compose-prod.yml`** | Images are already built and tagged (`invoice-backend:1.0`, `invoice-frontend:1.0`). Production deploy without rebuilding on the server. |
+| **`docker-compose-build.yml`** | You build images from this repo: **`postgres`** (schema baked into `invoice-postgres`), **`backend`**, **`frontend`**. Development, CI, or any host where you run `docker compose build` / `up --build`. |
+| **`docker-compose-prod.yml`** | Images are already built and tagged (`invoice-postgres:1.0`, `invoice-backend:1.0`, `invoice-frontend:1.0`). Production deploy without rebuilding on the server. |
 
 **Convention in this guide:** examples that rebuild images use **`-f docker-compose-build.yml`**. Examples for a server running tagged images use **`-f docker-compose-prod.yml`**. Use the **same `-f` file** you used to start the stack for `exec`, `logs`, and `acme.sh --reloadcmd`.
 
@@ -24,7 +24,7 @@ docker compose -f docker-compose-build.yml up -d
 
 ### Full stack (pre-built images)
 
-On a server where images are built in CI or another machine and tagged **`invoice-backend:1.0`** and **`invoice-frontend:1.0`**:
+On a server where images are built in CI or another machine and tagged **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, and **`invoice-frontend:1.0`**:
 
 ```bash
 cd deployment
@@ -35,10 +35,10 @@ No `build:` step on this host; pull/load images first so those tags exist.
 
 | Service | Host port | Description |
 |---------|-----------|-------------|
-| postgres | 5432 | PostgreSQL (schema from `backend/src/models/schema.sql` on first init) |
+| postgres | 5432 | PostgreSQL (`schema.sql` is baked into the **`invoice-postgres`** image; data in `pgdata` volume) |
 | redis | 6379 | Redis |
 | backend | **3001** | Express API (`PORT=3001` in the container) |
-| frontend | **80**, **443** | nginx serving the React SPA; TLS when certs are in `deployment/ssl/` (see [TLS](#tls-lets-encrypt-with-acmesh)) |
+| frontend | **80**, **443** | nginx serving the React SPA; TLS when PEMs exist in the **`ssl_certs`** volume (see [TLS](#tls-lets-encrypt-with-acmesh)) |
 
 **Code changes and `docker compose restart`:** Restarting containers does **not** rebuild images. The frontend and backend Dockerfiles run `npm run build` at **image build** time; the running containers keep whatever was last baked in. After you change source files, rebuild and recreate:
 
@@ -47,7 +47,7 @@ cd deployment
 docker compose -f docker-compose-build.yml up -d --build
 ```
 
-Use `docker compose -f docker-compose-build.yml build --no-cache` first if you suspect a stale layer. To wipe Postgres data (destructive), remove the `pgdata` volume — see volume notes below.
+Use `docker compose -f docker-compose-build.yml build --no-cache` first if you suspect a stale layer. If you change **`backend/src/models/schema.sql`**, rebuild the **`postgres`** image (`docker compose -f docker-compose-build.yml build postgres`) so **`invoice-postgres`** includes the new DDL; **empty** `pgdata` runs init scripts on first start only—existing databases rely on **`ensureSchema()`** and SQL migrations. To wipe Postgres data (destructive), remove the `pgdata` volume — see volume notes below.
 
 **Rebuilt but the UI still looks old?**
 
@@ -99,7 +99,7 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 
 1. **JWT_SECRET** — Use a long, random value; never commit real secrets.
 2. **Database backups** — The `pgdata` volume holds data; schedule backups (e.g. `pg_dump` to object storage).
-3. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend mounts `deployment/ssl/` (PEM files) and `deployment/acme-webroot/` (HTTP-01 challenges).
+3. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend uses named volumes **`ssl_certs`** (PEM files) and **`acme_webroot`** (HTTP-01 challenges)—no paths under the git repo.
 4. **Redis** — Default setup is suitable for rate limits and short-lived caches; data loss on restart is usually acceptable for those use cases.
 
 ### TLS (Let's Encrypt with acme.sh)
@@ -108,22 +108,32 @@ Use this when serving a public hostname (e.g. **`clients.opensitesolutions.com`*
 
 **Requirements:** Inbound **TCP 80** (validation) and **TCP 443** (HTTPS). Let’s Encrypt must reach `http://<your-hostname>/.well-known/acme-challenge/...` from the internet.
 
+**Volumes and Compose project name:** Challenge files and TLS keys live in Docker **named volumes** (`acme_webroot`, `ssl_certs`). The volume names on disk are **`{project}_acme_webroot`** and **`{project}_ssl_certs`**, where **`{project}`** defaults to the name of the directory that contains the compose file (usually **`deployment`** when you run commands from inside `deployment/`). Set **`COMPOSE_PROJECT_NAME`** (e.g. `export COMPOSE_PROJECT_NAME=invoicing`) before `up` if you want stable, predictable volume names.
+
 **Bootstrap (first certificate):**
 
-1. From `deployment/`, start the stack so nginx serves port 80 and the ACME webroot is mounted (`./acme-webroot` → `/var/www/acme-webroot` in the container).
+1. From `deployment/`, start the stack so nginx serves port 80 and the **`acme_webroot`** volume is attached at `/var/www/acme-webroot` in the frontend container.
 2. On the **host**, install [acme.sh](https://github.com/acmesh-official/acme.sh) (not in GitHub Actions for this app).
-3. Issue using the **same webroot path** as on the host (the directory bind-mounted to the container), e.g.:
+3. **Issue (HTTP-01):** On **Linux with Docker Engine**, get the host path for the webroot volume and pass it to `acme.sh -w` (example assumes project name `deployment`; adjust **`PROJECT`** to match `COMPOSE_PROJECT_NAME` or your actual project prefix — `docker volume ls` shows the full name):
 
    ```bash
-   acme.sh --issue -d clients.opensitesolutions.com -w /path/to/invoicing/deployment/acme-webroot
+   cd /path/to/invoicing/deployment
+   docker compose -f docker-compose-prod.yml up -d
+   PROJECT="${COMPOSE_PROJECT_NAME:-deployment}"
+   WEBROOT=$(docker volume inspect "${PROJECT}_acme_webroot" --format '{{ .Mountpoint }}')
+   acme.sh --issue -d clients.opensitesolutions.com -w "$WEBROOT"
    ```
 
-4. Install certificate files into **`deployment/ssl/`** (paths must match `fullchain.pem` and `privkey.pem` as referenced in `frontend/nginx-https.conf.template`):
+   Use **`-f docker-compose-build.yml`** in the `up` line if that is what you use. On **Docker Desktop** (Mac/Windows), volume host paths are often inside the VM; run acme.sh inside a small container that shares the same volume, or use **DNS-01** instead of webroot—see acme.sh docs.
+
+4. **Install cert files into the `ssl_certs` volume** (filenames must be **`fullchain.pem`** and **`privkey.pem`** as in `frontend/nginx-https.conf.template`). Use the same **`PROJECT`** prefix as in step 3:
 
    ```bash
+   PROJECT="${COMPOSE_PROJECT_NAME:-deployment}"
+   SSLDIR=$(docker volume inspect "${PROJECT}_ssl_certs" --format '{{ .Mountpoint }}')
    acme.sh --install-cert -d clients.opensitesolutions.com --ecc \
-     --fullchain-file /path/to/invoicing/deployment/ssl/fullchain.pem \
-     --key-file /path/to/invoicing/deployment/ssl/privkey.pem \
+     --fullchain-file "$SSLDIR/fullchain.pem" \
+     --key-file "$SSLDIR/privkey.pem" \
      --reloadcmd "docker compose -f /path/to/invoicing/deployment/docker-compose-prod.yml exec -T frontend nginx -s reload"
    ```
 
@@ -150,22 +160,22 @@ Use this when serving a public hostname (e.g. **`clients.opensitesolutions.com`*
 
 The validator must receive **plain text** (the key authorization), not your SPA’s `index.html`.
 
-1. **Directory modes from acme.sh (very common)** — acme.sh often creates `acme-webroot/.well-known` and `acme-challenge` as **`700` (drwx------)**. The container’s **nginx** worker runs as user **`nginx`**, not root, so it **cannot traverse** those directories: you get failures that show up as **wrong body** (e.g. your SPA HTML) and sometimes **403**. Fix on the host (run after each issue attempt if needed):
+1. **Directory modes from acme.sh (very common)** — acme.sh often creates `.well-known` / `acme-challenge` under the webroot as **`700` (drwx------)**. The container’s **nginx** worker runs as user **`nginx`**, not root, so it **cannot traverse** those directories: you get failures that show up as **wrong body** (e.g. your SPA HTML) and sometimes **403**. Fix on the host using the **volume mountpoint** (same `WEBROOT` as in [Bootstrap](#tls-lets-encrypt-with-acmesh), step 3):
 
    ```bash
-   find /path/to/invoicing/deployment/acme-webroot -type d -exec chmod 755 {} \;
-   find /path/to/invoicing/deployment/acme-webroot -type f -exec chmod 644 {} \;
+   find "$WEBROOT" -type d -exec chmod 755 {} \;
+   find "$WEBROOT" -type f -exec chmod 644 {} \;
    ```
 
    (`chmod -R a+rX` is not always enough for **directories** if they were created with no “other” execute bit; **`755` on dirs** is reliable.)
 
-2. **Pre-flight check** (before `acme.sh --issue`): prove HTTP serves the webroot, not the SPA:
+2. **Pre-flight check** (before `acme.sh --issue`): prove HTTP serves the webroot, not the SPA (set **`WEBROOT`** from the `acme_webroot` volume as above):
 
    ```bash
-   mkdir -p /path/to/invoicing/deployment/acme-webroot/.well-known/acme-challenge
-   echo ok >/path/to/invoicing/deployment/acme-webroot/.well-known/acme-challenge/ping.txt
-   chmod 755 /path/to/invoicing/deployment/acme-webroot /path/to/invoicing/deployment/acme-webroot/.well-known /path/to/invoicing/deployment/acme-webroot/.well-known/acme-challenge
-   chmod 644 /path/to/invoicing/deployment/acme-webroot/.well-known/acme-challenge/ping.txt
+   mkdir -p "$WEBROOT/.well-known/acme-challenge"
+   echo ok >"$WEBROOT/.well-known/acme-challenge/ping.txt"
+   chmod 755 "$WEBROOT" "$WEBROOT/.well-known" "$WEBROOT/.well-known/acme-challenge"
+   chmod 644 "$WEBROOT/.well-known/acme-challenge/ping.txt"
    curl -sS "http://clients.opensitesolutions.com/.well-known/acme-challenge/ping.txt"
    ```
 

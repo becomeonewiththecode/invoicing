@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ..
+      dockerfile: deployment/postgres/Dockerfile
+    image: invoice-postgres:1.0
     environment:
       POSTGRES_DB: invoicing
       POSTGRES_USER: postgres
@@ -9,7 +12,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ../backend/src/models/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d invoicing"]
       interval: 5s
@@ -53,7 +55,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ../backend/uploads:/app/uploads
+      - uploads_data:/app/uploads
     restart: unless-stopped
     healthcheck:
       test:
@@ -80,8 +82,8 @@ services:
     environment:
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-clients.opensitesolutions.com}
     volumes:
-      - ./acme-webroot:/var/www/acme-webroot
-      - ./ssl:/etc/nginx/ssl:ro
+      - acme_webroot:/var/www/acme-webroot
+      - ssl_certs:/etc/nginx/ssl:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -89,3 +91,6 @@ services:
 
 volumes:
   pgdata:
+  uploads_data:
+  acme_webroot:
+  ssl_certs:

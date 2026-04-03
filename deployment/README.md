@@ -8,8 +8,9 @@ Production and container deployment for the invoicing app.
 
 | File | Description |
 |------|-------------|
-| [docker-compose-build.yml](docker-compose-build.yml) | Compose with `build:` for backend and frontend — use when developing or building images from this repo on the host |
-| [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with `image: invoice-backend:1.0` and `invoice-frontend:1.0` — use on a server when images are already built, tagged, and available (no rebuild on deploy) |
+| [docker-compose-build.yml](docker-compose-build.yml) | Compose with `build:` for **postgres** (schema baked in), **backend**, and **frontend** — use when developing or building images from this repo on the host |
+| [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with `image: invoice-postgres:1.0`, `invoice-backend:1.0`, `invoice-frontend:1.0` — use when all images are built elsewhere and tagged (no rebuild on deploy) |
+| [postgres/Dockerfile](postgres/Dockerfile) | Builds `invoice-postgres:1.0` with `schema.sql` in the image (no bind mount from the repo at runtime) |
 | [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, TLS (acme.sh), port notes |
 | [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow, backup import, new-invoice project conflict, invoice preview modal) |
 
@@ -18,9 +19,39 @@ Production and container deployment for the invoicing app.
 | Goal | File | Typical command (from `deployment/`) |
 |------|------|----------------------------------------|
 | Build and run from source | `docker-compose-build.yml` | `docker compose -f docker-compose-build.yml up -d --build` |
-| Run pre-built images only | `docker-compose-prod.yml` | `docker compose -f docker-compose-prod.yml up -d` (after `docker pull` / `docker load` and correct tags) |
+| Run pre-built images only | `docker-compose-prod.yml` | `docker compose -f docker-compose-prod.yml up -d` (after `docker pull` / `docker load` and tags **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, **`invoice-frontend:1.0`**) |
 
 Optional: in `deployment/`, set `export COMPOSE_FILE=docker-compose-build.yml` (or `docker-compose-prod.yml`) so you can omit `-f` for that shell session.
+
+### Data volumes (no repo paths)
+
+Compose declares **named volumes** so the stack runs without bind-mounting the repository:
+
+| Volume | Used by | Purpose |
+|--------|---------|---------|
+| `pgdata` | postgres | PostgreSQL data |
+| `uploads_data` | backend | User uploads (e.g. logos) at `/app/uploads` |
+| `acme_webroot` | frontend | HTTP-01 challenge files under `/var/www/acme-webroot` |
+| `ssl_certs` | frontend | TLS PEMs at `/etc/nginx/ssl` (read-only in the container) |
+
+TLS and acme.sh paths are covered in [guide.md](guide.md#tls-lets-encrypt-with-acmesh).
+
+### Building images for production
+
+From the **repository root** (so `deployment/postgres/Dockerfile` can `COPY backend/src/models/schema.sql`):
+
+```bash
+docker build -f deployment/postgres/Dockerfile -t invoice-postgres:1.0 .
+```
+
+Or build all services from `deployment/`:
+
+```bash
+cd deployment
+docker compose -f docker-compose-build.yml build postgres backend frontend
+```
+
+Tag and push **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, and **`invoice-frontend:1.0`** to your registry as needed.
 
 ---
 
