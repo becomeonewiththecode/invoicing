@@ -19,7 +19,7 @@ This guide covers **HTTPS for the frontend container**: how the nginx image choo
 
 1. **DNS** — An **A** (or **AAAA**) record for your hostname (e.g. `clients.example.com`) points to the **machine that runs Docker Compose** for this app.
 2. **Ports** — Inbound **TCP 80** (Let’s Encrypt HTTP-01) and **TCP 443** (HTTPS). Nothing else on the host should steal port **80** from this stack.
-3. **Server name** — Set **`NGINX_SERVER_NAME`** to that hostname (Compose env or `.env` next to your compose file). It must match the name on the certificate.
+3. **Server name** — Set **`NGINX_SERVER_NAME`** to that hostname. Prefer **`deployment/.env`** (see [Configure hostname and project name](#configure-hostname-and-project-name)) so the same values work for **`docker compose`** and for **acme.sh** in CI/CD.
 4. **Volumes** — Challenges are written under the **`acme_webroot`** volume (mounted at **`/var/www/acme-webroot`** in the container). PEM files must end up in the **`ssl_certs`** volume (mounted read-only at **`/etc/nginx/ssl`**).
 
 ---
@@ -28,7 +28,17 @@ This guide covers **HTTPS for the frontend container**: how the nginx image choo
 
 Docker names volumes **`{compose_project}_{volume_key}`**. The project name defaults to the **directory name** of the compose file’s folder when you run `docker compose` from **`deployment/`** — often **`deployment`**.
 
-To use a fixed prefix (recommended on servers):
+To use a **stable** prefix (recommended on servers and in CI/CD), set **`COMPOSE_PROJECT_NAME`** before the **first** `docker compose up` so volume names stay predictable:
+
+**Option A — environment file (recommended for CI/CD)** — in **`deployment/.env`** (same folder as the compose file):
+
+```env
+COMPOSE_PROJECT_NAME=invoicing
+```
+
+Docker Compose loads **`deployment/.env`** automatically when you run commands from **`deployment/`**.
+
+**Option B — shell only:**
 
 ```bash
 export COMPOSE_PROJECT_NAME=invoicing
@@ -72,23 +82,78 @@ Use **`-f docker-compose-build.yml`** instead if that is how you run the stack. 
 
 ---
 
-## 5. Issue a certificate (HTTP-01, Linux + Docker Engine)
+### Configure hostname and project name
 
-Set variables in your **shell** on the Docker host (these are not keys in the app’s repo—they exist only for the commands you run in that terminal):
+**`NGINX_SERVER_NAME`** (hostname nginx serves) and **`COMPOSE_PROJECT_NAME`** (Docker volume name prefix) must stay **consistent** between **`docker compose`** and your **acme.sh** commands.
+
+| Approach | When to use |
+|----------|-------------|
+| **`deployment/.env`** | **Preferred** for production hosts and **CI/CD**: one file checked in as an example (`deployment/.env.example`) or supplied by your pipeline (secrets manager → file, or CI variables written to `.env` before `compose` / acme steps). Compose reads it automatically from **`deployment/`**. |
+| **Shell `export`** | Quick manual runs, or when you already export vars in the job environment (e.g. GitLab `variables:`, GitHub Actions `env:`). |
+
+**Option A — `deployment/.env` (recommended)**
+
+Create or update **`deployment/.env`** next to [`docker-compose-prod.yml`](docker-compose-prod.yml) / [`docker-compose-build.yml`](docker-compose-build.yml):
+
+```env
+# Public hostname — must match the name on the certificate
+NGINX_SERVER_NAME=clients.example.com
+
+# Stable Compose project prefix (volume names: ${COMPOSE_PROJECT_NAME}_acme_webroot, etc.)
+COMPOSE_PROJECT_NAME=invoicing
+```
+
+- **`docker compose`** picks these up when you run it from **`deployment/`** (Compose’s default `.env` path).
+- Do **not** commit a real production `.env` if it will hold secrets. Start from **[`.env.example`](.env.example)** in this repo: `cp .env.example .env` and edit, or have CI write `.env` from protected variables before `docker compose` and acme steps.
+
+**Option B — shell only**
 
 ```bash
-DOMAIN="clients.example.com"
+export NGINX_SERVER_NAME=clients.example.com
+export COMPOSE_PROJECT_NAME=invoicing
+```
+
+Run **`docker compose up`** in the same environment so containers get **`NGINX_SERVER_NAME`**.
+
+---
+
+## 5. Issue a certificate (HTTP-01, Linux + Docker Engine)
+
+On the Docker host, **`cd`** to **`deployment/`**, then load the same variables Compose uses and derive **`WEBROOT`** from Docker:
+
+**If you use `deployment/.env`** (recommended — works well in CI/CD scripts):
+
+```bash
+cd /path/to/invoicing/deployment
+# Export vars from .env for this shell (bash). Omit if you only use exports from your CI job.
+set -a
+[ -f .env ] && . ./.env
+set +a
+
+DOMAIN="${NGINX_SERVER_NAME}"
 PROJECT="${COMPOSE_PROJECT_NAME:-deployment}"
 WEBROOT=$(docker volume inspect "${PROJECT}_acme_webroot" --format '{{ .Mountpoint }}')
 ```
 
-**Where each value is defined**
+**If you use shell-only configuration** (no `.env`):
 
-| Variable | Where it comes from |
-|----------|---------------------|
-| **`DOMAIN`** | You set it in the shell (e.g. `DOMAIN="clients.example.com"`). It **must match** the hostname nginx uses: **`NGINX_SERVER_NAME`**. That is passed into the frontend container from Compose: [`docker-compose-prod.yml`](docker-compose-prod.yml) and [`docker-compose-build.yml`](docker-compose-build.yml) both have `NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-clients.opensitesolutions.com}`. Override the default by creating **`deployment/.env`** (same directory as the compose file) with `NGINX_SERVER_NAME=your.hostname.com`, or `export NGINX_SERVER_NAME=...` before `docker compose up`. |
-| **`PROJECT`** | Taken from the shell environment variable **`COMPOSE_PROJECT_NAME`** if you exported it before **`docker compose up`** (see [section 2](#2-how-the-project-name-maps-to-volume-names)). If unset, the snippet uses the literal fallback **`deployment`**—that only matches Docker’s volume prefix when your project name actually is `deployment` (common when the project directory is named `deployment`). If your volumes are named like `invoicing_acme_webroot`, run `export COMPOSE_PROJECT_NAME=invoicing` **before** the first `up`, or set **`PROJECT`** manually to that prefix when running these commands. |
-| **`WEBROOT`** | Not configured in a file. It is the **host path** Docker reports for the volume **`${PROJECT}_acme_webroot`**, from `docker volume inspect`. |
+```bash
+cd /path/to/invoicing/deployment
+export NGINX_SERVER_NAME=clients.example.com
+export COMPOSE_PROJECT_NAME=invoicing   # optional; omit to rely on Docker’s default project name
+
+DOMAIN="${NGINX_SERVER_NAME}"
+PROJECT="${COMPOSE_PROJECT_NAME:-deployment}"
+WEBROOT=$(docker volume inspect "${PROJECT}_acme_webroot" --format '{{ .Mountpoint }}')
+```
+
+**Where each value comes from**
+
+| Variable | Source |
+|----------|--------|
+| **`DOMAIN`** | For acme.sh, set to **`NGINX_SERVER_NAME`** so the cert matches nginx. **`NGINX_SERVER_NAME`** is defined in **`deployment/.env`** or via **`export`**; Compose wires it into the frontend service from [`docker-compose-prod.yml`](docker-compose-prod.yml) / [`docker-compose-build.yml`](docker-compose-build.yml) (`NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-clients.opensitesolutions.com}`). |
+| **`PROJECT`** | Same as **`COMPOSE_PROJECT_NAME`** from **`deployment/.env`** or **`export`** (see [section 2](#2-how-the-project-name-maps-to-volume-names)). The fallback **`deployment`** only matches when Docker’s project name is literally `deployment`. |
+| **`WEBROOT`** | Not a file: the **host path** from **`docker volume inspect "${PROJECT}_acme_webroot"`**. |
 
 Issue:
 
@@ -101,6 +166,8 @@ acme.sh writes challenge files under **`$WEBROOT/.well-known/acme-challenge/`**.
 ---
 
 ## 6. Install PEMs into the `ssl_certs` volume
+
+Reuse **`DOMAIN`** and **`PROJECT`** from the same shell as [section 5](#5-issue-a-certificate-http-01-linux--docker-engine), or **`cd`** to **`deployment/`** and run the same **`set -a` / `. ./.env` / `set +a`** block so **`COMPOSE_PROJECT_NAME`** and **`NGINX_SERVER_NAME`** are set.
 
 nginx expects exactly these filenames (see templates):
 

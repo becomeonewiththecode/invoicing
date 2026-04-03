@@ -25,6 +25,8 @@ Production and container deployment for the invoicing app.
 
 Optional: in `deployment/`, set `export COMPOSE_FILE=docker-compose-build.yml` (or `docker-compose-prod.yml`) so you can omit `-f` for that shell session.
 
+For **`NGINX_SERVER_NAME`** and **`COMPOSE_PROJECT_NAME`**, see **[`.env.example`](.env.example)** and **[tls.md](tls.md)** (environment file vs shell; `.env` is preferred for CI/CD).
+
 ### Data volumes (no repo paths)
 
 Compose declares **named volumes** so the stack runs without bind-mounting the repository:

@@ -1,3 +1,6 @@
+# Run from this directory so Compose loads `deployment/.env` automatically (variable substitution).
+# Copy `.env.example` → `.env` for NGINX_SERVER_NAME, COMPOSE_PROJECT_NAME, SMTP_*, etc.
+# https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/
 services:
   postgres:
     build:
