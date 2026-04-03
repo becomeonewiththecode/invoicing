@@ -11,7 +11,8 @@ Production and container deployment for the invoicing app.
 | [docker-compose-build.yml](docker-compose-build.yml) | Compose with `build:` for **postgres** (schema baked in), **backend**, and **frontend** — use when developing or building images from this repo on the host |
 | [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with Docker Hub images **`maxwayne/invoice-postgres:1.0`**, **`maxwayne/invoice-backend:1.0`**, **`maxwayne/invoice-frontend:1.0`** — use when pulling pre-built images (no rebuild on deploy) |
 | [postgres/Dockerfile](postgres/Dockerfile) | Builds `invoice-postgres:1.0` with `schema.sql` in the image (no bind mount from the repo at runtime) |
-| [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, TLS (acme.sh), port notes |
+| [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, port notes |
+| [tls.md](tls.md) | **HTTPS / TLS:** Let’s Encrypt with **acme.sh**, Docker volumes (`acme_webroot`, `ssl_certs`), nginx, renewal, troubleshooting |
 | [diagram.md](diagram.md) | Mermaid deployment diagram: images, named volumes (`pgdata`, `uploads_data`, `acme_webroot`, `ssl_certs`), traffic flow |
 | [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow, backup import, new-invoice project conflict, invoice preview modal) |
 
@@ -24,6 +25,8 @@ Production and container deployment for the invoicing app.
 
 Optional: in `deployment/`, set `export COMPOSE_FILE=docker-compose-build.yml` (or `docker-compose-prod.yml`) so you can omit `-f` for that shell session.
 
+For **`NGINX_SERVER_NAME`** and **`COMPOSE_PROJECT_NAME`**, see **[`.env.example`](.env.example)** and **[tls.md](tls.md)** (environment file vs shell; `.env` is preferred for CI/CD).
+
 ### Data volumes (no repo paths)
 
 Compose declares **named volumes** so the stack runs without bind-mounting the repository:
@@ -35,7 +38,7 @@ Compose declares **named volumes** so the stack runs without bind-mounting the r
 | `acme_webroot` | frontend | HTTP-01 challenge files under `/var/www/acme-webroot` |
 | `ssl_certs` | frontend | TLS PEMs at `/etc/nginx/ssl` (read-only in the container) |
 
-TLS and acme.sh paths are covered in [guide.md](guide.md#tls-lets-encrypt-with-acmesh).
+TLS / HTTPS: **[tls.md](tls.md)** (summary in [guide.md](guide.md#tls-lets-encrypt-with-acmesh)).
 
 ### Building images for production
 

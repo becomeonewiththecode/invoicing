@@ -104,103 +104,11 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 
 ### TLS (Let's Encrypt with acme.sh)
 
-Use this when serving a public hostname (e.g. **`clients.opensitesolutions.com`**) from the Docker host. Your apex/`www` site can stay on GitHub Pages; only this subdomain needs a **DNS A (or AAAA) record** pointing to the **server that runs** Compose (usually **`docker-compose-prod.yml`** in production), not GitHub’s IPs.
+HTTPS is handled by the **frontend** nginx container. Compose mounts two **named volumes**: **`acme_webroot`** (HTTP-01 challenges at `/var/www/acme-webroot`) and **`ssl_certs`** (PEM files read from `/etc/nginx/ssl`). The entrypoint switches from the HTTP-only template to the TLS template when **`fullchain.pem`** and **`privkey.pem`** both exist — see [`frontend/docker-entrypoint.sh`](../frontend/docker-entrypoint.sh).
 
-**Requirements:** Inbound **TCP 80** (validation) and **TCP 443** (HTTPS). Let’s Encrypt must reach `http://<your-hostname>/.well-known/acme-challenge/...` from the internet.
+**Full walkthrough** (DNS, ports, `acme.sh` install, issue, `install-cert`, `--reloadcmd`, first-time `frontend` recreate, renewal, troubleshooting): **[tls.md](tls.md)**.
 
-**Volumes and Compose project name:** Challenge files and TLS keys live in Docker **named volumes** (`acme_webroot`, `ssl_certs`). The volume names on disk are **`{project}_acme_webroot`** and **`{project}_ssl_certs`**, where **`{project}`** defaults to the name of the directory that contains the compose file (usually **`deployment`** when you run commands from inside `deployment/`). Set **`COMPOSE_PROJECT_NAME`** (e.g. `export COMPOSE_PROJECT_NAME=invoicing`) before `up` if you want stable, predictable volume names.
-
-**Bootstrap (first certificate):**
-
-1. From `deployment/`, start the stack so nginx serves port 80 and the **`acme_webroot`** volume is attached at `/var/www/acme-webroot` in the frontend container.
-2. On the **host**, install [acme.sh](https://github.com/acmesh-official/acme.sh) (not in GitHub Actions for this app).
-3. **Issue (HTTP-01):** On **Linux with Docker Engine**, get the host path for the webroot volume and pass it to `acme.sh -w` (example assumes project name `deployment`; adjust **`PROJECT`** to match `COMPOSE_PROJECT_NAME` or your actual project prefix — `docker volume ls` shows the full name):
-
-   ```bash
-   cd /path/to/invoicing/deployment
-   docker compose -f docker-compose-prod.yml up -d
-   PROJECT="${COMPOSE_PROJECT_NAME:-deployment}"
-   WEBROOT=$(docker volume inspect "${PROJECT}_acme_webroot" --format '{{ .Mountpoint }}')
-   acme.sh --issue -d clients.opensitesolutions.com -w "$WEBROOT"
-   ```
-
-   Use **`-f docker-compose-build.yml`** in the `up` line if that is what you use. On **Docker Desktop** (Mac/Windows), volume host paths are often inside the VM; run acme.sh inside a small container that shares the same volume, or use **DNS-01** instead of webroot—see acme.sh docs.
-
-4. **Install cert files into the `ssl_certs` volume** (filenames must be **`fullchain.pem`** and **`privkey.pem`** as in `frontend/nginx-https.conf.template`). Use the same **`PROJECT`** prefix as in step 3:
-
-   ```bash
-   PROJECT="${COMPOSE_PROJECT_NAME:-deployment}"
-   SSLDIR=$(docker volume inspect "${PROJECT}_ssl_certs" --format '{{ .Mountpoint }}')
-   acme.sh --install-cert -d clients.opensitesolutions.com --ecc \
-     --fullchain-file "$SSLDIR/fullchain.pem" \
-     --key-file "$SSLDIR/privkey.pem" \
-     --reloadcmd "docker compose -f /path/to/invoicing/deployment/docker-compose-prod.yml exec -T frontend nginx -s reload"
-   ```
-
-   If you started the stack with **`docker-compose-build.yml`**, use that filename instead of `docker-compose-prod.yml` in `--reloadcmd` so `exec` targets the same project.
-
-   Use **`--ecc`** if you issued with acme.sh’s default EC key (folder name ends with `_ecc` under `~/.acme.sh/`).
-
-5. **Restart the frontend container once** so the entrypoint regenerates nginx config and enables the `:443` server block (a plain `nginx -s reload` alone is not enough the first time, because the running container was started without PEM files):
-
-   ```bash
-   cd /path/to/invoicing/deployment && docker compose -f docker-compose-prod.yml up -d --force-recreate frontend
-   ```
-
-   Use **`-f docker-compose-build.yml`** instead if that is how you started the stack.
-
-**Renewal:** acme.sh typically installs a cron job. After renew, `--reloadcmd` reloads nginx; the HTTPS `server` block is already present, so reloading applies the new PEM files. Confirm renewal with `acme.sh --cron -d` or your system logs.
-
-**Verification:**
-
-- `curl -I http://clients.opensitesolutions.com/.well-known/acme-challenge/` — connection OK (404 on empty dir is fine).
-- Browser: `https://clients.opensitesolutions.com` loads the SPA; `/api` remains same-origin behind nginx.
-
-**HTTP-01 fails with 403 or Let’s Encrypt says the response is HTML (`<!doctype html>` …):**
-
-The validator must receive **plain text** (the key authorization), not your SPA’s `index.html`.
-
-1. **Directory modes from acme.sh (very common)** — acme.sh often creates `.well-known` / `acme-challenge` under the webroot as **`700` (drwx------)**. The container’s **nginx** worker runs as user **`nginx`**, not root, so it **cannot traverse** those directories: you get failures that show up as **wrong body** (e.g. your SPA HTML) and sometimes **403**. Fix on the host using the **volume mountpoint** (same `WEBROOT` as in [Bootstrap](#tls-lets-encrypt-with-acmesh), step 3):
-
-   ```bash
-   find "$WEBROOT" -type d -exec chmod 755 {} \;
-   find "$WEBROOT" -type f -exec chmod 644 {} \;
-   ```
-
-   (`chmod -R a+rX` is not always enough for **directories** if they were created with no “other” execute bit; **`755` on dirs** is reliable.)
-
-2. **Pre-flight check** (before `acme.sh --issue`): prove HTTP serves the webroot, not the SPA (set **`WEBROOT`** from the `acme_webroot` volume as above):
-
-   ```bash
-   mkdir -p "$WEBROOT/.well-known/acme-challenge"
-   echo ok >"$WEBROOT/.well-known/acme-challenge/ping.txt"
-   chmod 755 "$WEBROOT" "$WEBROOT/.well-known" "$WEBROOT/.well-known/acme-challenge"
-   chmod 644 "$WEBROOT/.well-known/acme-challenge/ping.txt"
-   curl -sS "http://clients.opensitesolutions.com/.well-known/acme-challenge/ping.txt"
-   ```
-
-   You must see **`ok`** only. If you see HTML, fix permissions and **`docker compose -f docker-compose-build.yml build --no-cache frontend && docker compose -f docker-compose-build.yml up -d --force-recreate frontend`** (or the matching **`-f docker-compose-prod.yml`** if you only run pre-built images and pulled a new frontend image), and ensure nothing else binds host port **80** ahead of this stack.
-
-3. **Confirm the file is visible inside the container** as user **nginx**:
-
-   ```bash
-   cd /path/to/invoicing/deployment
-   docker compose -f docker-compose-prod.yml exec -u nginx frontend cat /var/www/acme-webroot/.well-known/acme-challenge/ping.txt
-   ```
-
-   Use the **same `-f`** as your deployment (`docker-compose-build.yml` or `docker-compose-prod.yml`).
-
-   If this fails, fix host permissions (step 1).
-
-4. **Confirm nginx has the ACME `location`** (rebuild/recreate frontend after pulling):
-
-   ```bash
-   docker compose -f docker-compose-prod.yml exec frontend grep -A4 'well-known/acme-challenge' /etc/nginx/conf.d/default.conf
-   ```
-
-   Use the **same `-f`** as your deployment.
-
-5. **Nothing else on port 80** — another reverse proxy, CDN (e.g. Cloudflare “orange cloud”), or host nginx in front must forward `/.well-known/acme-challenge/` to this stack unchanged.
+**In short:** point **`NGINX_SERVER_NAME`** at your public hostname; open **80** and **443**; run the stack; on the Docker host install acme.sh; use `docker volume inspect …_acme_webroot` as `acme.sh -w` webroot; install certs into …`_ssl_certs` as **`fullchain.pem`** / **`privkey.pem`**; **`docker compose … exec frontend nginx -s reload`** on renew; **`up -d --force-recreate frontend`** once after the first PEM install so nginx loads the HTTPS config.
 
 ## Manual deployment
 
@@ -233,6 +141,8 @@ The production-oriented configs are `frontend/nginx-http.conf.template` (HTTP on
 - Proxies `/api` to the backend upstream
 - Use `try_files` so client-side routes fall back to `index.html`
 - Expose `/.well-known/acme-challenge/` from `/var/www/acme-webroot` for Let’s Encrypt HTTP-01
+
+Issuing certificates and enabling HTTPS: **[tls.md](tls.md)**.
 
 ## Local dev vs Docker ports
 

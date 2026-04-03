@@ -82,7 +82,7 @@ cd deployment
 docker compose -f docker-compose-build.yml up -d
 ```
 
-For **pre-built images** from Docker Hub (`maxwayne/invoice-backend:1.0`, `maxwayne/invoice-frontend:1.0`, etc.), use **`-f docker-compose-prod.yml`** instead. Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**.
+For **pre-built images** from Docker Hub (`maxwayne/invoice-backend:1.0`, `maxwayne/invoice-frontend:1.0`, etc.), use **`-f docker-compose-prod.yml`** instead. Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**. **HTTPS on the public hostname** (Let’s Encrypt with **acme.sh** and nginx): **[deployment/tls.md](../deployment/tls.md)**.
 
 ## Troubleshooting
 
