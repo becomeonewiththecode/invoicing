@@ -152,14 +152,14 @@ sequenceDiagram
     E->>PG: Verify credentials
     PG-->>E: User row
     E-->>N: JWT token
-    N-->>B: 200 { token }
+    N-->>B: 200 JSON with token
 
     B->>N: GET /api/invoices (Bearer token)
     N->>E: proxy_pass
     E->>E: JWT verify + rate limit
     E->>PG: SELECT invoices
     PG-->>E: Rows
-    E-->>N: 200 { data, pagination }
+    E-->>N: 200 JSON data and pagination
     N-->>B: JSON response
 
     B->>N: GET /api/invoices/stats/revenue
@@ -172,7 +172,7 @@ sequenceDiagram
         PG-->>E: Stats
         E->>RD: SET cache (5 min TTL)
     end
-    E-->>N: 200 { stats }
+    E-->>N: 200 JSON stats
     N-->>B: JSON response
 ```
 
@@ -193,8 +193,8 @@ sequenceDiagram
     E->>PG: DELETE user's invoices, clients, discount_codes
     E->>PG: DELETE colliding IDs (cross-account)
     E->>PG: UPDATE user profile
-    E->>PG: INSERT clients; if v2 projects and project_external_links
-    E->>PG: INSERT discount_codes, invoices (with project_id if v2), items, reminders
+    E->>PG: INSERT clients then v2 projects and project_external_links if needed
+    E->>PG: INSERT discount_codes invoices items reminders
     E->>PG: COMMIT
     E->>RD: Invalidate revenue cache
     E-->>B: 200 ok true
@@ -217,26 +217,26 @@ sequenceDiagram
     participant PG as PostgreSQL
 
     U->>SPA: Select client + related project
-    SPA->>API: GET /invoices?clientId=&limit=100
+    SPA->>API: GET /invoices paged list for client
     alt List request fails
-        API-->>SPA: 4xx/5xx or network error
+        API-->>SPA: 4xx or 5xx or network error
         SPA-->>U: Amber text, delete existing invoice (submit still allowed)
     else List succeeds
         API->>PG: List invoices for client
-        PG-->>API: Rows (incl. project_id, status)
-        API-->>SPA: { data, pagination }
-        SPA->>SPA: Filter same project_id, status != cancelled
+        PG-->>API: Rows incl project_id and status
+        API-->>SPA: JSON data and pagination
+        SPA->>SPA: Filter same project_id status not cancelled
         alt Conflicts in data
-            SPA-->>U: Amber alert + links; disable Preview / Save
+            SPA-->>U: Amber alert and links, disable Preview and Save
         else No conflict
-            SPA-->>U: Normal submit / preview
+            SPA-->>U: Normal submit or preview
         end
     end
     U->>SPA: Create (optional path)
-    SPA->>API: POST /invoices { projectId, ... }
-    API->>PG: Transaction + conflict check
+    SPA->>API: POST /invoices with projectId in body
+    API->>PG: Transaction and conflict check
     alt Duplicate project
-        API-->>SPA: 409 { error, conflicts }
+        API-->>SPA: 409 error and conflicts
     else OK
         API-->>SPA: 201 created invoice
     end
