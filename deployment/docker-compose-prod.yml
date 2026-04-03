@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: invoice-postgres:1.0
+    image: maxwayne/invoice-postgres:1.0
     environment:
       POSTGRES_DB: invoicing
       POSTGRES_USER: postgres
@@ -28,7 +28,7 @@ services:
       start_period: 5s
 
   backend:
-    image: invoice-backend:1.0
+    image: maxwayne/invoice-backend:1.0
     ports:
       - "3001:3001"
     environment:
@@ -66,7 +66,7 @@ services:
       start_period: 45s
 
   frontend:
-    image: invoice-frontend:1.0
+    image: maxwayne/invoice-frontend:1.0
     ports:
       - "80:80"
       - "443:443"

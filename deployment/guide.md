@@ -9,7 +9,7 @@ Two files live in **`deployment/`**:
 | File | Use when |
 |------|----------|
 | **`docker-compose-build.yml`** | You build images from this repo: **`postgres`** (schema baked into `invoice-postgres`), **`backend`**, **`frontend`**. Development, CI, or any host where you run `docker compose build` / `up --build`. |
-| **`docker-compose-prod.yml`** | Images are already built and tagged (`invoice-postgres:1.0`, `invoice-backend:1.0`, `invoice-frontend:1.0`). Production deploy without rebuilding on the server. |
+| **`docker-compose-prod.yml`** | Images are Docker Hub **`maxwayne/invoice-postgres:1.0`**, **`maxwayne/invoice-backend:1.0`**, **`maxwayne/invoice-frontend:1.0`** (or retag after `docker pull`). Production deploy without rebuilding on the server. |
 
 **Convention in this guide:** examples that rebuild images use **`-f docker-compose-build.yml`**. Examples for a server running tagged images use **`-f docker-compose-prod.yml`**. Use the **same `-f` file** you used to start the stack for `exec`, `logs`, and `acme.sh --reloadcmd`.
 
@@ -24,7 +24,7 @@ docker compose -f docker-compose-build.yml up -d
 
 ### Full stack (pre-built images)
 
-On a server where images are built in CI or another machine and tagged **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, and **`invoice-frontend:1.0`**:
+On a server that pulls **`maxwayne/invoice-postgres:1.0`**, **`maxwayne/invoice-backend:1.0`**, and **`maxwayne/invoice-frontend:1.0`** from Docker Hub (or uses images retagged from those names):
 
 ```bash
 cd deployment

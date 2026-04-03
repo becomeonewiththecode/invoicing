@@ -1,6 +1,6 @@
 # Deployment diagram
 
-Compose uses **named volumes** only (no repository bind mounts). Images: **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, **`invoice-frontend:1.0`**.
+Compose uses **named volumes** only (no repository bind mounts). **Prod** (`docker-compose-prod.yml`) pulls **`maxwayne/invoice-postgres:1.0`**, **`maxwayne/invoice-backend:1.0`**, **`maxwayne/invoice-frontend:1.0`** from Docker Hub; **build** (`docker-compose-build.yml`) tags **`invoice-*:1.0`** locally.
 
 ```mermaid
 flowchart TB
@@ -45,7 +45,7 @@ flowchart TB
 
 **Notes**
 
-- **Postgres:** **`invoice-postgres:1.0`** bakes `schema.sql`; empty **`pgdata`** runs init scripts on first container start. Persistent data lives in the **`pgdata`** volume only.
+- **Postgres:** **`maxwayne/invoice-postgres:1.0`** (prod) bakes `schema.sql`; empty **`pgdata`** runs init scripts on first container start. Persistent data lives in the **`pgdata`** volume only.
 - **TLS:** **`ssl_certs`** holds PEMs read by nginx; **`acme_webroot`** serves HTTP-01 challenges. Neither path is under the git repo—see [guide.md](guide.md#tls-lets-encrypt-with-acmesh).
 - The browser uses nginx for the SPA; nginx forwards `/api` to the **`backend`** service on the Docker network.
 - **Uploads:** company logos and similar files use the **`uploads_data`** volume at **`/app/uploads`** in the backend container.
