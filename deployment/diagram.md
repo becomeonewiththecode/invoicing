@@ -1,31 +1,39 @@
 # Deployment diagram
 
+Compose uses **named volumes** only (no repository bind mounts). Images: **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, **`invoice-frontend:1.0`**.
+
 ```mermaid
 flowchart TB
   subgraph Internet["User / client"]
     U[Browser]
   end
 
-  subgraph Host["Docker host"]
-    subgraph FE["frontend container (nginx)"]
-      NG[nginx :80]
-      SPA[Static SPA bundle]
+  subgraph Host["Docker host — Compose network"]
+    subgraph FE["frontend (nginx)"]
+      NG[":80 · :443"]
+      SPA[Static SPA]
       NG --> SPA
     end
 
-    subgraph BE["backend container"]
-      API[Express API :3001]
-      UP["/app/uploads volume"]
+    ACME[("acme_webroot\n→ /var/www/acme-webroot")]
+    TLS[("ssl_certs\n→ /etc/nginx/ssl")]
+    FE --- ACME
+    FE --- TLS
+
+    subgraph BE["backend"]
+      API[Express :3001]
+      UP[("uploads_data\n→ /app/uploads")]
       API --> UP
     end
 
     subgraph Data["Data services"]
-      PG[(PostgreSQL :5432)]
+      subgraph PGsvc["postgres (invoice-postgres · schema in image)"]
+        PG[(PostgreSQL :5432)]
+        PGVOL[("pgdata")]
+        PG --- PGVOL
+      end
       RD[(Redis :6379)]
     end
-
-    PGVOL[("pgdata volume")]
-    PG --- PGVOL
   end
 
   U -->|HTTP / HTTPS| NG
@@ -37,7 +45,8 @@ flowchart TB
 
 **Notes**
 
-- In production, TLS often terminates in front of nginx (not shown).
-- The browser only talks to nginx for the SPA; nginx forwards `/api` to the backend service name on the Docker network.
-- Uploaded logos are stored under `backend/uploads` and mounted into the backend container.
+- **Postgres:** **`invoice-postgres:1.0`** bakes `schema.sql`; empty **`pgdata`** runs init scripts on first container start. Persistent data lives in the **`pgdata`** volume only.
+- **TLS:** **`ssl_certs`** holds PEMs read by nginx; **`acme_webroot`** serves HTTP-01 challenges. Neither path is under the git repo—see [guide.md](guide.md#tls-lets-encrypt-with-acmesh).
+- The browser uses nginx for the SPA; nginx forwards `/api` to the **`backend`** service on the Docker network.
+- **Uploads:** company logos and similar files use the **`uploads_data`** volume at **`/app/uploads`** in the backend container.
 - The backend runs **`ensureSchema()`** on startup against PostgreSQL (idempotent column/enum upgrades). See [Runtime schema upgrades](../docs/database/schema.md#runtime-schema-upgrades).

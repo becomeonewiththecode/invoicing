@@ -11,11 +11,14 @@ See the [root README](../README.md) for clone, `npm install`, and a minimal loca
 
 ### 1. Start the database services
 
+Compose files live under **`deployment/`**. From the repo root:
+
 ```bash
-docker compose up -d postgres redis
+cd deployment
+docker compose -f docker-compose-build.yml up -d postgres redis
 ```
 
-This starts PostgreSQL on port 5432 and Redis on port 6379. The database schema is automatically applied on first run.
+This starts PostgreSQL on port 5432 and Redis on port 6379. The database schema is automatically applied on first run. (You can use **`-f docker-compose-prod.yml`** instead if you run pre-built images and only need data services—ensure image tags match your setup.)
 
 ### 2. Configure the backend
 
@@ -72,13 +75,14 @@ Navigate to [http://localhost:5173](http://localhost:5173) in your browser. Crea
 
 ## Full Docker Setup
 
-To run everything in containers (including backend and frontend):
+To run everything in containers (including backend and frontend), from **`deployment/`** using the **build** compose file (images built from this repo):
 
 ```bash
-docker compose up
+cd deployment
+docker compose -f docker-compose-build.yml up -d
 ```
 
-Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**.
+For **pre-built images** only (`invoice-backend:1.0`, `invoice-frontend:1.0`), use **`-f docker-compose-prod.yml`** instead. Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**.
 
 ## Troubleshooting
 

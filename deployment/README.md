@@ -8,9 +8,51 @@ Production and container deployment for the invoicing app.
 
 | File | Description |
 |------|-------------|
-| [docker-compose.yml](docker-compose.yml) | Docker Compose service definitions (Postgres, Redis, backend, frontend) |
-| [guide.md](guide.md) | Docker Compose, environment variables, manual builds, nginx, TLS (acme.sh), port notes |
+| [docker-compose-build.yml](docker-compose-build.yml) | Compose with `build:` for **postgres** (schema baked in), **backend**, and **frontend** — use when developing or building images from this repo on the host |
+| [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with `image: invoice-postgres:1.0`, `invoice-backend:1.0`, `invoice-frontend:1.0` — use when all images are built elsewhere and tagged (no rebuild on deploy) |
+| [postgres/Dockerfile](postgres/Dockerfile) | Builds `invoice-postgres:1.0` with `schema.sql` in the image (no bind mount from the repo at runtime) |
+| [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, TLS (acme.sh), port notes |
+| [diagram.md](diagram.md) | Mermaid deployment diagram: images, named volumes (`pgdata`, `uploads_data`, `acme_webroot`, `ssl_certs`), traffic flow |
 | [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow, backup import, new-invoice project conflict, invoice preview modal) |
+
+### Which Compose file?
+
+| Goal | File | Typical command (from `deployment/`) |
+|------|------|----------------------------------------|
+| Build and run from source | `docker-compose-build.yml` | `docker compose -f docker-compose-build.yml up -d --build` |
+| Run pre-built images only | `docker-compose-prod.yml` | `docker compose -f docker-compose-prod.yml up -d` (after `docker pull` / `docker load` and tags **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, **`invoice-frontend:1.0`**) |
+
+Optional: in `deployment/`, set `export COMPOSE_FILE=docker-compose-build.yml` (or `docker-compose-prod.yml`) so you can omit `-f` for that shell session.
+
+### Data volumes (no repo paths)
+
+Compose declares **named volumes** so the stack runs without bind-mounting the repository:
+
+| Volume | Used by | Purpose |
+|--------|---------|---------|
+| `pgdata` | postgres | PostgreSQL data |
+| `uploads_data` | backend | User uploads (e.g. logos) at `/app/uploads` |
+| `acme_webroot` | frontend | HTTP-01 challenge files under `/var/www/acme-webroot` |
+| `ssl_certs` | frontend | TLS PEMs at `/etc/nginx/ssl` (read-only in the container) |
+
+TLS and acme.sh paths are covered in [guide.md](guide.md#tls-lets-encrypt-with-acmesh).
+
+### Building images for production
+
+From the **repository root** (so `deployment/postgres/Dockerfile` can `COPY backend/src/models/schema.sql`):
+
+```bash
+docker build -f deployment/postgres/Dockerfile -t invoice-postgres:1.0 .
+```
+
+Or build all services from `deployment/`:
+
+```bash
+cd deployment
+docker compose -f docker-compose-build.yml build postgres backend frontend
+```
+
+Tag and push **`invoice-postgres:1.0`**, **`invoice-backend:1.0`**, and **`invoice-frontend:1.0`** to your registry as needed.
 
 ---
 
@@ -28,7 +70,7 @@ Configure `DATABASE_URL`, `REDIS_URL`, and `JWT_SECRET` in `backend/.env`. Apply
 
 **Run locally:** `cd backend && npm run dev` and `cd frontend && npm run dev` (UI usually [http://localhost:5173](http://localhost:5173)).
 
-**Docker (full stack):** `cd deployment && docker compose up -d` — see [guide.md](guide.md) for ports and env.
+**Docker (full stack from source):** `cd deployment && docker compose -f docker-compose-build.yml up -d` — see [guide.md](guide.md) for ports, env, and production image workflow.
 
 More detail: [docs/getting-started.md](../docs/getting-started.md).
 
@@ -38,7 +80,7 @@ More detail: [docs/getting-started.md](../docs/getting-started.md).
 
 Full tables and production notes: **[guide.md](guide.md)**.
 
-**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email (per-user SMTP settings can also be configured in Settings → Email); `ADMIN_EMAIL` and `ADMIN_PASSWORD` to seed a default admin user on startup (defaults: `admin@invoicing.local` / random password in `docker-compose.yml`).
+**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email (per-user SMTP settings can also be configured in Settings → Email); `ADMIN_EMAIL` and `ADMIN_PASSWORD` to seed a default admin user on startup (defaults: `admin@invoicing.local` / random password — see `docker-compose-build.yml` and `docker-compose-prod.yml`).
 
 **Frontend:** `VITE_API_URL` — base URL **including `/api`**; must match the API port you run (e.g. Docker backend **3001**, or PM2/Vite proxy **3002**).
 
