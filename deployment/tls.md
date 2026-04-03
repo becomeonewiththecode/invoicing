@@ -74,13 +74,21 @@ Use **`-f docker-compose-build.yml`** instead if that is how you run the stack. 
 
 ## 5. Issue a certificate (HTTP-01, Linux + Docker Engine)
 
-Set variables (adjust **`DOMAIN`** and **`PROJECT`**):
+Set variables in your **shell** on the Docker host (these are not keys in the app’s repo—they exist only for the commands you run in that terminal):
 
 ```bash
 DOMAIN="clients.example.com"
 PROJECT="${COMPOSE_PROJECT_NAME:-deployment}"
 WEBROOT=$(docker volume inspect "${PROJECT}_acme_webroot" --format '{{ .Mountpoint }}')
 ```
+
+**Where each value is defined**
+
+| Variable | Where it comes from |
+|----------|---------------------|
+| **`DOMAIN`** | You set it in the shell (e.g. `DOMAIN="clients.example.com"`). It **must match** the hostname nginx uses: **`NGINX_SERVER_NAME`**. That is passed into the frontend container from Compose: [`docker-compose-prod.yml`](docker-compose-prod.yml) and [`docker-compose-build.yml`](docker-compose-build.yml) both have `NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-clients.opensitesolutions.com}`. Override the default by creating **`deployment/.env`** (same directory as the compose file) with `NGINX_SERVER_NAME=your.hostname.com`, or `export NGINX_SERVER_NAME=...` before `docker compose up`. |
+| **`PROJECT`** | Taken from the shell environment variable **`COMPOSE_PROJECT_NAME`** if you exported it before **`docker compose up`** (see [section 2](#2-how-the-project-name-maps-to-volume-names)). If unset, the snippet uses the literal fallback **`deployment`**—that only matches Docker’s volume prefix when your project name actually is `deployment` (common when the project directory is named `deployment`). If your volumes are named like `invoicing_acme_webroot`, run `export COMPOSE_PROJECT_NAME=invoicing` **before** the first `up`, or set **`PROJECT`** manually to that prefix when running these commands. |
+| **`WEBROOT`** | Not configured in a file. It is the **host path** Docker reports for the volume **`${PROJECT}_acme_webroot`**, from `docker volume inspect`. |
 
 Issue:
 
