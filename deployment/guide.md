@@ -4,11 +4,34 @@ Repository overview: [README.md](../README.md). Project docs (API, database, arc
 
 ## Docker Compose (recommended)
 
-### Full stack
+Two files live in **`deployment/`**:
+
+| File | Use when |
+|------|----------|
+| **`docker-compose-build.yml`** | You build images from this repo (`build:` for backend and frontend). Development, CI image build, or any host where you run `docker compose build` / `up --build`. |
+| **`docker-compose-prod.yml`** | Images are already built and tagged (`invoice-backend:1.0`, `invoice-frontend:1.0`). Production deploy without rebuilding on the server. |
+
+**Convention in this guide:** examples that rebuild images use **`-f docker-compose-build.yml`**. Examples for a server running tagged images use **`-f docker-compose-prod.yml`**. Use the **same `-f` file** you used to start the stack for `exec`, `logs`, and `acme.sh --reloadcmd`.
+
+Optional (from `deployment/`): `export COMPOSE_FILE=docker-compose-build.yml` so you can omit `-f` in that shell.
+
+### Full stack (build from source)
 
 ```bash
-docker compose up -d
+cd deployment
+docker compose -f docker-compose-build.yml up -d
 ```
+
+### Full stack (pre-built images)
+
+On a server where images are built in CI or another machine and tagged **`invoice-backend:1.0`** and **`invoice-frontend:1.0`**:
+
+```bash
+cd deployment
+docker compose -f docker-compose-prod.yml up -d
+```
+
+No `build:` step on this host; pull/load images first so those tags exist.
 
 | Service | Host port | Description |
 |---------|-----------|-------------|
@@ -21,26 +44,26 @@ docker compose up -d
 
 ```bash
 cd deployment
-docker compose up -d --build
+docker compose -f docker-compose-build.yml up -d --build
 ```
 
-Use `docker compose build --no-cache` first if you suspect a stale layer. To wipe Postgres data (destructive), remove the `pgdata` volume — see volume notes below.
+Use `docker compose -f docker-compose-build.yml build --no-cache` first if you suspect a stale layer. To wipe Postgres data (destructive), remove the `pgdata` volume — see volume notes below.
 
 **Rebuilt but the UI still looks old?**
 
 1. Rebuild **and recreate** containers (not just `restart`):  
-   `cd deployment && docker compose build --no-cache && docker compose up -d --force-recreate`
+   `cd deployment && docker compose -f docker-compose-build.yml build --no-cache && docker compose -f docker-compose-build.yml up -d --force-recreate`
 2. **Hard refresh** the browser (Ctrl+Shift+R / Cmd+Shift+R) or open in a private window — browsers cache `index.html`; nginx is configured to send `no-cache` for it after you rebuild the image that includes the updated nginx templates.
-3. Confirm you built from the repo that contains your edits: `docker compose` must run from the **`deployment/`** directory so `context: ../frontend` and `../backend` point at your project.
+3. Confirm you built from the repo that contains your edits: Compose must run from the **`deployment/`** directory so `context: ../frontend` and `../backend` point at your project (only applies to **`docker-compose-build.yml`**).
 4. The frontend image bakes **`VITE_API_URL=/api`** at build time so the SPA talks to nginx’s `/api` proxy (same host). Building without this can leave API calls pointing at `localhost:3002` in the bundle.
 
-**502 / “Host is unreachable” on `/api` after `docker compose up --build`:** nginx used to resolve the `backend` hostname once and keep a stale container IP after the API container was recreated. The frontend **`nginx-*.conf.template`** files use Docker’s DNS (`127.0.0.11`) and a `proxy_pass` **variable** so each request re-resolves `backend`. Rebuild the **frontend** image after pulling that change. Compose also waits for Postgres/Redis to be healthy before starting the API, and for the API health check before starting nginx—see `deployment/docker-compose.yml`.
+**502 / “Host is unreachable” on `/api` after `docker compose -f docker-compose-build.yml up --build`:** nginx used to resolve the `backend` hostname once and keep a stale container IP after the API container was recreated. The frontend **`nginx-*.conf.template`** files use Docker’s DNS (`127.0.0.11`) and a `proxy_pass` **variable** so each request re-resolves `backend`. Rebuild the **frontend** image after pulling that change. Compose also waits for Postgres/Redis to be healthy before starting the API, and for the API health check before starting nginx—see [`docker-compose-build.yml`](docker-compose-build.yml) (or [`docker-compose-prod.yml`](docker-compose-prod.yml) for pre-built images).
 
 **`http://localhost:3001/api/health` does not load (connection refused / timeout):** The API must listen on **`0.0.0.0`** inside the container so Docker’s port publish (`3001:3001`) works; `server.ts` uses `LISTEN_HOST` (default `0.0.0.0`). If the page still fails:
 
-1. `docker compose ps` — the **backend** container should be **Up** (not **Restarting**).
-2. `docker compose logs backend --tail 100` — look for **`Server listening on http://0.0.0.0:3001`**. If you see **`Failed to ensure database schema`**, Postgres is unreachable or migrations failed (fix `DATABASE_URL`, ensure Postgres is healthy).
-3. Rebuild the backend image after changing `server.ts`: `docker compose build backend && docker compose up -d backend`.
+1. `docker compose -f docker-compose-build.yml ps` (or `-f docker-compose-prod.yml` if that is what you deployed) — the **backend** container should be **Up** (not **Restarting**).
+2. `docker compose -f <same-as-above> logs backend --tail 100` — look for **`Server listening on http://0.0.0.0:3001`**. If you see **`Failed to ensure database schema`**, Postgres is unreachable or migrations failed (fix `DATABASE_URL`, ensure Postgres is healthy).
+3. Rebuild the backend image after changing `server.ts` (build compose only): `docker compose -f docker-compose-build.yml build backend && docker compose -f docker-compose-build.yml up -d backend`.
 4. Confirm nothing else on the host is using port **3001**: `ss -tlnp | grep 3001` (Linux).
 
 For existing databases, apply SQL files in `backend/migrations/` in numeric order after the base schema, or rely on **`ensureSchema()`** on API startup (and before backup import). Details: [Runtime schema upgrades](../docs/database/schema.md#runtime-schema-upgrades).
@@ -70,7 +93,7 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 
 | Variable | Typical value | Description |
 |----------|---------------|-------------|
-| NGINX_SERVER_NAME | `clients.opensitesolutions.com` | `server_name` for HTTP/HTTPS; override via env or `.env` next to `docker-compose.yml`. |
+| NGINX_SERVER_NAME | `clients.opensitesolutions.com` | `server_name` for HTTP/HTTPS; override via env or `.env` next to the compose file you use (`docker-compose-build.yml` / `docker-compose-prod.yml`). |
 
 ### Production considerations
 
@@ -81,7 +104,7 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 
 ### TLS (Let's Encrypt with acme.sh)
 
-Use this when serving a public hostname (e.g. **`clients.opensitesolutions.com`**) from the Docker host. Your apex/`www` site can stay on GitHub Pages; only this subdomain needs a **DNS A (or AAAA) record** pointing to the **server that runs** `docker compose`, not GitHub’s IPs.
+Use this when serving a public hostname (e.g. **`clients.opensitesolutions.com`**) from the Docker host. Your apex/`www` site can stay on GitHub Pages; only this subdomain needs a **DNS A (or AAAA) record** pointing to the **server that runs** Compose (usually **`docker-compose-prod.yml`** in production), not GitHub’s IPs.
 
 **Requirements:** Inbound **TCP 80** (validation) and **TCP 443** (HTTPS). Let’s Encrypt must reach `http://<your-hostname>/.well-known/acme-challenge/...` from the internet.
 
@@ -101,16 +124,20 @@ Use this when serving a public hostname (e.g. **`clients.opensitesolutions.com`*
    acme.sh --install-cert -d clients.opensitesolutions.com --ecc \
      --fullchain-file /path/to/invoicing/deployment/ssl/fullchain.pem \
      --key-file /path/to/invoicing/deployment/ssl/privkey.pem \
-     --reloadcmd "docker compose -f /path/to/invoicing/deployment/docker-compose.yml exec -T frontend nginx -s reload"
+     --reloadcmd "docker compose -f /path/to/invoicing/deployment/docker-compose-prod.yml exec -T frontend nginx -s reload"
    ```
+
+   If you started the stack with **`docker-compose-build.yml`**, use that filename instead of `docker-compose-prod.yml` in `--reloadcmd` so `exec` targets the same project.
 
    Use **`--ecc`** if you issued with acme.sh’s default EC key (folder name ends with `_ecc` under `~/.acme.sh/`).
 
 5. **Restart the frontend container once** so the entrypoint regenerates nginx config and enables the `:443` server block (a plain `nginx -s reload` alone is not enough the first time, because the running container was started without PEM files):
 
    ```bash
-   cd /path/to/invoicing/deployment && docker compose up -d --force-recreate frontend
+   cd /path/to/invoicing/deployment && docker compose -f docker-compose-prod.yml up -d --force-recreate frontend
    ```
+
+   Use **`-f docker-compose-build.yml`** instead if that is how you started the stack.
 
 **Renewal:** acme.sh typically installs a cron job. After renew, `--reloadcmd` reloads nginx; the HTTPS `server` block is already present, so reloading applies the new PEM files. Confirm renewal with `acme.sh --cron -d` or your system logs.
 
@@ -142,22 +169,26 @@ The validator must receive **plain text** (the key authorization), not your SPA�
    curl -sS "http://clients.opensitesolutions.com/.well-known/acme-challenge/ping.txt"
    ```
 
-   You must see **`ok`** only. If you see HTML, fix permissions and **`docker compose build --no-cache frontend && docker compose up -d --force-recreate frontend`**, and ensure nothing else binds host port **80** ahead of this stack.
+   You must see **`ok`** only. If you see HTML, fix permissions and **`docker compose -f docker-compose-build.yml build --no-cache frontend && docker compose -f docker-compose-build.yml up -d --force-recreate frontend`** (or the matching **`-f docker-compose-prod.yml`** if you only run pre-built images and pulled a new frontend image), and ensure nothing else binds host port **80** ahead of this stack.
 
 3. **Confirm the file is visible inside the container** as user **nginx**:
 
    ```bash
    cd /path/to/invoicing/deployment
-   docker compose exec -u nginx frontend cat /var/www/acme-webroot/.well-known/acme-challenge/ping.txt
+   docker compose -f docker-compose-prod.yml exec -u nginx frontend cat /var/www/acme-webroot/.well-known/acme-challenge/ping.txt
    ```
+
+   Use the **same `-f`** as your deployment (`docker-compose-build.yml` or `docker-compose-prod.yml`).
 
    If this fails, fix host permissions (step 1).
 
 4. **Confirm nginx has the ACME `location`** (rebuild/recreate frontend after pulling):
 
    ```bash
-   docker compose exec frontend grep -A4 'well-known/acme-challenge' /etc/nginx/conf.d/default.conf
+   docker compose -f docker-compose-prod.yml exec frontend grep -A4 'well-known/acme-challenge' /etc/nginx/conf.d/default.conf
    ```
+
+   Use the **same `-f`** as your deployment.
 
 5. **Nothing else on port 80** — another reverse proxy, CDN (e.g. Cloudflare “orange cloud”), or host nginx in front must forward `/.well-known/acme-challenge/` to this stack unchanged.
 

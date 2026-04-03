@@ -30,8 +30,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | `backend/migrations/` | SQL migrations for existing databases |
 | `backend/src/models/schema.sql` | Schema for fresh installs / Docker init |
 | [`docs/`](docs/README.md) | Project documentation (database, API, stack, guides) |
-| [`deployment/`](deployment/README.md) | Deployment guides and diagrams |
-| [`deployment/docker-compose.yml`](deployment/docker-compose.yml) | Postgres, Redis, backend, frontend |
+| [`deployment/`](deployment/README.md) | Deployment guides, **`docker-compose-build.yml`** (build from repo) and **`docker-compose-prod.yml`** (pre-built images) |
 
 ---
 

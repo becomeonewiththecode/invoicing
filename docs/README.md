@@ -22,7 +22,7 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 
 | Document | Description |
 |----------|-------------|
-| [deployment/guide.md](../deployment/guide.md) | Docker Compose, env vars, nginx, manual deploy |
+| [deployment/guide.md](../deployment/guide.md) | Docker Compose (**build** vs **prod** files), env vars, nginx, manual deploy |
 
 ## Root README
 
