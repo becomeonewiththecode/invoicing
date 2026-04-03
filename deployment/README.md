@@ -12,6 +12,7 @@ Production and container deployment for the invoicing app.
 | [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with `image: invoice-postgres:1.0`, `invoice-backend:1.0`, `invoice-frontend:1.0` — use when all images are built elsewhere and tagged (no rebuild on deploy) |
 | [postgres/Dockerfile](postgres/Dockerfile) | Builds `invoice-postgres:1.0` with `schema.sql` in the image (no bind mount from the repo at runtime) |
 | [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, TLS (acme.sh), port notes |
+| [diagram.md](diagram.md) | Mermaid deployment diagram: images, named volumes (`pgdata`, `uploads_data`, `acme_webroot`, `ssl_certs`), traffic flow |
 | [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow, backup import, new-invoice project conflict, invoice preview modal) |
 
 ### Which Compose file?

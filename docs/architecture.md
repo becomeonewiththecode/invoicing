@@ -7,8 +7,8 @@ flowchart TB
     Browser["Browser\n(user)"]
 
     subgraph Docker["Docker Compose network"]
-        subgraph FE["frontend  :80"]
-            NGINX["nginx\n· serves React SPA\n· proxies /api → backend:3001\n· Docker DNS re-resolution"]
+        subgraph FE["frontend  :80 / :443"]
+            NGINX["nginx\n· serves React SPA\n· proxies /api → backend:3001\n· Docker DNS re-resolution\n· TLS: ssl_certs volume · ACME: acme_webroot"]
         end
 
         subgraph BE["backend  :3001"]
@@ -61,8 +61,8 @@ flowchart TB
             SCHEMA["ensureSchema()\nidempotent ALTERs\non startup + import"]
         end
 
-        subgraph PG["postgres  :5432"]
-            PGDB[("PostgreSQL 16\ninvoicing DB\npgdata volume")]
+        subgraph PG["postgres  :5432 (invoice-postgres image)"]
+            PGDB[("PostgreSQL 16 · invoicing DB\nschema baked in image · data: pgdata volume")]
         end
 
         subgraph RD["redis  :6379"]
