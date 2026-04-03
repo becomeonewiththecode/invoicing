@@ -80,7 +80,7 @@ services:
     environment:
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-clients.opensitesolutions.com}
     volumes:
-      - ./acme-webroot:/var/www/certbot
+      - ./acme-webroot:/var/www/acme-webroot
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       backend:

@@ -1,12 +1,14 @@
 server {
-    listen 80;
+    listen 80 default_server;
     server_name __SERVER_NAME__;
 
     root /usr/share/nginx/html;
     index index.html;
 
+    # alias (not root + URI) so the challenge path maps exactly to the bind-mounted webroot
     location ^~ /.well-known/acme-challenge/ {
-        root /var/www/certbot;
+        default_type text/plain;
+        alias /var/www/acme-webroot/.well-known/acme-challenge/;
     }
 
     # Avoid stale SPA shell after redeploys (JS chunks are hashed and safe to cache)
