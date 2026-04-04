@@ -60,7 +60,7 @@ Web app for **freelancers and small businesses** to create invoices, manage clie
 | Document | Description |
 |----------|----------------|
 | [deployment/guide.md](deployment/guide.md) | Docker Compose, environment variables, nginx, manual builds |
-| [deployment/tls.md](deployment/tls.md) | HTTPS / TLS with Let’s Encrypt and **acme.sh**, nginx, Docker volumes, renewal |
+| [deployment/tls.md](deployment/tls.md) | HTTPS / TLS with Let’s Encrypt and **acme.sh**, nginx, host bind mounts under **`DEPLOY_DATA_DIR`**, renewal |
 
 ---
 

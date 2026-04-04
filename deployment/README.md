@@ -13,7 +13,7 @@ Production and container deployment for the invoicing app.
 | [postgres/Dockerfile](postgres/Dockerfile) | Builds `invoice-postgres:1.0` with `schema.sql` in the image (no bind mount from the repo at runtime) |
 | [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, port notes |
 | [tls.md](tls.md) | **HTTPS / TLS:** Let’s Encrypt with **acme.sh**, host bind mounts under **`DEPLOY_DATA_DIR`**, nginx, renewal, troubleshooting |
-| [diagram.md](diagram.md) | Mermaid deployment diagram: images, named volumes (`pgdata`, `uploads_data`), TLS bind mounts, traffic flow |
+| [diagram.md](diagram.md) | Mermaid deployment diagram: images, **`DEPLOY_DATA_DIR`** bind mounts (DB, uploads, TLS), traffic flow |
 | [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow, backup import, new-invoice project conflict, invoice preview modal) |
 
 ### Which Compose file?
@@ -26,7 +26,7 @@ Production and container deployment for the invoicing app.
 **Standalone production (no git clone):** Put **`docker-compose-prod.yml`** and **`.env`** in the same **user-owned directory** on the server (e.g. **`~/invoice`**). From **that** directory:
 
 ```bash
-mkdir -p data/acme_webroot data/ssl_certs
+mkdir -p data/pgdata data/uploads data/acme_webroot data/ssl_certs
 chown -R "$(id -u):$(id -g)" data
 docker compose -f docker-compose-prod.yml up -d
 ```
@@ -35,22 +35,22 @@ Relative paths (**`./data`**, **`.env`**) are resolved from that folder — see 
 
 Optional (from the compose directory): `export COMPOSE_FILE=docker-compose-prod.yml` so you can omit `-f` for that shell session.
 
-For **`NGINX_SERVER_NAME`**, **`COMPOSE_PROJECT_NAME`**, and **`DEPLOY_DATA_DIR`**, see **[`.env.example`](.env.example)** and **[tls.md](tls.md)**.
+For **`NGINX_SERVER_NAME`**, **`COMPOSE_PROJECT_NAME`**, **`DEPLOY_DATA_DIR`**, **`JWT_SECRET`**, and **`JWT_EXPIRES_IN`**, see **[`.env.example`](.env.example)** and **[tls.md](tls.md)**.
 
-### Data storage (named volumes + TLS bind mounts)
+### Data storage (host bind mounts)
 
-**Postgres and uploads** use **named volumes** (no app source bind mount). **TLS** uses **host directories** under **`DEPLOY_DATA_DIR`** (default **`./data`** in the **compose directory** — the folder where **`docker-compose-prod.yml`** and **`.env`** live) so the user running **acme.sh** can write without root under `/var/lib/docker/volumes/`.
+**Postgres**, **backend uploads**, and **TLS** all use **host directories** under **`DEPLOY_DATA_DIR`** (default **`./data`** in the **compose directory** — the folder where **`docker-compose-prod.yml`** and **`.env`** live). That keeps data and certificates in normal paths (easier backups and **acme.sh**) instead of only under **`/var/lib/docker/volumes/`**.
 
-| Volume / mount | Used by | Purpose |
-|----------------|---------|---------|
-| `pgdata` (named) | postgres | PostgreSQL data |
-| `uploads_data` (named) | backend | User uploads (e.g. logos) at `/app/uploads` |
-| `${DEPLOY_DATA_DIR}/acme_webroot` (bind) | frontend | HTTP-01 challenges → `/var/www/acme-webroot` |
-| `${DEPLOY_DATA_DIR}/ssl_certs` (bind) | frontend | TLS PEMs → `/etc/nginx/ssl` (read-only in the container) |
+| Host path (under `DEPLOY_DATA_DIR`) | Used by | Purpose |
+|-------------------------------------|---------|---------|
+| **`pgdata/`** | postgres | PostgreSQL data → `/var/lib/postgresql/data` |
+| **`uploads/`** | backend | User uploads (e.g. logos) → `/app/uploads` |
+| **`acme_webroot/`** | frontend | HTTP-01 challenges → `/var/www/acme-webroot` |
+| **`ssl_certs/`** | frontend | TLS PEMs → `/etc/nginx/ssl` (read-only in the container) |
 
-Create **`data/acme_webroot`** and **`data/ssl_certs`** from your **compose directory** and **`chown`** to your deploy user **before** the first **`docker compose up`**. Set **`DEPLOY_DATA_DIR`** in **`.env`** beside the compose file (see **[`.env.example`](.env.example)**).
+Create those four directories from your **compose directory** and **`chown`** to your deploy user **before** the first **`docker compose up`**. Set **`DEPLOY_DATA_DIR`** in **`.env`** beside the compose file (see **[`.env.example`](.env.example)**).
 
-If you used older Compose definitions with **named** `acme_webroot` / `ssl_certs` volumes, copy files into **`data/`** then remove the old volumes.
+Older stacks may have used **Docker named volumes** for Postgres, uploads, or TLS paths; migrate data into **`data/pgdata`**, **`data/uploads`**, etc., then remove the obsolete named volumes if you no longer need them.
 
 TLS / HTTPS: **[tls.md](tls.md)** (summary in [guide.md](guide.md#tls-lets-encrypt-with-acmesh)).
 
@@ -97,7 +97,7 @@ More detail: [docs/getting-started.md](../docs/getting-started.md).
 
 Full tables and production notes: **[guide.md](guide.md)**.
 
-**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email (per-user SMTP settings can also be configured in Settings → Email); `ADMIN_EMAIL` and `ADMIN_PASSWORD` to seed a default admin user on startup (defaults: `admin@invoicing.local` / random password — see `docker-compose-build.yml` and `docker-compose-prod.yml`).
+**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email (per-user SMTP settings can also be configured in Settings → Email); `ADMIN_EMAIL` and `ADMIN_PASSWORD` to seed a default admin user on startup (defaults: `admin@invoicing.local` / random password — see `docker-compose-build.yml` and `docker-compose-prod.yml`). **Compose:** set **`JWT_SECRET`** and **`JWT_EXPIRES_IN`** in **`.env`** next to the compose file (see **[`.env.example`](.env.example)**); compose passes them into the backend container.
 
 **Frontend:** `VITE_API_URL` — base URL **including `/api`**; must match the API port you run (e.g. Docker backend **3001**, or PM2/Vite proxy **3002**).
 

@@ -23,7 +23,7 @@ Project docs for developers. **Deployment** (Docker, nginx, production env) live
 | Document | Description |
 |----------|-------------|
 | [deployment/guide.md](../deployment/guide.md) | Docker Compose (**build** vs **prod** files), env vars, nginx, manual deploy |
-| [deployment/tls.md](../deployment/tls.md) | **HTTPS / TLS:** Let’s Encrypt HTTP-01 with **acme.sh**, volumes, nginx, renewal |
+| [deployment/tls.md](../deployment/tls.md) | **HTTPS / TLS:** Let’s Encrypt HTTP-01 with **acme.sh**, **`DEPLOY_DATA_DIR`** bind mounts, nginx, renewal |
 
 ## Root README
 

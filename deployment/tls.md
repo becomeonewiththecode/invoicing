@@ -6,7 +6,7 @@ This guide covers **HTTPS for the frontend container**: how the nginx image choo
 
 | Item | Role |
 |------|------|
-| [`docker-compose-prod.yml`](docker-compose-prod.yml) / [`docker-compose-build.yml`](docker-compose-build.yml) | **Bind mounts** under **`DEPLOY_DATA_DIR`** (`acme_webroot/`, `ssl_certs/`) into the **frontend** service (so a normal user can run **acme.sh** without writing under `/var/lib/docker/volumes/`) |
+| [`docker-compose-prod.yml`](docker-compose-prod.yml) / [`docker-compose-build.yml`](docker-compose-build.yml) | **Bind mounts** under **`DEPLOY_DATA_DIR`**: **`pgdata/`**, **`uploads/`** (postgres, backend), plus **`acme_webroot/`**, **`ssl_certs/`** (frontend TLS) — normal host dirs so deploy users and **acme.sh** need not write under `/var/lib/docker/volumes/` |
 | [`frontend/docker-entrypoint.sh`](../frontend/docker-entrypoint.sh) | If **`fullchain.pem`** and a private key (**`privkey.pem`** or **`key.pem`**) exist, uses the HTTPS template; otherwise HTTP only |
 | [`frontend/nginx-http.conf.template`](../frontend/nginx-http.conf.template) | Port 80, SPA, `/api` proxy, `/.well-known/acme-challenge/` → `/var/www/acme-webroot` |
 | [`frontend/nginx-https.conf.template`](../frontend/nginx-https.conf.template) | HTTP → HTTPS redirect, TLS on 443, same SPA and ACME location |
@@ -22,16 +22,18 @@ This guide covers **HTTPS for the frontend container**: how the nginx image choo
 1. **DNS** — An **A** (or **AAAA**) record for your hostname (e.g. `clients.example.com`) points to the **machine that runs Docker Compose** for this app.
 2. **Ports** — Inbound **TCP 80** (Let’s Encrypt HTTP-01) and **TCP 443** (HTTPS). Nothing else on the host should steal port **80** from this stack.
 3. **Server name** — Set **`NGINX_SERVER_NAME`** in **`.env`** in the compose directory (see [Configure hostname and project name](#configure-hostname-and-project-name)) so **`docker compose`** and **acme.sh** use the same hostname.
-4. **Host directories** — Under **`DEPLOY_DATA_DIR`** (default **`./data`** next to the compose file), create **`acme_webroot/`** and **`ssl_certs/`** owned by the user that runs **acme.sh** (see [section 2](#2-host-bind-mount-paths-deploy_data_dir)). Run **`mkdir`** from the **compose directory** so **`./data/...`** is under that user’s deploy folder. Challenges appear on the host under **`acme_webroot/`** (mounted at **`/var/www/acme-webroot`** in the container). PEMs go in **`ssl_certs/`** (mounted read-only at **`/etc/nginx/ssl`**).
+4. **Host directories** — Under **`DEPLOY_DATA_DIR`** (default **`./data`** next to the compose file), create **`pgdata/`**, **`uploads/`**, **`acme_webroot/`**, and **`ssl_certs/`** owned by your deploy user (see [section 2](#2-host-bind-mount-paths-deploy_data_dir)). For TLS, challenges live under **`acme_webroot/`** (mounted at **`/var/www/acme-webroot`**) and PEMs in **`ssl_certs/`** (read-only at **`/etc/nginx/ssl`**).
 
 ---
 
 ## 2. Host bind mount paths (`DEPLOY_DATA_DIR`)
 
-The frontend service uses **bind mounts** for TLS (not Docker named volumes), so **acme.sh** can write to normal directories you own instead of **`/var/lib/docker/volumes/...`** (which is root-owned and causes *Permission denied* for unprivileged users).
+Compose uses **host bind mounts** under **`DEPLOY_DATA_DIR`** for database files, uploads, and TLS — not Docker named volumes for those paths — so **acme.sh** and backups can use normal directories you own instead of **`/var/lib/docker/volumes/...`** (root-owned; *Permission denied* for unprivileged users).
 
 | Host path (default) | In container | Purpose |
 |---------------------|--------------|---------|
+| **`${DEPLOY_DATA_DIR}/pgdata`** | `/var/lib/postgresql/data` | PostgreSQL data |
+| **`${DEPLOY_DATA_DIR}/uploads`** | `/app/uploads` | Backend user uploads (e.g. logos) |
 | **`${DEPLOY_DATA_DIR}/acme_webroot`** | `/var/www/acme-webroot` | HTTP-01 challenge files |
 | **`${DEPLOY_DATA_DIR}/ssl_certs`** | `/etc/nginx/ssl` | **`fullchain.pem`** plus **`privkey.pem`** (recommended) or **`key.pem`** (common **acme.sh** default) |
 
@@ -41,7 +43,7 @@ The frontend service uses **bind mounts** for TLS (not Docker named volumes), so
 
 ```bash
 cd /path/to/your-compose-directory   # e.g. ~/invoice — same dir as docker-compose-prod.yml
-mkdir -p data/acme_webroot data/ssl_certs
+mkdir -p data/pgdata data/uploads data/acme_webroot data/ssl_certs
 chown -R "$(id -u):$(id -g)" data
 ```
 
@@ -49,13 +51,9 @@ If **`data/`** was already created by Docker as **root**, fix ownership: **`sudo
 
 **nginx inside the container** runs as user **`nginx`** and must be able to **read** challenges and PEMs. After **acme.sh** creates files, you may need **`chmod 755`** on directories and **`chmod 644`** on **`fullchain.pem`** / **`privkey.pem`** (see [Troubleshooting](#9-troubleshooting)).
 
-### `COMPOSE_PROJECT_NAME` (named volumes only)
+### `COMPOSE_PROJECT_NAME` (containers and networks)
 
-**`COMPOSE_PROJECT_NAME`** affects **named** volumes only (**`pgdata`**, **`uploads_data`**), e.g. **`invoicing_pgdata`**. It does **not** change **`DEPLOY_DATA_DIR`** paths. List them with:
-
-```bash
-docker volume ls | grep -E 'pgdata|uploads'
-```
+**`COMPOSE_PROJECT_NAME`** prefixes **container names** and the default **Docker network** for the project. It does **not** change paths under **`DEPLOY_DATA_DIR`** (those are always the host directories you configure in **`.env`**).
 
 ---
 
@@ -94,7 +92,7 @@ If you started an order with ZeroSSL and switch CAs, remove or rename the domain
 
 ## 4. Start the stack (HTTP first)
 
-From your **compose directory**, ensure **`DEPLOY_DATA_DIR/acme_webroot`** and **`.../ssl_certs`** exist and are writable by your user ([section 2](#2-host-bind-mount-paths-deploy_data_dir)). Then bring the stack up so nginx serves **port 80** with the webroot mounted:
+From your **compose directory**, ensure **`DEPLOY_DATA_DIR`** contains **`pgdata/`**, **`uploads/`**, **`acme_webroot/`**, and **`ssl_certs/`** as in [section 2](#2-host-bind-mount-paths-deploy_data_dir). Then bring the stack up so nginx serves **port 80** with the webroot mounted:
 
 ```bash
 cd /path/to/your-compose-directory
@@ -107,7 +105,7 @@ Use **`-f docker-compose-build.yml`** instead if that is how you run the stack. 
 
 ### Configure hostname and project name
 
-**`NGINX_SERVER_NAME`** (hostname nginx serves), **`DEPLOY_DATA_DIR`** (TLS bind mounts on the host), and **`COMPOSE_PROJECT_NAME`** (prefix for **`pgdata`** / **`uploads_data`** named volumes) should be set in one place for **`docker compose`** and for your **acme.sh** shell.
+**`NGINX_SERVER_NAME`** (hostname nginx serves), **`DEPLOY_DATA_DIR`** (all data/TLS bind mounts on the host), **`JWT_SECRET`** / **`JWT_EXPIRES_IN`** (backend JWT signing; optional overrides), and **`COMPOSE_PROJECT_NAME`** should be set in one place for **`docker compose`** and for your **acme.sh** shell (JWT vars are compose-only; acme does not need them).
 
 | Approach | When to use |
 |----------|-------------|
@@ -122,11 +120,15 @@ Create or update **`.env`** in the same directory as [`docker-compose-prod.yml`]
 # Public hostname — must match the name on the certificate
 NGINX_SERVER_NAME=clients.example.com
 
-# Compose project prefix for named volumes only (pgdata, uploads_data)
+# Compose project prefix (containers / network — not bind-mount paths)
 COMPOSE_PROJECT_NAME=invoicing
 
-# Host directory for acme_webroot/ and ssl_certs/ bind mounts (see tls.md §2)
+# Host directory for pgdata/, uploads/, acme_webroot/, ssl_certs/ (see tls.md §2)
 DEPLOY_DATA_DIR=./data
+
+# JWT access tokens (optional — see .env.example for examples)
+# JWT_SECRET=...
+# JWT_EXPIRES_IN=7d
 ```
 
 - **`docker compose`** reads **`.env`** from the **current working directory**; **`cd`** to the compose directory first so it finds the file next to **`docker-compose-prod.yml`**.
@@ -373,4 +375,4 @@ Should return **200** (or redirect chain ending on your app) with a valid certif
 ## See also
 
 - [guide.md](guide.md) — full deployment guide (Compose, env vars, ports)
-- [README.md](README.md) — deployment index and volume summary
+- [README.md](README.md) — deployment index and data / TLS path summary

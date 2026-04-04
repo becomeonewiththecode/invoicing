@@ -62,7 +62,7 @@ flowchart TB
         end
 
         subgraph PG["postgres :5432, invoice-postgres image"]
-            PGDB[("PostgreSQL 16, invoicing DB\nschema in image, data on pgdata volume")]
+            PGDB[("PostgreSQL 16, invoicing DB\nschema in image, data on host\nDEPLOY_DATA_DIR/pgdata")]
         end
 
         subgraph RD["redis  :6379"]

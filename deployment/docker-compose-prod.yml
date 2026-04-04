@@ -3,9 +3,9 @@
 # Compose loads `.env` from that directory and resolves `./data` relative to it.
 # https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/
 #
-# TLS: BIND MOUNTS under DEPLOY_DATA_DIR (default ./data) next to this file. Before first `up`:
+# BIND MOUNTS under DEPLOY_DATA_DIR (default ./data) next to this file. Before first `up`:
 #   cd /path/to/that/directory
-#   mkdir -p data/acme_webroot data/ssl_certs && chown -R "$(id -u):$(id -g)" data
+#   mkdir -p data/pgdata data/uploads data/acme_webroot data/ssl_certs && chown -R "$(id -u):$(id -g)" data
 # (If Docker created data/ as root, `sudo chown` to your deploy user.)
 services:
   postgres:
@@ -17,7 +17,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ${DEPLOY_DATA_DIR:-./data}/pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d invoicing"]
       interval: 5s
@@ -44,8 +44,8 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/invoicing
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: change-me-in-production
-      JWT_EXPIRES_IN: 7d
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -59,7 +59,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - uploads_data:/app/uploads
+      - ${DEPLOY_DATA_DIR:-./data}/uploads:/app/uploads
     restart: unless-stopped
     healthcheck:
       test:
@@ -88,7 +88,3 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  pgdata:
-  uploads_data:

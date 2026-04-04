@@ -35,7 +35,7 @@ No `build:` step on this host; pull/load images first so those tags exist.
 
 | Service | Host port | Description |
 |---------|-----------|-------------|
-| postgres | 5432 | PostgreSQL (`schema.sql` is baked into the **`invoice-postgres`** image; data in `pgdata` volume) |
+| postgres | 5432 | PostgreSQL (`schema.sql` is baked into the **`invoice-postgres`** image; data under **`${DEPLOY_DATA_DIR}/pgdata`** on the host) |
 | redis | 6379 | Redis |
 | backend | **3001** | Express API (`PORT=3001` in the container) |
 | frontend | **80**, **443** | nginx serving the React SPA; TLS when PEMs exist under **`DEPLOY_DATA_DIR/ssl_certs`** (bind mount; see [TLS](#tls-lets-encrypt-with-acmesh)) |
@@ -47,7 +47,7 @@ cd deployment
 docker compose -f docker-compose-build.yml up -d --build
 ```
 
-Use `docker compose -f docker-compose-build.yml build --no-cache` first if you suspect a stale layer. If you change **`backend/src/models/schema.sql`**, rebuild the **`postgres`** image (`docker compose -f docker-compose-build.yml build postgres`) so **`invoice-postgres`** includes the new DDL; **empty** `pgdata` runs init scripts on first start only—existing databases rely on **`ensureSchema()`** and SQL migrations. To wipe Postgres data (destructive), remove the `pgdata` volume — see volume notes below.
+Use `docker compose -f docker-compose-build.yml build --no-cache` first if you suspect a stale layer. If you change **`backend/src/models/schema.sql`**, rebuild the **`postgres`** image (`docker compose -f docker-compose-build.yml build postgres`) so **`invoice-postgres`** includes the new DDL; an **empty** **`pgdata/`** directory runs init scripts on first start only—existing databases rely on **`ensureSchema()`** and SQL migrations. To wipe Postgres data (destructive), stop the stack and remove the host directory **`data/pgdata`** (or whatever **`DEPLOY_DATA_DIR/pgdata`** resolves to).
 
 **Rebuilt but the UI still looks old?**
 
@@ -79,9 +79,11 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 | NODE_ENV | production | Environment name |
 | DATABASE_URL | `postgresql://postgres:postgres@postgres:5432/invoicing` | PostgreSQL URL (use `postgres` hostname in Compose) |
 | REDIS_URL | `redis://redis:6379` | Redis URL |
-| JWT_SECRET | strong random secret | JWT signing key |
-| JWT_EXPIRES_IN | 7d | Token lifetime |
+| JWT_SECRET | strong random secret | JWT signing key (API and portal Bearer tokens) |
+| JWT_EXPIRES_IN | 7d | Access token lifetime (e.g. **`7d`**, **`24h`**); see **`jsonwebtoken` / `ms`** formats |
 | SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM | optional | Required for **Send to company email** on invoices |
+
+**Docker Compose:** With **`docker-compose-build.yml`** / **`docker-compose-prod.yml`**, put **`JWT_SECRET`**, **`JWT_EXPIRES_IN`**, and other deploy values in **`.env`** in the **compose directory** (same folder as the compose file). Compose interpolates them into the **backend** service — see **[`.env.example`](.env.example)**.
 
 #### Frontend (build-time)
 
@@ -98,8 +100,8 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 
 ### Production considerations
 
-1. **JWT_SECRET** — Use a long, random value; never commit real secrets.
-2. **Database backups** — The `pgdata` volume holds data; schedule backups (e.g. `pg_dump` to object storage).
+1. **JWT_SECRET** / **JWT_EXPIRES_IN** — Use a long, random secret in production (**`openssl rand -hex 32`**); set both in **`deployment/.env`** (Compose) or the process environment (manual **`node`**). Never commit real secrets.
+2. **Database backups** — PostgreSQL data lives under **`DEPLOY_DATA_DIR/pgdata`** on the host; schedule backups (e.g. **`pg_dump`** to object storage).
 3. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend **bind-mounts** **`${DEPLOY_DATA_DIR}/ssl_certs`** and **`.../acme_webroot`** (default **`./data`** next to **`docker-compose-prod.yml`**); own those dirs as the user running **acme.sh** (see **[tls.md](tls.md)** — *compose directory*).
 4. **Redis** — Default setup is suitable for rate limits and short-lived caches; data loss on restart is usually acceptable for those use cases.
 
