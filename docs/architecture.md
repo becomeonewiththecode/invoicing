@@ -8,7 +8,7 @@ flowchart TB
 
     subgraph Docker["Docker Compose network"]
         subgraph FE["frontend :80 / :443"]
-            NGINX["nginx\n- serves React SPA\n- proxies /api to backend port 3001\n- Docker DNS re-resolution\n- TLS via ssl_certs volume, ACME via acme_webroot"]
+            NGINX["nginx\n- serves React SPA\n- proxies /api to backend port 3001\n- Docker DNS re-resolution\n- TLS via DEPLOY_DATA_DIR/ssl_certs bind, ACME via .../acme_webroot"]
         end
 
         subgraph BE["backend  :3001"]

@@ -82,7 +82,7 @@ cd deployment
 docker compose -f docker-compose-build.yml up -d
 ```
 
-For **pre-built images** from Docker Hub (`maxwayne/invoice-backend:1.0`, `maxwayne/invoice-frontend:1.0`, etc.), use **`-f docker-compose-prod.yml`** instead. Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**. **HTTPS on the public hostname** (Let’s Encrypt with **acme.sh** and nginx): **[deployment/tls.md](../deployment/tls.md)**.
+For **pre-built images** from Docker Hub (`maxwayne/invoice-backend:1.0`, `maxwayne/invoice-frontend:1.0`, etc.), use **`-f docker-compose-prod.yml`** instead. **`docker-compose-prod.yml`** and **`.env`** can live in **any user-owned directory** on the server; **`./data`** for TLS is created **there** (not only inside a git clone’s `deployment/` folder) — see **[deployment/tls.md](../deployment/tls.md)** (*compose directory*). Ports and environment variables: **[deployment/guide.md](../deployment/guide.md)**.
 
 ## Troubleshooting
 
