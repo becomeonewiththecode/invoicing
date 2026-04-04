@@ -10,7 +10,7 @@ Standalone management interface at `/admin`. Separate layout, sidebar, and login
 4. On the backend every `/api/admin` route passes through two middleware layers:
    - **`authenticate`** — verifies the JWT and attaches `userId`.
    - **`requireAdmin`** — looks up the user's role (cached in Redis for 5 minutes, falls back to PostgreSQL). Returns **403** if not admin.
-5. The default admin account is seeded on startup from the `ADMIN_EMAIL` / `ADMIN_PASSWORD` environment variables (see `deployment/docker-compose-build.yml` or `deployment/docker-compose-prod.yml`).
+5. The default admin account is seeded on startup from **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** (set in **`deployment/.env`** next to compose — see **[`deployment/.env.example`](../../deployment/.env.example)**; compose YAML files define optional fallbacks).
 
 ## Layout
 

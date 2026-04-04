@@ -110,7 +110,7 @@ Use **`-f docker-compose-build.yml`** instead if that is how you run the stack. 
 
 ### Configure hostname and project name
 
-**`NGINX_SERVER_NAME`** (hostname nginx serves), **`DEPLOY_DATA_DIR`** (all data/TLS bind mounts on the host), **`JWT_SECRET`** / **`JWT_EXPIRES_IN`** (backend JWT signing; optional overrides), and **`COMPOSE_PROJECT_NAME`** should be set in one place for **`docker compose`** and for your **acme.sh** shell (JWT vars are compose-only; acme does not need them).
+**`NGINX_SERVER_NAME`** (hostname nginx serves), **`DEPLOY_DATA_DIR`** (all data/TLS bind mounts on the host), **`JWT_SECRET`** / **`JWT_EXPIRES_IN`** (backend JWT signing), **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`** (seed admin user), and **`COMPOSE_PROJECT_NAME`** should live in **`.env`** for **`docker compose`**. For **acme.sh**, only hostname and **`DEPLOY_DATA_DIR`** paths need to match (JWT and admin vars are not used by acme).
 
 | Approach | When to use |
 |----------|-------------|
@@ -131,9 +131,11 @@ COMPOSE_PROJECT_NAME=invoicing
 # Bind mounts use ${DEPLOY_DATA_DIR:-./data} in compose — see .env.example for full notes
 DEPLOY_DATA_DIR=./data
 
-# JWT (optional overrides — see .env.example)
+# JWT and seed admin (see .env.example for full examples)
 # JWT_SECRET=...
 # JWT_EXPIRES_IN=7d
+# ADMIN_EMAIL=admin@invoicing.local
+# ADMIN_PASSWORD=...
 ```
 
 - **`docker compose`** reads **`.env`** from the **current working directory**; **`cd`** to the compose directory first so it finds the file next to **`docker-compose-prod.yml`**.

@@ -38,7 +38,7 @@ Per-route: **rateLimit** (Redis) → **validate** (Zod) → **authenticate** (JW
 | `models/adminValidation.ts` | Zod schemas for all admin endpoints |
 | `jobs/reminders.ts` | Cron: late invoices, reminders, recurring drafts; recurring invoices use per-customer invoice-number sequencing |
 | `jobs/backups.ts` | Cron: daily automated backup snapshots |
-| `config/database.ts` | `pg` pool; **`ensureSchema()`** — idempotent `ALTER`s and `CREATE TABLE IF NOT EXISTS` on startup (and before backup import) so older databases match expected columns/enums/tables; seeds admin user from `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars; see [schema doc](../database/schema.md#runtime-schema-upgrades) |
+| `config/database.ts` | `pg` pool; **`ensureSchema()`** — idempotent `ALTER`s and `CREATE TABLE IF NOT EXISTS` on startup (and before backup import) so older databases match expected columns/enums/tables; seeds admin user from **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`** (Docker: **`deployment/.env`**, see [`deployment/.env.example`](../../deployment/.env.example)); see [schema doc](../database/schema.md#runtime-schema-upgrades) |
 
 ## Backend diagrams
 

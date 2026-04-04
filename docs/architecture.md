@@ -127,7 +127,7 @@ sequenceDiagram
     RD-->>DC: Healthcheck passes (redis-cli ping)
     DC->>BE: Start container (depends_on postgres and redis healthy)
     BE->>PG: ensureSchema() idempotent ALTERs + admin tables
-    BE->>PG: Seed admin user if ADMIN_EMAIL set and missing
+    BE->>PG: Seed admin if ADMIN_EMAIL / ADMIN_PASSWORD and user missing (see deployment/.env.example)
     BE->>BE: Start node-cron jobs (reminders, recurrence, backups)
     BE->>BE: Listen on 0.0.0.0 port 3001
     BE-->>DC: Healthcheck passes (GET /api/health)

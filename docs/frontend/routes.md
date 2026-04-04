@@ -141,7 +141,7 @@ Both `AppLayout` and `AdminLayout` are responsive: desktop uses fixed sidebars, 
 
 **Access control:** The `AdminLayout` checks `useAuthStore().isAdmin()` (i.e. `user.role === 'admin'`). Non-admin users or unauthenticated visitors see the admin login page instead of being redirected.
 
-**Default admin:** Docker Compose sets `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars; the backend seeds this admin user on startup if it doesn't already exist. Default credentials: `admin@invoicing.local` / see `deployment/docker-compose-build.yml` or `deployment/docker-compose-prod.yml`.
+**Default admin:** Set **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** in **`deployment/.env`** (copy from **[`deployment/.env.example`](../../deployment/.env.example)** — typical email **`admin@invoicing.local`**, password generated with **`openssl rand -base64 24`**). The backend seeds this admin on startup if no user with that email exists. Compose files also define fallbacks if those vars are unset; see **`deployment/docker-compose-build.yml`** or **`docker-compose-prod.yml`**.
 
 ## Related
 

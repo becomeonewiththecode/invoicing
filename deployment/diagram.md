@@ -50,3 +50,4 @@ flowchart TB
 - The browser uses nginx for the SPA; nginx forwards `/api` to the **`backend`** service on the Docker network.
 - **Uploads:** company logos and similar files live under **`DEPLOY_DATA_DIR/uploads`** on the host, mounted at **`/app/uploads`** in the backend container.
 - The backend runs **`ensureSchema()`** on startup against PostgreSQL (idempotent column/enum upgrades). See [Runtime schema upgrades](../docs/database/schema.md#runtime-schema-upgrades).
+- **Seed admin:** **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** from **`.env`** (see **[`.env.example`](.env.example)**) create the first admin user when no user with that email exists yet.

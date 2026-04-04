@@ -82,8 +82,10 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 | JWT_SECRET | strong random secret | JWT signing key (API and portal Bearer tokens) |
 | JWT_EXPIRES_IN | 7d | Access token lifetime (e.g. **`7d`**, **`24h`**); see **`jsonwebtoken` / `ms`** formats |
 | SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM | optional | Required for **Send to company email** on invoices |
+| ADMIN_EMAIL | `admin@invoicing.local` (typical) | Email for the **seed admin** user created on first startup if that user does not exist |
+| ADMIN_PASSWORD | strong secret | Password for that seed admin; generate e.g. **`openssl rand -base64 24`**. See **[`.env.example`](.env.example)**. |
 
-**Docker Compose:** With **`docker-compose-build.yml`** / **`docker-compose-prod.yml`**, put **`JWT_SECRET`**, **`JWT_EXPIRES_IN`**, and other deploy values in **`.env`** in the **compose directory** (same folder as the compose file). Compose interpolates them into the **backend** service — see **[`.env.example`](.env.example)**.
+**Docker Compose:** With **`docker-compose-build.yml`** / **`docker-compose-prod.yml`**, put **`JWT_SECRET`**, **`JWT_EXPIRES_IN`**, **`ADMIN_EMAIL`**, **`ADMIN_PASSWORD`**, and other deploy values in **`.env`** in the **compose directory** (same folder as the compose file). Compose interpolates them into the **backend** service — see **[`.env.example`](.env.example)**.
 
 #### Frontend (build-time)
 
@@ -101,9 +103,10 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 ### Production considerations
 
 1. **JWT_SECRET** / **JWT_EXPIRES_IN** — Use a long, random secret in production (**`openssl rand -hex 32`**); set both in **`deployment/.env`** (Compose) or the process environment (manual **`node`**). Never commit real secrets.
-2. **Database backups** — PostgreSQL data lives under **`DEPLOY_DATA_DIR/pgdata`** on the host; schedule backups (e.g. **`pg_dump`** to object storage).
-3. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend **bind-mounts** **`${DEPLOY_DATA_DIR}/ssl_certs`** and **`.../acme_webroot`** (default **`./data`** next to **`docker-compose-prod.yml`**); own those dirs as the user running **acme.sh** (see **[tls.md](tls.md)** — *compose directory*).
-4. **Redis** — Default setup is suitable for rate limits and short-lived caches; data loss on restart is usually acceptable for those use cases.
+2. **ADMIN_EMAIL** / **ADMIN_PASSWORD** — Define the initial admin login in **`.env`** next to compose (defaults and placeholders: **[`.env.example`](.env.example)**). Use a unique **`ADMIN_PASSWORD`** per environment (**`openssl rand -base64 24`**). Changing **`ADMIN_PASSWORD`** later does not alter an existing admin user (see [Troubleshooting](../docs/Troubleshooting.md)).
+3. **Database backups** — PostgreSQL data lives under **`DEPLOY_DATA_DIR/pgdata`** on the host; schedule backups (e.g. **`pg_dump`** to object storage).
+4. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend **bind-mounts** **`${DEPLOY_DATA_DIR}/ssl_certs`** and **`.../acme_webroot`** (default **`./data`** next to **`docker-compose-prod.yml`**); own those dirs as the user running **acme.sh** (see **[tls.md](tls.md)** — *compose directory*).
+5. **Redis** — Default setup is suitable for rate limits and short-lived caches; data loss on restart is usually acceptable for those use cases.
 
 ### TLS (Let's Encrypt with acme.sh)
 

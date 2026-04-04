@@ -36,4 +36,4 @@ docker compose -f docker-compose-prod.yml exec -T postgres \
 
 ## Note
 
-Changing `ADMIN_PASSWORD` in `deployment/docker-compose-build.yml`, `deployment/docker-compose-prod.yml`, or `.env` does not reset an existing admin user password. It only affects initial admin seeding when the admin user does not already exist.
+Changing **`ADMIN_PASSWORD`** in **`deployment/docker-compose-build.yml`**, **`deployment/docker-compose-prod.yml`**, or **`deployment/.env`** does not reset an existing admin user password. It only affects initial admin seeding when the admin user does not already exist. Recommended **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`** for new deploys: **[`deployment/.env.example`](../deployment/.env.example)**.

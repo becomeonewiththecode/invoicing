@@ -10,7 +10,7 @@ PostgreSQL. The canonical DDL for new databases is `backend/src/models/schema.sq
 - `clients.portal_enabled`, `clients.portal_login_email`, `clients.portal_token`, `clients.portal_password_hash`, `clients.portal_totp_secret`, `clients.portal_totp_enabled` (see source for the exact statements).
 - Admin tables: `support_tickets`, `ticket_messages`, `content_flags`, `backup_snapshots`, `backup_policies`, `system_logs`, `rate_limit_configs`, `rate_limit_events` — all created with `CREATE TABLE IF NOT EXISTS`.
 - Client **projects** tables: `projects`, `project_external_links`, and legacy empty **`project_attachments`** (table still created for older DBs). On **`ensureSchema()`**, any **`project_attachments`** rows whose `file_path` is an `http(s)` URL are copied into **`project_external_links`** (deduplicated), then **`project_attachments`** is cleared. The app stores document references only as external share links, not as uploaded files.
-- Default admin user seed: if `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars are set and no user with that email exists, an admin account is created automatically.
+- Default admin user seed: if **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** are set and no user with that email exists, an admin account is created automatically. For Docker Compose, define them in **`deployment/.env`** (see **[`deployment/.env.example`](../../deployment/.env.example)**).
 
 It runs in two places:
 

@@ -14,7 +14,7 @@ Production and container deployment for the invoicing app.
 | [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, port notes |
 | [tls.md](tls.md) | **HTTPS / TLS:** Let’s Encrypt with **acme.sh**, host bind mounts under **`DEPLOY_DATA_DIR`**, nginx, renewal, troubleshooting |
 | [diagram.md](diagram.md) | Mermaid deployment diagram: images, **`DEPLOY_DATA_DIR`** bind mounts (DB, uploads, TLS), traffic flow |
-| [.env.example](.env.example) | Compose-directory template: **`${DEPLOY_DATA_DIR:-./data}`**, JWT, hostname, **`COMPOSE_PROJECT_NAME`** |
+| [.env.example](.env.example) | Compose-directory template: **`${DEPLOY_DATA_DIR:-./data}`**, JWT, **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`**, hostname, **`COMPOSE_PROJECT_NAME`** |
 | [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow, backup import, new-invoice project conflict, invoice preview modal) |
 
 ### Which Compose file?
@@ -101,7 +101,7 @@ More detail: [docs/getting-started.md](../docs/getting-started.md).
 
 Full tables and production notes: **[guide.md](guide.md)**.
 
-**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email (per-user SMTP settings can also be configured in Settings → Email); `ADMIN_EMAIL` and `ADMIN_PASSWORD` to seed a default admin user on startup (defaults: `admin@invoicing.local` / random password — see `docker-compose-build.yml` and `docker-compose-prod.yml`). **Compose:** set **`JWT_SECRET`** and **`JWT_EXPIRES_IN`** in **`.env`** next to the compose file (see **[`.env.example`](.env.example)**); compose passes them into the backend container.
+**Backend:** `PORT`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`; optional `SMTP_*` for invoice email (per-user SMTP settings can also be configured in Settings → Email); **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** to seed the initial admin user on first startup if missing (recommended values and **`openssl rand -base64 24`** for the password: **[`.env.example`](.env.example)**; compose files still define fallbacks). **Compose:** set those variables in **`.env`** next to the compose file; compose passes them into the backend container.
 
 **Frontend:** `VITE_API_URL` — base URL **including `/api`**; must match the API port you run (e.g. Docker backend **3001**, or PM2/Vite proxy **3002**).
 
