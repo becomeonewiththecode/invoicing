@@ -255,9 +255,24 @@ acme.sh --cron
 
 ### Browser shows **Not secure** but certs exist; **`nginx -T`** only shows **`listen 80`**
 
-The frontend container only switches to the **HTTPS** template when **`fullchain.pem`** is present **and** a private key exists as **`privkey.pem`** or **`key.pem`**. If you only had **`key.pem`**, older images looked for **`privkey.pem`** only and stayed on **HTTP** — rebuild/pull the **frontend** image that includes the updated entrypoint, then **`docker compose up -d --force-recreate frontend`**.
+The frontend container only switches to the **HTTPS** template when **`fullchain.pem`** is present **and** a private key exists as **`privkey.pem`** or **`key.pem`**. If you only had **`key.pem`**, older images looked for **`privkey.pem`** only and stayed on **HTTP**.
 
-Also set **`NGINX_SERVER_NAME`** in **`.env`** to the exact hostname on the certificate (must match **`openssl x509 -in data/ssl_certs/fullchain.pem -noout -subject`**).
+**Workaround without rebuilding the image:** copy the key to the name the entrypoint expects, from your **compose directory**:
+
+```bash
+cp data/ssl_certs/key.pem data/ssl_certs/privkey.pem
+docker compose -f docker-compose-prod.yml up -d --force-recreate frontend
+```
+
+The entrypoint runs **only when the container starts**; **`docker compose restart frontend`** is not enough if the running container was already started without **`privkey.pem`** — use **`--force-recreate`**.
+
+**After HTTPS is enabled**, set **`NGINX_SERVER_NAME`** in **`.env`** to the exact hostname on the certificate (e.g. **`clients.millsresidence.com`**) and recreate the frontend again — otherwise **`server_name`** may not match the cert, and the browser will still warn. Check the cert with:
+
+```bash
+openssl x509 -in data/ssl_certs/fullchain.pem -noout -subject -ext subjectAltName
+```
+
+**Prefer long-term:** pull a **frontend** image that includes the updated entrypoint (accepts **`key.pem`** or **`privkey.pem`**) so you do not need the copy step.
 
 ### ZeroSSL / **`retryafter=86400`** / “CA is processing your order”
 
