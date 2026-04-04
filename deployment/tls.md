@@ -37,17 +37,22 @@ Compose uses **host bind mounts** under **`DEPLOY_DATA_DIR`** for database files
 | **`${DEPLOY_DATA_DIR}/acme_webroot`** | `/var/www/acme-webroot` | HTTP-01 challenge files |
 | **`${DEPLOY_DATA_DIR}/ssl_certs`** | `/etc/nginx/ssl` | **`fullchain.pem`** plus **`privkey.pem`** (recommended) or **`key.pem`** (common **acme.sh** default) |
 
-**`DEPLOY_DATA_DIR`** defaults to **`./data`** — resolved **relative to the compose file’s directory** (the folder you **`cd`** into to run **`docker compose`**). For a path outside that folder, set e.g. **`DEPLOY_DATA_DIR=/home/app_user/invoice-data`** (absolute) in **`.env`**.
+In **[`docker-compose-prod.yml`](docker-compose-prod.yml)** and **[`docker-compose-build.yml`](docker-compose-build.yml)**, paths use **[variable interpolation](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)** with a default:
 
-**Before the first `docker compose up`**, from your **compose directory**, create the directories and own them as the user that will run **acme.sh**:
+**`${DEPLOY_DATA_DIR:-./data}`** — use **`DEPLOY_DATA_DIR`** from **`.env`** (or the shell) when set; otherwise **`./data`** (a directory named **`data`** next to the compose file). Full reference and examples: **[`.env.example`](.env.example)**.
+
+**`DEPLOY_DATA_DIR`** is resolved **relative to the compose file’s directory** when it is a relative path (the folder you **`cd`** into to run **`docker compose`**). For a path outside that folder, set e.g. **`DEPLOY_DATA_DIR=/home/app_user/invoice-data`** (absolute) in **`.env`**.
+
+**Before the first `docker compose up`**, from your **compose directory**, create the subdirectories under that base and own them (works for any **`DEPLOY_DATA_DIR`** if you export it or **`set -a; . ./.env; set +a`** first):
 
 ```bash
 cd /path/to/your-compose-directory   # e.g. ~/invoice — same dir as docker-compose-prod.yml
-mkdir -p data/pgdata data/uploads data/acme_webroot data/ssl_certs
-chown -R "$(id -u):$(id -g)" data
+D="${DEPLOY_DATA_DIR:-./data}"
+mkdir -p "$D/pgdata" "$D/uploads" "$D/acme_webroot" "$D/ssl_certs"
+chown -R "$(id -u):$(id -g)" "$D"
 ```
 
-If **`data/`** was already created by Docker as **root**, fix ownership: **`sudo chown -R youruser:yourgroup data`**.
+If **`$D`** was already created by Docker as **root**, fix ownership: **`sudo chown -R youruser:yourgroup "$D"`** (or the path you set in **`.env`**).
 
 **nginx inside the container** runs as user **`nginx`** and must be able to **read** challenges and PEMs. After **acme.sh** creates files, you may need **`chmod 755`** on directories and **`chmod 644`** on **`fullchain.pem`** / **`privkey.pem`** (see [Troubleshooting](#9-troubleshooting)).
 
@@ -123,10 +128,10 @@ NGINX_SERVER_NAME=clients.example.com
 # Compose project prefix (containers / network — not bind-mount paths)
 COMPOSE_PROJECT_NAME=invoicing
 
-# Host directory for pgdata/, uploads/, acme_webroot/, ssl_certs/ (see tls.md §2)
+# Bind mounts use ${DEPLOY_DATA_DIR:-./data} in compose — see .env.example for full notes
 DEPLOY_DATA_DIR=./data
 
-# JWT access tokens (optional — see .env.example for examples)
+# JWT (optional overrides — see .env.example)
 # JWT_SECRET=...
 # JWT_EXPIRES_IN=7d
 ```

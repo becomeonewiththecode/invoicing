@@ -96,7 +96,7 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 | Variable | Typical value | Description |
 |----------|---------------|-------------|
 | NGINX_SERVER_NAME | `clients.opensitesolutions.com` | `server_name` for HTTP/HTTPS; override via env or `.env` next to the compose file you use (`docker-compose-build.yml` / `docker-compose-prod.yml`). |
-| DEPLOY_DATA_DIR | `./data` | Host directory **relative to the compose file’s folder** (e.g. **`~/invoice/data`** when only **`docker-compose-prod.yml`** is deployed there). Set in **`.env`** so **acme.sh** can write without root. See **[tls.md](tls.md)**. |
+| DEPLOY_DATA_DIR | `./data` (default via compose) | Compose uses **`${DEPLOY_DATA_DIR:-./data}`**: set in **`.env`** for a custom base, or omit for **`./data`** next to the compose file. Absolute paths allowed. Subdirs **`pgdata/`**, **`uploads/`**, **`acme_webroot/`**, **`ssl_certs/`** must exist under that base before first **`up`**. See **[`.env.example`](.env.example)** and **[tls.md](tls.md)** §2. |
 
 ### Production considerations
 
@@ -111,7 +111,7 @@ HTTPS is handled by the **frontend** nginx container. Compose **bind-mounts** ho
 
 **Full walkthrough** (DNS, ports, `DEPLOY_DATA_DIR`, `acme.sh` install, issue, `install-cert`, `--reloadcmd`, first-time `frontend` recreate, renewal, troubleshooting): **[tls.md](tls.md)**.
 
-**In short:** create **`DEPLOY_DATA_DIR/acme_webroot`** and **`.../ssl_certs`** owned by the user running **acme.sh**; set **`NGINX_SERVER_NAME`**; open **80** and **443**; run the stack; use **`realpath "$DEPLOY_DATA_DIR/acme_webroot"`** as **`acme.sh -w`**; install PEMs into **`ssl_certs/`**; **`docker compose … exec frontend nginx -s reload`** on renew; **`up -d --force-recreate frontend`** once after the first PEM install so nginx loads the HTTPS config.
+**In short:** under **`D="${DEPLOY_DATA_DIR:-./data}"`**, create **`$D/pgdata`**, **`$D/uploads`**, **`$D/acme_webroot`**, **`$D/ssl_certs`** and **`chown`** (see **[`.env.example`](.env.example)**); set **`NGINX_SERVER_NAME`**; open **80** and **443**; run the stack; use **`realpath "$DEPLOY_DATA_DIR/acme_webroot"`** (after loading **`.env`**) as **`acme.sh -w`**; install PEMs into **`ssl_certs/`**; **`docker compose … exec frontend nginx -s reload`** on renew; **`up -d --force-recreate frontend`** once after the first PEM install so nginx loads the HTTPS config.
 
 ## Manual deployment
 

@@ -2,13 +2,15 @@
 
 ## Docker Compose stack
 
+Compose bind mounts for Postgres, backend uploads, and TLS use **`${DEPLOY_DATA_DIR:-./data}`** on the host (see **`deployment/.env.example`** and **`deployment/tls.md`** §2). Below, **`DEPLOY_DATA_DIR/...`** means that resolved base path.
+
 ```mermaid
 flowchart TB
     Browser["Browser\n(user)"]
 
     subgraph Docker["Docker Compose network"]
         subgraph FE["frontend :80 / :443"]
-            NGINX["nginx\n- serves React SPA\n- proxies /api to backend port 3001\n- Docker DNS re-resolution\n- TLS via DEPLOY_DATA_DIR/ssl_certs bind, ACME via .../acme_webroot"]
+            NGINX["nginx\n- serves React SPA\n- proxies /api to backend port 3001\n- Docker DNS re-resolution\n- TLS + ACME via DEPLOY_DATA_DIR bind mounts (default base ./data)"]
         end
 
         subgraph BE["backend  :3001"]
