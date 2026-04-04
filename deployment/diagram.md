@@ -1,6 +1,6 @@
 # Deployment diagram
 
-**Postgres data** and **backend uploads** use **host bind mounts** under **`DEPLOY_DATA_DIR`**. In compose, volume paths use **`${DEPLOY_DATA_DIR:-./data}`** (default **`./data`** next to the compose file if unset — see **[`.env.example`](.env.example)**). Subdirs: **`pgdata/`** → PostgreSQL data dir, **`uploads/`** → **`/app/uploads`**. **TLS** uses the same base: **`acme_webroot/`** and **`ssl_certs/`**. **Redis** has no persistent volume in the default Compose files. **Prod** pulls **`maxwayne/invoice-*:1.0`** from Docker Hub; **build** tags **`invoice-*:1.0`** locally.
+**Postgres data** and **backend uploads** use **host bind mounts** under **`DEPLOY_DATA_DIR`**. In compose, volume paths use **`${DEPLOY_DATA_DIR:-./data}`** (default **`./data`** next to the compose file if unset — see **[`.env.example`](.env.example)**). Subdirs: **`pgdata/`** → PostgreSQL data dir, **`uploads/`** → **`/app/uploads`**. **TLS** uses the same base: **`acme_webroot/`** and **`ssl_certs/`**. **Redis** has no persistent volume in the default Compose files and, in **`docker-compose-prod.yml`**, **no published host port** — only the **backend** container reaches it on the Compose network (**`:6379`** inside the bridge), not the public Internet. **Prod** pulls **`maxwayne/invoice-*:1.0`** from Docker Hub; **build** tags **`invoice-*:1.0`** locally.
 
 ```mermaid
 flowchart TB

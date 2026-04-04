@@ -36,7 +36,7 @@ No `build:` step on this host; pull/load images first so those tags exist.
 | Service | Host port | Description |
 |---------|-----------|-------------|
 | postgres | 5432 | PostgreSQL (`schema.sql` is baked into the **`invoice-postgres`** image; data under **`${DEPLOY_DATA_DIR}/pgdata`** on the host) |
-| redis | 6379 | Redis |
+| redis | *(see below)* | Redis — **not** published to `0.0.0.0` in **`docker-compose-prod.yml`** (internal network only). **`docker-compose-build.yml`** maps **`127.0.0.1:6379`** for local `redis-cli` from the same machine only. |
 | backend | **3001** | Express API (`PORT=3001` in the container) |
 | frontend | **80**, **443** | nginx serving the React SPA; TLS when PEMs exist under **`DEPLOY_DATA_DIR/ssl_certs`** (bind mount; see [TLS](#tls-lets-encrypt-with-acmesh)) |
 
@@ -106,7 +106,7 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 2. **ADMIN_EMAIL** / **ADMIN_PASSWORD** — Define the initial admin login in **`.env`** next to compose (defaults and placeholders: **[`.env.example`](.env.example)**). Use a unique **`ADMIN_PASSWORD`** per environment (**`openssl rand -base64 24`**). Changing **`ADMIN_PASSWORD`** later does not alter an existing admin user (see [Troubleshooting](../docs/Troubleshooting.md)).
 3. **Database backups** — PostgreSQL data lives under **`DEPLOY_DATA_DIR/pgdata`** on the host; schedule backups (e.g. **`pg_dump`** to object storage).
 4. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend **bind-mounts** **`${DEPLOY_DATA_DIR}/ssl_certs`** and **`.../acme_webroot`** (default **`./data`** next to **`docker-compose-prod.yml`**); own those dirs as the user running **acme.sh** (see **[tls.md](tls.md)** — *compose directory*).
-5. **Redis** — Default setup is suitable for rate limits and short-lived caches; data loss on restart is usually acceptable for those use cases.
+5. **Redis** — Default setup is suitable for rate limits and short-lived caches; data loss on restart is usually acceptable. **`docker-compose-prod.yml`** does **not** publish Redis on the host (internal network only). **`docker-compose-build.yml`** uses **`127.0.0.1:6379:6379`**. On public VMs, also use a **cloud firewall** so stray **`ports:`** mappings cannot expose services; see **[README — Published ports and Redis](README.md#published-ports-and-redis-public-cloud)**.
 
 ### TLS (Let's Encrypt with acme.sh)
 

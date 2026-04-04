@@ -18,7 +18,7 @@ cd deployment
 docker compose -f docker-compose-build.yml up -d postgres redis
 ```
 
-This starts PostgreSQL on port 5432 and Redis on port 6379. The database schema is automatically applied on first run. (You can use **`-f docker-compose-prod.yml`** instead if you run pre-built images and only need data services—ensure image tags match your setup.)
+This starts PostgreSQL on port 5432 and Redis on **127.0.0.1:6379** (loopback only — not exposed on the public interface). With **`docker-compose-prod.yml`**, Redis has **no** host port; only other containers can reach it. The database schema is automatically applied on first run. (You can use **`-f docker-compose-prod.yml`** instead if you run pre-built images and only need data services—ensure image tags match your setup.)
 
 ### 2. Configure the backend
 

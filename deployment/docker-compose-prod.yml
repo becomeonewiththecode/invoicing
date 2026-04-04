@@ -25,10 +25,10 @@ services:
       retries: 10
       start_period: 10s
 
+  # No host ports: Redis is reachable only on the Compose network (backend uses hostname `redis`).
+  # Publishing 6379 would expose Redis on the public Internet if the droplet firewall allows it.
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s

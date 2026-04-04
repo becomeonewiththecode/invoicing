@@ -58,6 +58,12 @@ Older stacks may have used **Docker named volumes** for Postgres, uploads, or TL
 
 TLS / HTTPS: **[tls.md](tls.md)** (summary in [guide.md](guide.md#tls-lets-encrypt-with-acmesh)).
 
+### Published ports and Redis (public cloud)
+
+**Redis** must not listen on the host’s public interface. In **`docker-compose-prod.yml`**, the **redis** service has **no** `ports:` mapping — only containers on the Compose network (the **backend**) connect via **`redis://redis:6379`**. In **`docker-compose-build.yml`**, Redis is bound to **`127.0.0.1:6379`** so local **`redis-cli`** still works without exposing **`0.0.0.0:6379`** (which triggers abuse notices from providers such as DigitalOcean).
+
+**PostgreSQL** still publishes **`5432:5432`** in the default compose files; restrict access with a **cloud firewall** (allow **80/443** only from the world) or change the mapping to **`127.0.0.1:5432:5432`** if you never need DB access from outside Docker on that host. Docker can bypass **UFW**; prefer provider firewalls or explicit **`127.0.0.1`** binds.
+
 ### Building images for production
 
 From the **repository root** (so `deployment/postgres/Dockerfile` can `COPY backend/src/models/schema.sql`):
