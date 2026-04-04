@@ -1,17 +1,25 @@
 import { THEMES, useThemeStore, type ThemeName } from '../stores/themeStore';
+import { useAdminThemeStore } from '../stores/adminThemeStore';
 
 interface ThemePickerPanelProps {
+  /** `app` = vendor app + portal palette; `admin` = admin panel only (separate storage). */
+  scope?: 'app' | 'admin';
   /** Shown under the "Appearance" heading */
   description?: string;
   className?: string;
 }
 
 export function ThemePickerPanel({
+  scope = 'app',
   description = 'Color theme for the app. Saved in this browser only.',
   className = '',
 }: ThemePickerPanelProps) {
-  const theme = useThemeStore((s) => s.theme);
-  const setTheme = useThemeStore((s) => s.setTheme);
+  const appTheme = useThemeStore((s) => s.theme);
+  const setAppTheme = useThemeStore((s) => s.setTheme);
+  const adminTheme = useAdminThemeStore((s) => s.theme);
+  const setAdminTheme = useAdminThemeStore((s) => s.setAdminTheme);
+  const theme = scope === 'admin' ? adminTheme : appTheme;
+  const setTheme = scope === 'admin' ? setAdminTheme : setAppTheme;
 
   return (
     <div className={`bg-surface rounded-xl shadow-sm p-6 border border-border ${className}`}>

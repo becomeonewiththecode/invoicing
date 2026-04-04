@@ -14,8 +14,8 @@
 - **Build:** Vite with `@vitejs/plugin-react`.
 - **Routing:** `react-router-dom` (protected layout + public `/login`, `/register`, `/share/:token`).
 - **Server state:** TanStack Query for API data, caching, and invalidation.
-- **Auth:** Zustand store persisted to `localStorage`; Axios attaches `Authorization: Bearer`.
-- **Theming:** Four named palettes (**Starter**, **Forest**, **Twilight**, **Ember**) driven by CSS custom properties on `html` (`data-theme`) and mirrored in Tailwind (`tailwind.config.js` → `bg-bg`, `text-text`, `bg-sidebar-bg`, etc.). A small Zustand **theme store** persists the choice in `localStorage` and is imported from `main.tsx`. Pickers live in vendor **Settings → General**, **Client portal → Account**, and **Admin → Settings** (`ThemePickerPanel.tsx`).
+- **Auth:** Zustand stores persisted to `localStorage`: **`authStore`** (`token`, `user`) for the vendor app; **`adminAuthStore`** (`admin_token`, `admin_user`) for `/admin` only; portal uses **`portalAuthStore`**. Axios (`client.ts`) sends **`admin_token`** for requests whose URL starts with **`/admin`**, otherwise the vendor **`token`**.
+- **Theming:** Four named palettes (**Starter**, **Forest**, **Twilight**, **Ember**) on `html[data-theme]` via CSS variables and Tailwind. **`themeStore`** + key **`theme`** cover the vendor app and client portal; **`adminThemeStore`** + **`admin_theme`** cover the admin panel only. **`ThemeRouteSync`** applies the correct palette by route; **`ThemePickerPanel`** uses **`scope="admin"`** on **Admin → Settings** and default app scope elsewhere (`ThemePickerPanel.tsx`, `themeBootstrap.ts`).
 - **PDF:** Client-side invoice PDFs via jsPDF (no server render).
 
 ## Backend

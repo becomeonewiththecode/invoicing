@@ -8,7 +8,7 @@ Detailed reference for each page in the admin panel. All pages live in `frontend
 
 **File:** `AdminLoginPage.tsx`
 
-Shown by `AdminLayout` when the visitor has no token or is not an admin. Dark-themed centered card with email and password fields. Calls `POST /api/auth/login` and checks that the returned `role` is `admin`; displays an error if the account exists but is not an admin.
+Shown by `AdminLayout` when there is no **`admin_token`** or **`admin_user.role !== 'admin'`**. Dark-themed centered card with email and password fields. Calls `POST /api/auth/login` and checks that the returned `role` is `admin`; on success stores credentials in **`useAdminAuthStore()`** (`admin_token`, `admin_user`) — not the vendor **`authStore`**. Displays an error if the account exists but is not an admin.
 
 ---
 
@@ -227,7 +227,7 @@ Existing configs shown in a table with inline-editable fields (save on blur):
 
 **File:** `AdminSettingsPage.tsx`
 
-**Appearance** — At the top of the page, the shared **`ThemePickerPanel`** offers the same four **UI themes** as the vendor app (browser-local `localStorage`, `data-theme` on `<html>`). See [Frontend overview — UI themes](../frontend/overview.md#ui-themes).
+**Appearance** — **`ThemePickerPanel`** with **`scope="admin"`** saves **`admin_theme`** in `localStorage` and only affects the admin shell (vendor app and portal use **`theme`** / **`themeStore`**). **`ThemeRouteSync`** sets `document.documentElement.dataset.theme` from **`adminThemeStore`** while the route is under **`/admin`**. See [Frontend overview — UI themes](../frontend/overview.md#ui-themes).
 
 **Password** — Single card with a password change form. Displays the current admin email (read-only) with three fields:
 

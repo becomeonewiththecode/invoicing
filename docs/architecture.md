@@ -278,4 +278,4 @@ flowchart TB
 
 ## SPA UI themes (browser)
 
-The static SPA bundle does not change per theme server-side: **themes are client-only**. `index.html` loads JS that applies `data-theme` on `<html>` and CSS variables for the canvas, sidebar, and accents. See **[Frontend overview — UI themes](frontend/overview.md#ui-themes)** for stores, pickers, and the Mermaid flow diagram.
+The static SPA bundle does not change per theme server-side: **themes are client-only**. `index.html` loads JS that applies `data-theme` on `<html>` and CSS variables for the canvas, sidebar, and accents. The **vendor app and client portal** share one persisted key (**`theme`**); the **admin panel** uses a separate key (**`admin_theme`**) and **`ThemeRouteSync`** so changing admin appearance does not alter the main app or portal. See **[Frontend overview — UI themes](frontend/overview.md#ui-themes)** for stores, pickers, and the Mermaid flow diagram.

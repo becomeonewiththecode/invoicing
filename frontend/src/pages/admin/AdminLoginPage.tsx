@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { HiOutlineShieldCheck } from 'react-icons/hi';
 import { login } from '../../api/auth';
-import { useAuthStore } from '../../stores/authStore';
+import { useAdminAuthStore } from '../../stores/adminAuthStore';
 
 interface AdminLoginForm {
   email: string;
@@ -11,7 +11,7 @@ interface AdminLoginForm {
 }
 
 export function AdminLoginPage() {
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setAdminAuth = useAdminAuthStore((s) => s.setAdminAuth);
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<AdminLoginForm>();
 
@@ -23,7 +23,7 @@ export function AdminLoginPage() {
         toast.error('Access denied — admin credentials required');
         return;
       }
-      setAuth(user, token);
+      setAdminAuth(user, token);
     } catch {
       toast.error('Invalid email or password');
     } finally {

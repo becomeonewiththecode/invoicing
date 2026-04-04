@@ -2,7 +2,7 @@
 
 SPA routes (see `frontend/src/App.tsx`). All paths below except `/share/:token`, `/login`, `/register`, and `/portal/*` use `AppLayout` (sidebar).
 
-Vendor sidebar quick links include **Admin site** (`/admin`) and **Client site** (`/portal/login`), each opening in a new browser tab.
+Vendor sidebar quick links: **Client site** (`/portal/login`) opens in a new tab for all logged-in vendors. **Admin site** (`/admin`) appears only when the vendor account has **`role === 'admin'`** (same tab policy: new tab). Admin uses a **separate** browser session from the main app: **`admin_token`** / **`admin_user`** in `localStorage`, not the vendor **`token`** / **`user`** — so logging into `/admin` does not replace the vendor session, and vice versa.
 
 ## Authenticated routes
 
@@ -139,7 +139,7 @@ Both `AppLayout` and `AdminLayout` are responsive: desktop uses fixed sidebars, 
 | `/admin/backups` | Backup management | Snapshots (trigger, restore, verify, delete), policies |
 | `/admin/rate-limits` | Rate limit config | View/create/update rate limit rules, analytics |
 
-**Access control:** The `AdminLayout` checks `useAuthStore().isAdmin()` (i.e. `user.role === 'admin'`). Non-admin users or unauthenticated visitors see the admin login page instead of being redirected.
+**Access control:** `AdminLayout` uses **`useAdminAuthStore()`** (`admin_token`, **`admin_user`**) and requires **`admin_user.role === 'admin'`**. Missing or non-admin session shows **`AdminLoginPage`** in place (not the vendor login). This is independent of **`useAuthStore()`** (vendor app).
 
 **Default admin:** Set **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** in **`deployment/.env`** (copy from **[`deployment/.env.example`](../../deployment/.env.example)** — typical email **`admin@invoicing.local`**, password generated with **`openssl rand -base64 24`**). The backend seeds this admin on startup if no user with that email exists. Compose files also define fallbacks if those vars are unset; see **`deployment/docker-compose-build.yml`** or **`docker-compose-prod.yml`**.
 

@@ -107,7 +107,7 @@ export function PortalAccountPage() {
         </p>
       </div>
 
-      <ThemePickerPanel description="Color theme for the client portal and the rest of the app in this browser." />
+      <ThemePickerPanel description="Color theme for the client portal and main vendor app in this browser (not the admin panel)." />
 
       {accountQuery.isPending && <p className="text-text-muted">Loading account…</p>}
       {accountQuery.isError && <p className="text-red-600">Could not load account.</p>}

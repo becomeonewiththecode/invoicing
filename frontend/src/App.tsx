@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { ThemeRouteSync } from './components/ThemeRouteSync';
 import { PortalLayout } from './components/portal/PortalLayout';
 import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
@@ -50,6 +51,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ThemeRouteSync />
         <Routes>
           <Route path="/share/:token" element={<SharedInvoicePage />} />
           <Route path="/client-portal" element={<Navigate to="/portal" replace />} />

@@ -3,11 +3,12 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { HiMenu, HiOutlineLogout, HiX } from 'react-icons/hi';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminLoginPage } from '../../pages/admin/AdminLoginPage';
-import { useAuthStore } from '../../stores/authStore';
+import { useAdminAuthStore } from '../../stores/adminAuthStore';
 import { Toaster } from 'react-hot-toast';
 
 export function AdminLayout() {
-  const { token, logout, isAdmin } = useAuthStore();
+  const { token, adminLogout, user } = useAdminAuthStore();
+  const isAdminSession = user?.role === 'admin';
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -15,7 +16,7 @@ export function AdminLayout() {
     setSidebarOpen(false);
   }, [location.pathname]);
 
-  if (!token || !isAdmin()) {
+  if (!token || !isAdminSession) {
     return (
       <>
         <AdminLoginPage />
@@ -54,7 +55,7 @@ export function AdminLayout() {
           <span className="text-sm font-semibold text-indigo-600">Admin Panel</span>
           <button
             type="button"
-            onClick={logout}
+            onClick={adminLogout}
             className="flex items-center gap-2 text-sm font-medium text-gray-700 transition-colors hover:text-gray-900"
           >
             <HiOutlineLogout className="h-5 w-5 shrink-0" aria-hidden />

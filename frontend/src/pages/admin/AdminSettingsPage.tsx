@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { resetAdminPassword } from '../../api/admin';
 import { ThemePickerPanel } from '../../components/ThemePickerPanel';
-import { useAuthStore } from '../../stores/authStore';
+import { useAdminAuthStore } from '../../stores/adminAuthStore';
 
 interface PasswordForm {
   currentPassword: string;
@@ -12,7 +12,7 @@ interface PasswordForm {
 }
 
 export function AdminSettingsPage() {
-  const { user } = useAuthStore();
+  const { user } = useAdminAuthStore();
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<PasswordForm>();
   const newPassword = watch('newPassword');
@@ -39,7 +39,8 @@ export function AdminSettingsPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Settings</h1>
 
       <ThemePickerPanel
-        description="Color theme for the admin panel, main app, and client portal in this browser."
+        scope="admin"
+        description="Color theme for the admin panel only. The main app and client portal use separate appearance settings."
         className="max-w-2xl mb-8"
       />
 

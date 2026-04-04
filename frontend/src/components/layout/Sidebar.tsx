@@ -82,16 +82,18 @@ export function Sidebar({ className = '', onNavigate }: SidebarProps) {
           Support
         </NavLink>
 
-        <NavLink
-          to="/admin"
-          className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
-          onClick={onNavigate}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <HiOutlineShieldCheck className="w-5 h-5 shrink-0" />
-          Admin site
-        </NavLink>
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin"
+            className={({ isActive }) => `${linkBase} mb-1 ${isActive ? linkActive : linkInactive}`}
+            onClick={onNavigate}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <HiOutlineShieldCheck className="w-5 h-5 shrink-0" />
+            Admin site
+          </NavLink>
+        )}
 
         <NavLink
           to="/portal/login"

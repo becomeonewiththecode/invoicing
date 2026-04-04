@@ -1,11 +1,11 @@
 # Admin panel overview
 
-Standalone management interface at `/admin`. Separate layout, sidebar, and login from the main user-facing app. All backend routes sit under `/api/admin` and require both JWT authentication and `role = 'admin'`.
+Standalone management interface at `/admin`. Separate layout, sidebar, login, **auth storage** (`admin_token` / `admin_user`), and **theme** (`admin_theme`) from the vendor app and portal. All backend routes sit under `/api/admin` and require both JWT authentication and `role = 'admin'`.
 
 ## Access control
 
 1. Browser navigates to any `/admin/*` route.
-2. `AdminLayout` checks the Zustand auth store for a valid token **and** `user.role === 'admin'`.
+2. `AdminLayout` checks **`useAdminAuthStore()`** for a valid **`admin_token`** **and** `admin_user.role === 'admin'` (not the vendor **`useAuthStore()`**).
 3. If either check fails the `AdminLoginPage` is shown in-place (no redirect).
 4. On the backend every `/api/admin` route passes through two middleware layers:
    - **`authenticate`** — verifies the JWT and attaches `userId`.
@@ -19,7 +19,7 @@ Standalone management interface at `/admin`. Separate layout, sidebar, and login
 | `AdminLayout` | `frontend/src/components/layout/AdminLayout.tsx` | Auth guard, responsive header ("Admin Panel" + sign-out), desktop sidebar + mobile drawer, `<Outlet />` |
 | `AdminSidebar` | `frontend/src/components/layout/AdminSidebar.tsx` | Dark nav sidebar used in desktop mode and the mobile slide-in drawer |
 
-**Sidebar links:** Dashboard, Users, Moderation, Tickets, Backups, Rate Limits, Settings (password + **Appearance** / UI theme — see [Admin pages — Settings](pages.md)).
+**Sidebar links:** Dashboard, Users, Moderation, Tickets, Backups, Rate Limits, Settings (password + **Appearance** / admin-only UI theme — see [Admin pages — Settings](pages.md)).
 
 ## Architecture diagrams
 
@@ -34,7 +34,7 @@ sequenceDiagram
     participant PG as PostgreSQL
     participant RD as Redis
 
-    B->>N: GET /api/admin/* (Bearer token)
+    B->>N: GET /api/admin/* (Bearer admin JWT from admin session)
     N->>E: proxy_pass
     E->>MW: authenticate (JWT verify)
     MW->>MW: requireAdmin

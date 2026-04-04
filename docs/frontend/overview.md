@@ -7,12 +7,12 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | Area | Role |
 |------|------|
 | `src/App.tsx` | `BrowserRouter`, route table, public vs protected vs admin layout |
-| `src/components/layout/AppLayout.tsx` | Responsive vendor layout: desktop sidebar + mobile drawer, header, outlet; includes quick links to admin and client portals |
-| `src/components/layout/AdminLayout.tsx` | Responsive admin layout: desktop sidebar + mobile drawer; shows admin login if not authenticated as admin |
+| `src/components/layout/AppLayout.tsx` | Responsive vendor layout: desktop sidebar + mobile drawer, header, outlet; quick link to client portal; **Admin site** link only if `user.role === 'admin'` |
+| `src/components/layout/AdminLayout.tsx` | Responsive admin layout; **`useAdminAuthStore`** guard; shows **`AdminLoginPage`** if no admin session (separate from vendor **`authStore`**) |
 | `src/components/layout/AdminSidebar.tsx` | Admin navigation links (desktop and mobile drawer) |
 | `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
-| `src/stores/` | Zustand **auth** store (persisted); `isAdmin()` helper for role check; **`themeStore.ts`** — selected palette + `localStorage` + `document.documentElement.dataset.theme` |
-| `src/components/ThemePickerPanel.tsx` | Shared **Appearance** UI (four themes); used by Settings, portal Account, admin Settings |
+| `src/stores/` | **`authStore`** (vendor `token` / `user`); **`adminAuthStore`** (`admin_token` / `admin_user`); **`portalAuthStore`** (portal); **`themeStore`** (`theme` key); **`adminThemeStore`** (`admin_theme`); **`ThemeRouteSync`** applies `data-theme` by route |
+| `src/components/ThemePickerPanel.tsx` | Shared **Appearance** UI (four themes); **`scope="app"`** (default) for Settings + portal Account; **`scope="admin"`** for admin Settings only |
 | `src/index.css` | Theme tokens: `--color-bg`, `--color-surface`, `--color-primary`, `--color-sidebar-*`, etc., per `[data-theme="…"]`; `html` / `body` / `#root` use `--color-bg` for full-viewport canvas |
 | `tailwind.config.js` | Maps semantic colors to CSS variables (`bg-bg`, `text-text`, `border-border`, `bg-sidebar-bg`, …) |
 | `src/pages/` | Page components (dashboard, invoices, clients, settings, …) |
@@ -82,8 +82,10 @@ flowchart TB
 
     subgraph State["State management"]
       RQ["TanStack React Query\nserver state · 30s stale time\nauto cache invalidation"]
-      ZS["Zustand AuthStore\nuser · token · localStorage"]
-      ZTHEME["Zustand ThemeStore\ntheme key · localStorage\ndata-theme on <html>"]
+      ZS["authStore\nvendor user · token"]
+      ZSA["adminAuthStore\nadmin user · admin_token"]
+      ZTHEME["themeStore\nlocalStorage key: theme\napp + portal"]
+      ZTHEMEA["adminThemeStore\nlocalStorage: admin_theme\n+ ThemeRouteSync"]
     end
 
     subgraph API["API modules (Axios)"]
@@ -120,8 +122,8 @@ flowchart TB
   Protected --> ZS
   Protected --> ZTHEME
   Admin --> RQ
-  Admin --> ZS
-  Admin --> ZTHEME
+  Admin --> ZSA
+  Admin --> ZTHEMEA
   SHARE --> RQ
   LOGIN --> ZS
   REG --> ZS
@@ -256,33 +258,36 @@ sequenceDiagram
 
 ## UI themes
 
-Four palettes — **Starter** (blue-violet), **Forest** (green), **Twilight** (grey/black), **Ember** (warm coral) — are defined as CSS custom properties in `src/index.css` under `:root` / `[data-theme="…"]`. Tailwind’s `extend.colors` maps utility classes such as `bg-bg` (page canvas), `bg-surface` (cards), `text-text`, `border-border`, and `bg-sidebar-bg` to those variables so vendor app, admin, and portal screens stay consistent when the user switches themes.
+Four palettes — **Starter** (blue-violet), **Forest** (green), **Twilight** (grey/black), **Ember** (warm coral) — are defined as CSS custom properties in `src/index.css` under `:root` / `[data-theme="…"]`. Tailwind’s `extend.colors` maps utilities (`bg-bg`, `bg-surface`, `text-text`, …) to those variables.
 
-Persistence: `src/stores/themeStore.ts` (Zustand) writes the selected key to `localStorage`, sets `document.documentElement.dataset.theme`, and is loaded from `main.tsx` on startup. Users can change the theme from **Settings → General → Appearance**, **Client portal → Account**, or **Admin → Settings** (shared `ThemePickerPanel` component).
+**Vendor + portal** share **`themeStore`** (`localStorage` key **`theme`**) and pickers on **Settings → General** and **Client portal → Account**. **Admin** uses **`adminThemeStore`** (`localStorage` **`admin_theme`**) only; **`ThemeRouteSync`** (in `App.tsx`) sets `document.documentElement.dataset.theme` from **`adminThemeStore`** on **`/admin/*`** routes and from **`themeStore`** everywhere else. **`themeBootstrap.ts`** runs before React for a correct first paint. **`main.tsx`** imports both theme stores and the bootstrap.
 
 ### Theming data flow
 
 ```mermaid
 flowchart LR
-  subgraph UI["Picker UI"]
-    A["ThemePickerPanel"]
+  subgraph Pickers["Picker UI"]
+    A["ThemePickerPanel\nscope=app"]
+    AA["ThemePickerPanel\nscope=admin"]
   end
-  subgraph Store["Client state"]
-    Z["themeStore\nZustand"]
-    LS[("localStorage")]
+  subgraph Stores["Zustand"]
+    Z["themeStore\ntheme"]
+    ZA["adminThemeStore\nadmin_theme"]
   end
-  subgraph DOM["Document"]
-    H["html[data-theme]"]
-    CSS["CSS variables\n--color-bg …"]
-  end
-  A -->|"setTheme()"| Z
+  LS[("localStorage")]
+  SYNC["ThemeRouteSync\n/admin → admin theme\nelse → app theme"]
+  H["html[data-theme]"]
+  CSS["CSS variables"]
+  BOOT["themeBootstrap()\nbefore React"]
+  A --> Z
+  AA --> ZA
   Z --> LS
-  Z --> H
+  ZA --> LS
+  BOOT --> H
+  SYNC --> H
+  Z --> SYNC
+  ZA --> SYNC
   H --> CSS
-  subgraph Boot["Startup"]
-    M["main.tsx imports\nthemeStore side effect"]
-  end
-  M --> H
 ```
 
 ## New invoice and projects
