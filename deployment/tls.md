@@ -7,7 +7,7 @@ This guide covers **HTTPS for the frontend container**: how the nginx image choo
 | Item | Role |
 |------|------|
 | [`docker-compose-prod.yml`](docker-compose-prod.yml) / [`docker-compose-build.yml`](docker-compose-build.yml) | **Bind mounts** under **`DEPLOY_DATA_DIR`** (`acme_webroot/`, `ssl_certs/`) into the **frontend** service (so a normal user can run **acme.sh** without writing under `/var/lib/docker/volumes/`) |
-| [`frontend/docker-entrypoint.sh`](../frontend/docker-entrypoint.sh) | If **`/etc/nginx/ssl/fullchain.pem`** and **`privkey.pem`** both exist, uses the HTTPS template; otherwise HTTP only |
+| [`frontend/docker-entrypoint.sh`](../frontend/docker-entrypoint.sh) | If **`fullchain.pem`** and a private key (**`privkey.pem`** or **`key.pem`**) exist, uses the HTTPS template; otherwise HTTP only |
 | [`frontend/nginx-http.conf.template`](../frontend/nginx-http.conf.template) | Port 80, SPA, `/api` proxy, `/.well-known/acme-challenge/` → `/var/www/acme-webroot` |
 | [`frontend/nginx-https.conf.template`](../frontend/nginx-https.conf.template) | HTTP → HTTPS redirect, TLS on 443, same SPA and ACME location |
 
@@ -33,7 +33,7 @@ The frontend service uses **bind mounts** for TLS (not Docker named volumes), so
 | Host path (default) | In container | Purpose |
 |---------------------|--------------|---------|
 | **`${DEPLOY_DATA_DIR}/acme_webroot`** | `/var/www/acme-webroot` | HTTP-01 challenge files |
-| **`${DEPLOY_DATA_DIR}/ssl_certs`** | `/etc/nginx/ssl` | **`fullchain.pem`**, **`privkey.pem`** |
+| **`${DEPLOY_DATA_DIR}/ssl_certs`** | `/etc/nginx/ssl` | **`fullchain.pem`** plus **`privkey.pem`** (recommended) or **`key.pem`** (common **acme.sh** default) |
 
 **`DEPLOY_DATA_DIR`** defaults to **`./data`** — resolved **relative to the compose file’s directory** (the folder you **`cd`** into to run **`docker compose`**). For a path outside that folder, set e.g. **`DEPLOY_DATA_DIR=/home/app_user/invoice-data`** (absolute) in **`.env`**.
 
@@ -200,10 +200,12 @@ DEPLOY_DATA_DIR="${DEPLOY_DATA_DIR:-./data}"
 SSLDIR="$(realpath "$DEPLOY_DATA_DIR/ssl_certs")"
 ```
 
-nginx expects exactly these filenames under **`SSLDIR`** (see templates):
+nginx expects **`fullchain.pem`** and a private key file:
 
-- **`fullchain.pem`**
-- **`privkey.pem`**
+- **`privkey.pem`** (matches **nginx** / Let’s Encrypt examples; use **`--key-file "$SSLDIR/privkey.pem"`** in **`--install-cert`**), **or**
+- **`key.pem`** if **acme.sh** was configured to write that name — the frontend entrypoint supports either.
+
+**`NGINX_SERVER_NAME`** in **`.env`** must match the certificate hostname (e.g. **`clients.millsresidence.com`**), not an old default like **`clients.opensitesolutions.com`**, or browsers may show certificate errors.
 
 ```bash
 COMPOSE_FILE_ABS="/path/to/your-compose-directory/docker-compose-prod.yml"
@@ -250,6 +252,12 @@ acme.sh --cron
 ---
 
 ## 9. Troubleshooting
+
+### Browser shows **Not secure** but certs exist; **`nginx -T`** only shows **`listen 80`**
+
+The frontend container only switches to the **HTTPS** template when **`fullchain.pem`** is present **and** a private key exists as **`privkey.pem`** or **`key.pem`**. If you only had **`key.pem`**, older images looked for **`privkey.pem`** only and stayed on **HTTP** — rebuild/pull the **frontend** image that includes the updated entrypoint, then **`docker compose up -d --force-recreate frontend`**.
+
+Also set **`NGINX_SERVER_NAME`** in **`.env`** to the exact hostname on the certificate (must match **`openssl x509 -in data/ssl_certs/fullchain.pem -noout -subject`**).
 
 ### ZeroSSL / **`retryafter=86400`** / “CA is processing your order”
 

@@ -18,7 +18,7 @@ server {
     server_name __SERVER_NAME__;
 
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    ssl_certificate_key /etc/nginx/ssl/__SSL_PRIVATE_KEY__;
     ssl_protocols TLSv1.2 TLSv1.3;
 
     root /usr/share/nginx/html;
