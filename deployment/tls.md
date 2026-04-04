@@ -68,7 +68,27 @@ curl https://get.acme.sh | sh -s email=you@example.com
 # open a new shell or: source ~/.bashrc   # so `acme.sh` is on PATH
 ```
 
-Use a real contact email for Let’s Encrypt account notices. See the [acme.sh wiki](https://wiki.acme.sh/) for package installs and **DNS-01** if you cannot use HTTP-01 (e.g. Docker Desktop VM paths).
+Use a real contact email for account notices. See the [acme.sh wiki](https://wiki.acme.sh/) for package installs and **DNS-01** if you cannot use HTTP-01 (e.g. Docker Desktop VM paths).
+
+### Use **Let’s Encrypt** as the CA (not ZeroSSL)
+
+Recent **acme.sh** versions often default to **ZeroSSL** (`acme.zerossl.com`). Logs that show **`Using CA: https://acme.zerossl.com/...`** or errors like **`retryafter=86400`** are from that CA. This deployment guide assumes **Let’s Encrypt**.
+
+**Set Let’s Encrypt as the default** (once per Unix user that runs **acme.sh**):
+
+```bash
+acme.sh --set-default-ca --server letsencrypt
+```
+
+After that, **`--issue`** / **`--renew`** use Let’s Encrypt. You can confirm with **`acme.sh --issue ...`** — the log should show **`acme-v02.api.letsencrypt.org`**.
+
+**Or** pass **`--server letsencrypt`** on each command (does not change the global default):
+
+```bash
+acme.sh --issue -d "$DOMAIN" -w "$WEBROOT" --server letsencrypt
+```
+
+If you started an order with ZeroSSL and switch CAs, remove or rename the domain folder under **`~/.acme.sh/`** for a clean re-issue, or use **`acme.sh --issue ... --force`** per [acme.sh debugging](https://github.com/acmesh-official/acme.sh/wiki/How-to-debug-acme.sh).
 
 ---
 
@@ -159,11 +179,13 @@ DOMAIN="${NGINX_SERVER_NAME}"
 | **`WEBROOT`** | **`realpath "$DEPLOY_DATA_DIR/acme_webroot"`** — the same directory bind-mounted into the container. **`DEPLOY_DATA_DIR`** is in **`.env`** or **`export`** (default **`./data`**). |
 | **`DEPLOY_DATA_DIR`** | See [section 2](#2-host-bind-mount-paths-deploy_data_dir). Must be writable by the user running **acme.sh**. |
 
-Issue:
+Issue (includes **`--server letsencrypt`** so this works even if the default CA is still ZeroSSL):
 
 ```bash
-acme.sh --issue -d "$DOMAIN" -w "$WEBROOT"
+acme.sh --issue -d "$DOMAIN" -w "$WEBROOT" --server letsencrypt
 ```
+
+If you already ran **`acme.sh --set-default-ca --server letsencrypt`** (see **Use Let’s Encrypt as the CA** in §3), you may omit **`--server letsencrypt`**.
 
 acme.sh writes challenge files under **`$WEBROOT/.well-known/acme-challenge/`**. nginx must serve them as **plain text**, not the SPA HTML — see [Troubleshooting](#9-troubleshooting).
 
@@ -228,6 +250,10 @@ acme.sh --cron
 ---
 
 ## 9. Troubleshooting
+
+### ZeroSSL / **`retryafter=86400`** / “CA is processing your order”
+
+You are likely on **ZeroSSL**, not **Let’s Encrypt**. Run **`acme.sh --set-default-ca --server letsencrypt`** and re-run **`--issue`** with **`--server letsencrypt`**, or clear the partial order under **`~/.acme.sh/`** for that hostname if acme.sh keeps retrying the wrong CA (see **Use Let’s Encrypt as the CA** in §3).
 
 ### Let’s Encrypt sees HTML instead of the challenge token
 
