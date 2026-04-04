@@ -12,8 +12,8 @@ Production and container deployment for the invoicing app.
 | [docker-compose-prod.yml](docker-compose-prod.yml) | Compose with Docker Hub images **`maxwayne/invoice-postgres:1.0`**, **`maxwayne/invoice-backend:1.0`**, **`maxwayne/invoice-frontend:1.0`** — use when pulling pre-built images (no rebuild on deploy) |
 | [postgres/Dockerfile](postgres/Dockerfile) | Builds `invoice-postgres:1.0` with `schema.sql` in the image (no bind mount from the repo at runtime) |
 | [guide.md](guide.md) | Docker Compose (build vs prod), environment variables, manual builds, nginx, port notes |
-| [tls.md](tls.md) | **HTTPS / TLS:** Let’s Encrypt with **acme.sh**, Docker volumes (`acme_webroot`, `ssl_certs`), nginx, renewal, troubleshooting |
-| [diagram.md](diagram.md) | Mermaid deployment diagram: images, named volumes (`pgdata`, `uploads_data`, `acme_webroot`, `ssl_certs`), traffic flow |
+| [tls.md](tls.md) | **HTTPS / TLS:** Let’s Encrypt with **acme.sh**, host bind mounts under **`DEPLOY_DATA_DIR`**, nginx, renewal, troubleshooting |
+| [diagram.md](diagram.md) | Mermaid deployment diagram: images, named volumes (`pgdata`, `uploads_data`), TLS bind mounts, traffic flow |
 | [architecture.md](../docs/architecture.md) | System architecture diagrams (Docker stack, startup, request flow, backup import, new-invoice project conflict, invoice preview modal) |
 
 ### Which Compose file?
@@ -23,20 +23,34 @@ Production and container deployment for the invoicing app.
 | Build and run from source | `docker-compose-build.yml` | `docker compose -f docker-compose-build.yml up -d --build` |
 | Run pre-built images only | `docker-compose-prod.yml` | `docker compose -f docker-compose-prod.yml up -d` (after `docker pull` for **`maxwayne/invoice-*:1.0`** or equivalent) |
 
-Optional: in `deployment/`, set `export COMPOSE_FILE=docker-compose-build.yml` (or `docker-compose-prod.yml`) so you can omit `-f` for that shell session.
+**Standalone production (no git clone):** Put **`docker-compose-prod.yml`** and **`.env`** in the same **user-owned directory** on the server (e.g. **`~/invoice`**). From **that** directory:
 
-For **`NGINX_SERVER_NAME`** and **`COMPOSE_PROJECT_NAME`**, see **[`.env.example`](.env.example)** and **[tls.md](tls.md)** (environment file vs shell; `.env` is preferred for CI/CD).
+```bash
+mkdir -p data/acme_webroot data/ssl_certs
+chown -R "$(id -u):$(id -g)" data
+docker compose -f docker-compose-prod.yml up -d
+```
 
-### Data volumes (no repo paths)
+Relative paths (**`./data`**, **`.env`**) are resolved from that folder — see **[tls.md](tls.md)** (*compose directory*). When developing from the repo, the compose directory is often **`deployment/`** instead.
 
-Compose declares **named volumes** so the stack runs without bind-mounting the repository:
+Optional (from the compose directory): `export COMPOSE_FILE=docker-compose-prod.yml` so you can omit `-f` for that shell session.
 
-| Volume | Used by | Purpose |
-|--------|---------|---------|
-| `pgdata` | postgres | PostgreSQL data |
-| `uploads_data` | backend | User uploads (e.g. logos) at `/app/uploads` |
-| `acme_webroot` | frontend | HTTP-01 challenge files under `/var/www/acme-webroot` |
-| `ssl_certs` | frontend | TLS PEMs at `/etc/nginx/ssl` (read-only in the container) |
+For **`NGINX_SERVER_NAME`**, **`COMPOSE_PROJECT_NAME`**, and **`DEPLOY_DATA_DIR`**, see **[`.env.example`](.env.example)** and **[tls.md](tls.md)**.
+
+### Data storage (named volumes + TLS bind mounts)
+
+**Postgres and uploads** use **named volumes** (no app source bind mount). **TLS** uses **host directories** under **`DEPLOY_DATA_DIR`** (default **`./data`** in the **compose directory** — the folder where **`docker-compose-prod.yml`** and **`.env`** live) so the user running **acme.sh** can write without root under `/var/lib/docker/volumes/`.
+
+| Volume / mount | Used by | Purpose |
+|----------------|---------|---------|
+| `pgdata` (named) | postgres | PostgreSQL data |
+| `uploads_data` (named) | backend | User uploads (e.g. logos) at `/app/uploads` |
+| `${DEPLOY_DATA_DIR}/acme_webroot` (bind) | frontend | HTTP-01 challenges → `/var/www/acme-webroot` |
+| `${DEPLOY_DATA_DIR}/ssl_certs` (bind) | frontend | TLS PEMs → `/etc/nginx/ssl` (read-only in the container) |
+
+Create **`data/acme_webroot`** and **`data/ssl_certs`** from your **compose directory** and **`chown`** to your deploy user **before** the first **`docker compose up`**. Set **`DEPLOY_DATA_DIR`** in **`.env`** beside the compose file (see **[`.env.example`](.env.example)**).
+
+If you used older Compose definitions with **named** `acme_webroot` / `ssl_certs` volumes, copy files into **`data/`** then remove the old volumes.
 
 TLS / HTTPS: **[tls.md](tls.md)** (summary in [guide.md](guide.md#tls-lets-encrypt-with-acmesh)).
 

@@ -25,11 +25,9 @@ dist/
 # Uploaded assets (company logos, etc.)
 backend/uploads/
 
-# Let's Encrypt / ACME (host paths mounted into frontend; never commit keys)
-deployment/ssl/*
-!deployment/ssl/.gitkeep
-deployment/acme-webroot/*
-!deployment/acme-webroot/.gitkeep
+# TLS bind mounts under deployment/data (see DEPLOY_DATA_DIR in deployment/.env.example)
+deployment/data/*
+!deployment/data/.gitkeep
 
 # Logs
 *.log

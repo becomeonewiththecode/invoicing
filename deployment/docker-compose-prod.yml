@@ -1,6 +1,12 @@
-# Run from this directory so Compose loads `deployment/.env` automatically (variable substitution).
-# Copy `.env.example` → `.env` for NGINX_SERVER_NAME, COMPOSE_PROJECT_NAME, SMTP_*, etc.
+# Standalone production: put this file and your `.env` in the SAME directory on the server
+# (e.g. ~/invoice or /home/app_user/invoice). Always `cd` there before `docker compose`.
+# Compose loads `.env` from that directory and resolves `./data` relative to it.
 # https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/
+#
+# TLS: BIND MOUNTS under DEPLOY_DATA_DIR (default ./data) next to this file. Before first `up`:
+#   cd /path/to/that/directory
+#   mkdir -p data/acme_webroot data/ssl_certs && chown -R "$(id -u):$(id -g)" data
+# (If Docker created data/ as root, `sudo chown` to your deploy user.)
 services:
   postgres:
     image: maxwayne/invoice-postgres:1.0
@@ -76,8 +82,8 @@ services:
     environment:
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-clients.opensitesolutions.com}
     volumes:
-      - acme_webroot:/var/www/acme-webroot
-      - ssl_certs:/etc/nginx/ssl:ro
+      - ${DEPLOY_DATA_DIR:-./data}/acme_webroot:/var/www/acme-webroot
+      - ${DEPLOY_DATA_DIR:-./data}/ssl_certs:/etc/nginx/ssl:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -86,5 +92,3 @@ services:
 volumes:
   pgdata:
   uploads_data:
-  acme_webroot:
-  ssl_certs:

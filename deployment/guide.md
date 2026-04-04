@@ -38,7 +38,7 @@ No `build:` step on this host; pull/load images first so those tags exist.
 | postgres | 5432 | PostgreSQL (`schema.sql` is baked into the **`invoice-postgres`** image; data in `pgdata` volume) |
 | redis | 6379 | Redis |
 | backend | **3001** | Express API (`PORT=3001` in the container) |
-| frontend | **80**, **443** | nginx serving the React SPA; TLS when PEMs exist in the **`ssl_certs`** volume (see [TLS](#tls-lets-encrypt-with-acmesh)) |
+| frontend | **80**, **443** | nginx serving the React SPA; TLS when PEMs exist under **`DEPLOY_DATA_DIR/ssl_certs`** (bind mount; see [TLS](#tls-lets-encrypt-with-acmesh)) |
 
 **Code changes and `docker compose restart`:** Restarting containers does **not** rebuild images. The frontend and backend Dockerfiles run `npm run build` at **image build** time; the running containers keep whatever was last baked in. After you change source files, rebuild and recreate:
 
@@ -94,21 +94,22 @@ For existing databases, apply SQL files in `backend/migrations/` in numeric orde
 | Variable | Typical value | Description |
 |----------|---------------|-------------|
 | NGINX_SERVER_NAME | `clients.opensitesolutions.com` | `server_name` for HTTP/HTTPS; override via env or `.env` next to the compose file you use (`docker-compose-build.yml` / `docker-compose-prod.yml`). |
+| DEPLOY_DATA_DIR | `./data` | Host directory **relative to the compose file’s folder** (e.g. **`~/invoice/data`** when only **`docker-compose-prod.yml`** is deployed there). Set in **`.env`** so **acme.sh** can write without root. See **[tls.md](tls.md)**. |
 
 ### Production considerations
 
 1. **JWT_SECRET** — Use a long, random value; never commit real secrets.
 2. **Database backups** — The `pgdata` volume holds data; schedule backups (e.g. `pg_dump` to object storage).
-3. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend uses named volumes **`ssl_certs`** (PEM files) and **`acme_webroot`** (HTTP-01 challenges)—no paths under the git repo.
+3. **TLS** — See [TLS (Let's Encrypt with acme.sh)](#tls-lets-encrypt-with-acmesh) below. The Compose frontend **bind-mounts** **`${DEPLOY_DATA_DIR}/ssl_certs`** and **`.../acme_webroot`** (default **`./data`** next to **`docker-compose-prod.yml`**); own those dirs as the user running **acme.sh** (see **[tls.md](tls.md)** — *compose directory*).
 4. **Redis** — Default setup is suitable for rate limits and short-lived caches; data loss on restart is usually acceptable for those use cases.
 
 ### TLS (Let's Encrypt with acme.sh)
 
-HTTPS is handled by the **frontend** nginx container. Compose mounts two **named volumes**: **`acme_webroot`** (HTTP-01 challenges at `/var/www/acme-webroot`) and **`ssl_certs`** (PEM files read from `/etc/nginx/ssl`). The entrypoint switches from the HTTP-only template to the TLS template when **`fullchain.pem`** and **`privkey.pem`** both exist — see [`frontend/docker-entrypoint.sh`](../frontend/docker-entrypoint.sh).
+HTTPS is handled by the **frontend** nginx container. Compose **bind-mounts** host directories under **`DEPLOY_DATA_DIR`**: **`acme_webroot/`** → `/var/www/acme-webroot` (HTTP-01) and **`ssl_certs/`** → `/etc/nginx/ssl` (PEMs). The entrypoint switches from the HTTP-only template to the TLS template when **`fullchain.pem`** and **`privkey.pem`** both exist — see [`frontend/docker-entrypoint.sh`](../frontend/docker-entrypoint.sh).
 
-**Full walkthrough** (DNS, ports, `acme.sh` install, issue, `install-cert`, `--reloadcmd`, first-time `frontend` recreate, renewal, troubleshooting): **[tls.md](tls.md)**.
+**Full walkthrough** (DNS, ports, `DEPLOY_DATA_DIR`, `acme.sh` install, issue, `install-cert`, `--reloadcmd`, first-time `frontend` recreate, renewal, troubleshooting): **[tls.md](tls.md)**.
 
-**In short:** point **`NGINX_SERVER_NAME`** at your public hostname; open **80** and **443**; run the stack; on the Docker host install acme.sh; use `docker volume inspect …_acme_webroot` as `acme.sh -w` webroot; install certs into …`_ssl_certs` as **`fullchain.pem`** / **`privkey.pem`**; **`docker compose … exec frontend nginx -s reload`** on renew; **`up -d --force-recreate frontend`** once after the first PEM install so nginx loads the HTTPS config.
+**In short:** create **`DEPLOY_DATA_DIR/acme_webroot`** and **`.../ssl_certs`** owned by the user running **acme.sh**; set **`NGINX_SERVER_NAME`**; open **80** and **443**; run the stack; use **`realpath "$DEPLOY_DATA_DIR/acme_webroot"`** as **`acme.sh -w`**; install PEMs into **`ssl_certs/`**; **`docker compose … exec frontend nginx -s reload`** on renew; **`up -d --force-recreate frontend`** once after the first PEM install so nginx loads the HTTPS config.
 
 ## Manual deployment
 

@@ -1,6 +1,6 @@
 # Deployment diagram
 
-Compose uses **named volumes** only (no repository bind mounts). **Prod** (`docker-compose-prod.yml`) pulls **`maxwayne/invoice-postgres:1.0`**, **`maxwayne/invoice-backend:1.0`**, **`maxwayne/invoice-frontend:1.0`** from Docker Hub; **build** (`docker-compose-build.yml`) tags **`invoice-*:1.0`** locally.
+**Postgres, Redis, and uploads** use **named volumes** (no app source bind mount). **TLS** uses **host bind mounts** under **`DEPLOY_DATA_DIR`** (default **`./data`** in the directory that contains **`docker-compose-prod.yml`**): **`acme_webroot/`** and **`ssl_certs/`**. **Prod** pulls **`maxwayne/invoice-*:1.0`** from Docker Hub; **build** tags **`invoice-*:1.0`** locally.
 
 ```mermaid
 flowchart TB
@@ -15,8 +15,8 @@ flowchart TB
       NG --> SPA
     end
 
-    ACME[("acme_webroot\n→ /var/www/acme-webroot")]
-    TLS[("ssl_certs\n→ /etc/nginx/ssl")]
+    ACME[("DEPLOY_DATA_DIR/acme_webroot\n→ /var/www/acme-webroot")]
+    TLS[("DEPLOY_DATA_DIR/ssl_certs\n→ /etc/nginx/ssl")]
     FE --- ACME
     FE --- TLS
 
@@ -46,7 +46,7 @@ flowchart TB
 **Notes**
 
 - **Postgres:** **`maxwayne/invoice-postgres:1.0`** (prod) bakes `schema.sql`; empty **`pgdata`** runs init scripts on first container start. Persistent data lives in the **`pgdata`** volume only.
-- **TLS:** **`ssl_certs`** holds PEMs read by nginx; **`acme_webroot`** serves HTTP-01 challenges. Neither path is under the git repo—see **[tls.md](tls.md)**.
+- **TLS:** Host dirs **`acme_webroot/`** and **`ssl_certs/`** under **`DEPLOY_DATA_DIR`** (bind-mounted); own them as the user running **acme.sh**—see **[tls.md](tls.md)**.
 - The browser uses nginx for the SPA; nginx forwards `/api` to the **`backend`** service on the Docker network.
 - **Uploads:** company logos and similar files use the **`uploads_data`** volume at **`/app/uploads`** in the backend container.
 - The backend runs **`ensureSchema()`** on startup against PostgreSQL (idempotent column/enum upgrades). See [Runtime schema upgrades](../docs/database/schema.md#runtime-schema-upgrades).
