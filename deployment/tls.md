@@ -237,6 +237,37 @@ docker compose -f docker-compose-prod.yml up -d --force-recreate frontend
 
 A plain **`nginx -s reload`** is not enough the **first** time PEMs appear; afterward, renewals can rely on **`--reloadcmd`**.
 
+### Verify TLS after recreate
+
+From your **compose directory** (with **`.env`** loaded if you use **`$NGINX_SERVER_NAME`** in **`curl`**):
+
+1. **Confirm nginx has a 443 block and cert paths** (expect **`listen 443 ssl`**, **`ssl_certificate`**, **`server_name`** matching your hostname):
+
+   ```bash
+   docker compose -f docker-compose-prod.yml exec frontend nginx -T | grep -E "listen|ssl_certificate|server_name"
+   ```
+
+2. **Confirm `server_name` matches the certificate** — set **`NGINX_SERVER_NAME`** in **`.env`** to that name, then **`docker compose -f docker-compose-prod.yml up -d --force-recreate frontend`** again if you changed it. Inspect the cert:
+
+   ```bash
+   openssl x509 -in data/ssl_certs/fullchain.pem -noout -subject -ext subjectAltName
+   ```
+
+3. **Quick check from the network** (replace the host with yours):
+
+   ```bash
+   curl -vI "https://clients.example.com/" 2>&1 | grep -E "subject|issuer|HTTP|SSL"
+   ```
+
+4. If nginx **fails to start** or TLS is **invalid**, see **`docker compose -f docker-compose-prod.yml logs frontend`** and confirm the private key matches the cert (hashes must be equal):
+
+   ```bash
+   openssl x509 -noout -pubkey -in data/ssl_certs/fullchain.pem | openssl sha256
+   openssl pkey -pubout -in data/ssl_certs/privkey.pem 2>/dev/null | openssl sha256
+   ```
+
+   If you only have **`key.pem`**, use that file in the second command instead. **EC** keys often produce small PEM files (~200–300 bytes); that can be normal.
+
 ---
 
 ## 8. Renewal
@@ -272,7 +303,7 @@ The entrypoint runs **only when the container starts**; **`docker compose restar
 openssl x509 -in data/ssl_certs/fullchain.pem -noout -subject -ext subjectAltName
 ```
 
-**Prefer long-term:** pull a **frontend** image that includes the updated entrypoint (accepts **`key.pem`** or **`privkey.pem`**) so you do not need the copy step.
+**Prefer long-term:** rebuild/pull the **frontend** image from this repo (entrypoint accepts **`key.pem`** or **`privkey.pem`**) so you do not need the **`cp key.pem privkey.pem`** step on older images.
 
 ### ZeroSSL / **`retryafter=86400`** / “CA is processing your order”
 
