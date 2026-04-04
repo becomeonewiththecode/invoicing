@@ -21,6 +21,7 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | `src/components/client/` | Client profile subviews (e.g. `ClientProjectsTab.tsx`) |
 | `src/pages/admin/` | Admin panel pages (dashboard, users, moderation, tickets, backups, rate limits, login) |
 | `src/utils/pdf.ts` | jsPDF invoice generation |
+| `src/utils/apiError.ts` | **`getApiErrorMessage()`** — reads Axios **`response.data.error`** / **`message`** for login/register/portal error banners |
 
 ## Routing
 
@@ -32,7 +33,7 @@ See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice
 
 ### Axios 401 handling
 
-`client.ts` uses a response interceptor on **401**. Failed **`/auth/login`** or **`/auth/register`** (wrong email/password, etc.) must **not** clear `localStorage` or navigate away — otherwise **Admin login** (same endpoint as vendor) would send users to **`/login`**. Those paths are excluded; the page handles the error (toast / inline message). All other **401**s clear the session that matches the request: URLs under **`/admin`** use **`admin_token`** and redirect to **`/admin`**; everything else clears the vendor **`token`** and redirects to **`/login`**.
+`client.ts` uses a response interceptor on **401**. Failed **`/auth/login`** or **`/auth/register`** (wrong email/password, etc.) must **not** clear `localStorage` or navigate away — otherwise **Admin login** (same endpoint as vendor) would send users to **`/login`**. Those paths are excluded; login pages show an **inline** error banner (vendor **`LoginPage`**, **`AdminLoginPage`**, **`PortalLoginPage`**). **`RegisterPage`** maps **409** responses to the **email** or **business name** field. All other **401**s clear the session that matches the request: URLs under **`/admin`** use **`admin_token`** and redirect to **`/admin`**; everything else clears the vendor **`token`** and redirects to **`/login`**.
 
 ```mermaid
 flowchart TD

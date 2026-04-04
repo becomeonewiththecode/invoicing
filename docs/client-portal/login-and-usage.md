@@ -34,6 +34,8 @@ Clients can sign in using either:
 
 Both flows share the same endpoint: `POST /api/portal/auth/login`.
 
+Failed sign-in (**401** invalid credentials, **403** portal disabled / password not set, **401** bad TOTP, etc.) shows the API **`error`** text in an **inline alert** on **`PortalLoginPage`** (not only a toast).
+
 ### Login with username-less “access token”
 
 The client portal login page uses a token (access link) created by the vendor.

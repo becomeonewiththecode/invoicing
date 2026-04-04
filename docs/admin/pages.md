@@ -8,7 +8,7 @@ Detailed reference for each page in the admin panel. All pages live in `frontend
 
 **File:** `AdminLoginPage.tsx`
 
-Shown by `AdminLayout` when there is no **`admin_token`** or **`admin_user.role !== 'admin'`**. Dark-themed centered card with email and password fields. Calls `POST /api/auth/login` and checks that the returned `role` is `admin`; on success stores credentials in **`useAdminAuthStore()`** (`admin_token`, `admin_user`) — not the vendor **`authStore`**. Wrong credentials yield **401**; the Axios client skips the vendor redirect for **`/auth/login`**, so the user stays on **`/admin`** and sees the error toast. Displays an error if the account exists but is not an admin.
+Shown by `AdminLayout` when there is no **`admin_token`** or **`admin_user.role !== 'admin'`**. Dark-themed centered card with email and password fields. Calls `POST /api/auth/login` and checks that the returned `role` is `admin`; on success stores credentials in **`useAdminAuthStore()`** (`admin_token`, `admin_user`) — not the vendor **`authStore`**. Wrong credentials yield **401**; the Axios client skips the vendor redirect for **`/auth/login`**, so the user stays on **`/admin`**. An inline **`role="alert"`** banner shows **`Invalid credentials`** (or the API **`error`** text). Non-admin accounts see an access-denied message in the same banner (no toast).
 
 ---
 

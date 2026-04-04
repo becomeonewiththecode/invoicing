@@ -53,6 +53,8 @@ Create a new user account.
 }
 ```
 
+**Errors (409):** `{ "error": "Email already registered" }` if the email exists; `{ "error": "Company name already in use" }` if **`businessName`** is non-empty and another account already has the same trimmed name (case-insensitive). The register form shows these next to the relevant fields.
+
 ### PUT /auth/account
 
 Change the authenticated user's login email and/or password. Requires the current password for verification. Returns a fresh JWT (the old token remains valid until expiry but the new one reflects the updated email).

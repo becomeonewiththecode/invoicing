@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import toast from 'react-hot-toast';
 import { HiOutlineShieldCheck } from 'react-icons/hi';
 import { login } from '../../api/auth';
 import { useAdminAuthStore } from '../../stores/adminAuthStore';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface AdminLoginForm {
   email: string;
@@ -13,19 +13,21 @@ interface AdminLoginForm {
 export function AdminLoginPage() {
   const setAdminAuth = useAdminAuthStore((s) => s.setAdminAuth);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors } } = useForm<AdminLoginForm>();
 
   const onSubmit = async (form: AdminLoginForm) => {
+    setFormError(null);
     setLoading(true);
     try {
       const { user, token } = await login(form.email, form.password);
       if (user.role !== 'admin') {
-        toast.error('Access denied — admin credentials required');
+        setFormError('Access denied — this account does not have admin access.');
         return;
       }
       setAdminAuth(user, token);
-    } catch {
-      toast.error('Invalid email or password');
+    } catch (err) {
+      setFormError(getApiErrorMessage(err, 'Invalid email or password'));
     } finally {
       setLoading(false);
     }
@@ -38,6 +40,14 @@ export function AdminLoginPage() {
           <HiOutlineShieldCheck className="h-8 w-8 text-indigo-400" />
           <h1 className="text-2xl font-bold text-white">Admin Login</h1>
         </div>
+        {formError && (
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border border-red-400/50 bg-red-950/80 px-3 py-2 text-sm text-red-100"
+          >
+            {formError}
+          </div>
+        )}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>

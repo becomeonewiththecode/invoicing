@@ -99,8 +99,8 @@ Layout (top to bottom):
 | Path | Page |
 |------|------|
 | `/share/:token` | Shared invoice (no login); clients can mark as paid |
-| `/login`, `/register` | Auth |
-| `/portal/login` | Client portal login (access token **or** email + password, optional TOTP) |
+| `/login`, `/register` | Auth — wrong credentials / duplicate email or company name show **inline** alerts on the page |
+| `/portal/login` | Client portal login (access token **or** email + password, optional TOTP); failures show an **inline** alert with the API **`error`** |
 
 ## Client portal routes
 

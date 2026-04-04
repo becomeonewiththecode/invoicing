@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { portalLogin } from '../../api/portal';
 import { usePortalAuthStore } from '../../stores/portalAuthStore';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface Form {
   email: string;
@@ -20,6 +21,7 @@ export function PortalLoginPage() {
   const [needs2fa, setNeeds2fa] = useState(false);
   const [useEmailLogin, setUseEmailLogin] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<Form>({
     defaultValues: { email: '', accessToken: '', password: '', totpCode: '' },
   });
@@ -34,6 +36,7 @@ export function PortalLoginPage() {
   }
 
   const onSubmit = async (form: Form) => {
+    setFormError(null);
     setLoading(true);
     try {
       const res = await portalLogin({
@@ -58,12 +61,9 @@ export function PortalLoginPage() {
         navigate('/portal', { replace: true });
         return;
       }
-      toast.error('Unexpected response');
+      setFormError('Unexpected response from server.');
     } catch (err: unknown) {
-      // Show backend-provided reason (e.g. portal disabled / password not set / invalid 2FA)
-      const data = err as { response?: { data?: { error?: string; message?: string } } };
-      const msg = data.response?.data?.error ?? data.response?.data?.message;
-      toast.error(msg ?? 'Could not sign in');
+      setFormError(getApiErrorMessage(err, 'Could not sign in. Check your access details and password.'));
     } finally {
       setLoading(false);
     }
@@ -79,10 +79,21 @@ export function PortalLoginPage() {
             Vendor sign in
           </Link>
         </p>
+        {formError && (
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+          >
+            {formError}
+          </div>
+        )}
         <div className="flex gap-2 mb-4">
           <button
             type="button"
-            onClick={() => setUseEmailLogin(false)}
+            onClick={() => {
+              setUseEmailLogin(false);
+              setFormError(null);
+            }}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
               !useEmailLogin
                 ? 'bg-sky-100 text-purple-900 border-sky-300'
@@ -93,7 +104,10 @@ export function PortalLoginPage() {
           </button>
           <button
             type="button"
-            onClick={() => setUseEmailLogin(true)}
+            onClick={() => {
+              setUseEmailLogin(true);
+              setFormError(null);
+            }}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
               useEmailLogin
                 ? 'bg-sky-100 text-purple-900 border-sky-300'

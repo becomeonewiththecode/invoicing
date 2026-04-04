@@ -20,10 +20,23 @@ router.post(
       if (existing.rows.length > 0) {
         return res.status(409).json({ error: 'Email already registered' });
       }
+      const trimmedBusiness =
+        typeof businessName === 'string' && businessName.trim() ? businessName.trim() : '';
+      if (trimmedBusiness) {
+        const dupName = await pool.query(
+          `SELECT id FROM users
+           WHERE business_name IS NOT NULL AND TRIM(business_name) <> ''
+             AND LOWER(TRIM(business_name)) = LOWER($1)`,
+          [trimmedBusiness]
+        );
+        if (dupName.rows.length > 0) {
+          return res.status(409).json({ error: 'Company name already in use' });
+        }
+      }
       const passwordHash = await bcrypt.hash(password, 12);
       const result = await pool.query(
         'INSERT INTO users (email, password_hash, business_name) VALUES ($1, $2, $3) RETURNING id, email, business_name, role',
-        [email, passwordHash, businessName || null]
+        [email, passwordHash, trimmedBusiness || null]
       );
       const user = result.rows[0];
       const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'dev-secret', {
