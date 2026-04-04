@@ -120,6 +120,8 @@ Authenticate and receive a JWT token. The response includes the user's `role` (`
 }
 ```
 
+**401:** Invalid email or password. The SPA’s shared Axios client (`frontend/src/api/client.ts`) **does not** run the global “session expired” redirect for this route, so both **vendor** and **admin** login forms can show an error without leaving the page.
+
 ---
 
 ## Client portal (vendor customers)

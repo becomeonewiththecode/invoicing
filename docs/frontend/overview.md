@@ -10,7 +10,7 @@ React 18 SPA built with Vite (`frontend/`). TypeScript throughout; Tailwind for 
 | `src/components/layout/AppLayout.tsx` | Responsive vendor layout: desktop sidebar + mobile drawer, header, outlet; quick link to client portal; **Admin site** link only if `user.role === 'admin'` |
 | `src/components/layout/AdminLayout.tsx` | Responsive admin layout; **`useAdminAuthStore`** guard; shows **`AdminLoginPage`** if no admin session (separate from vendor **`authStore`**) |
 | `src/components/layout/AdminSidebar.tsx` | Admin navigation links (desktop and mobile drawer) |
-| `src/api/` | Axios instance (`client.ts`) + resource modules (`clients`, `projects`, `settings`, `data`, `admin`, `tickets`, …); base URL from `VITE_API_URL` |
+| `src/api/` | Axios instance (`client.ts`) + resource modules; base URL from `VITE_API_URL`. See [Axios 401 handling](#axios-401-handling) below. |
 | `src/stores/` | **`authStore`** (vendor `token` / `user`); **`adminAuthStore`** (`admin_token` / `admin_user`); **`portalAuthStore`** (portal); **`themeStore`** (`theme` key); **`adminThemeStore`** (`admin_theme`); **`ThemeRouteSync`** applies `data-theme` by route |
 | `src/components/ThemePickerPanel.tsx` | Shared **Appearance** UI (four themes); **`scope="app"`** (default) for Settings + portal Account; **`scope="admin"`** for admin Settings only |
 | `src/index.css` | Theme tokens: `--color-bg`, `--color-surface`, `--color-primary`, `--color-sidebar-*`, etc., per `[data-theme="…"]`; `html` / `body` / `#root` use `--color-bg` for full-viewport canvas |
@@ -29,6 +29,25 @@ Public: `/login`, `/register`, `/share/:token`, **`/portal/login`** (client port
 Vendor and admin shells are mobile-friendly: below desktop breakpoints, sidebars collapse into a slide-in drawer, and page padding/header controls scale down for smaller screens.
 
 See **[routes.md](routes.md)** for the full table, hashes (`#details`, `#invoice-status`, `#invoices`, `#projects`, `#portal`), client portal paths, and deep links. **[Client portal docs](../client-portal/overview.md)** cover login, 2FA, and API usage.
+
+### Axios 401 handling
+
+`client.ts` uses a response interceptor on **401**. Failed **`/auth/login`** or **`/auth/register`** (wrong email/password, etc.) must **not** clear `localStorage` or navigate away — otherwise **Admin login** (same endpoint as vendor) would send users to **`/login`**. Those paths are excluded; the page handles the error (toast / inline message). All other **401**s clear the session that matches the request: URLs under **`/admin`** use **`admin_token`** and redirect to **`/admin`**; everything else clears the vendor **`token`** and redirects to **`/login`**.
+
+```mermaid
+flowchart TD
+  R401[401 response]
+  PUB{URL starts with\n/auth/login or\n/auth/register?}
+  REJ[Reject only —\nno redirect]
+  ADM{URL starts with\n/admin?}
+  CLR_A[Clear admin_token\n→ /admin]
+  CLR_V[Clear token\n→ /login]
+  R401 --> PUB
+  PUB -->|yes| REJ
+  PUB -->|no| ADM
+  ADM -->|yes| CLR_A
+  ADM -->|no| CLR_V
+```
 
 ## Frontend diagrams
 

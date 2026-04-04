@@ -8,7 +8,7 @@
 
 ## Authentication
 
-- **Register / login:** `POST /api/auth/register`, `POST /api/auth/login` — return a JWT.
+- **Register / login:** `POST /api/auth/register`, `POST /api/auth/login` — return a JWT. **401** on login/register is “bad credentials”; the SPA Axios client does not redirect on those URLs (see [Frontend overview — Axios 401 handling](../frontend/overview.md#axios-401-handling)).
 - **Protected routes:** Send `Authorization: Bearer <token>` on all other routes except:
   - Public share: `GET /api/invoices/share/:token` (read-only invoice payload).
 

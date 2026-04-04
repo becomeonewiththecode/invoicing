@@ -15,11 +15,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function isPublicAuthPath(url: string): boolean {
+  // 401 here means wrong credentials / validation — not an expired session; do not redirect.
+  return url.startsWith('/auth/login') || url.startsWith('/auth/register');
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       const url = error.config?.url ?? '';
+      if (isPublicAuthPath(url)) {
+        return Promise.reject(error);
+      }
       const isAdminApi = url.startsWith('/admin');
       if (isAdminApi) {
         localStorage.removeItem('admin_token');

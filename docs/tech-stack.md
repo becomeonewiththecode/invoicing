@@ -15,6 +15,7 @@
 - **Routing:** `react-router-dom` (protected layout + public `/login`, `/register`, `/share/:token`).
 - **Server state:** TanStack Query for API data, caching, and invalidation.
 - **Auth:** Zustand stores persisted to `localStorage`: **`authStore`** (`token`, `user`) for the vendor app; **`adminAuthStore`** (`admin_token`, `admin_user`) for `/admin` only; portal uses **`portalAuthStore`**. Axios (`client.ts`) sends **`admin_token`** for requests whose URL starts with **`/admin`**, otherwise the vendor **`token`**.
+- **HTTP 401 (SPA):** A response interceptor clears the matching session and redirects only when **401** is not a “wrong password” on a public auth call. **`POST /auth/login`** and **`POST /auth/register`** return **401** for invalid credentials; the interceptor **does not** redirect (so **Admin login** and **vendor login** can show errors in place). Other **401**s: **`/admin/*`** → clear admin session, go to **`/admin`**; else → clear vendor session, go to **`/login`**.
 - **Theming:** Four named palettes (**Starter**, **Forest**, **Twilight**, **Ember**) on `html[data-theme]` via CSS variables and Tailwind. **`themeStore`** + key **`theme`** cover the vendor app and client portal; **`adminThemeStore`** + **`admin_theme`** cover the admin panel only. **`ThemeRouteSync`** applies the correct palette by route; **`ThemePickerPanel`** uses **`scope="admin"`** on **Admin → Settings** and default app scope elsewhere (`ThemePickerPanel.tsx`, `themeBootstrap.ts`).
 - **PDF:** Client-side invoice PDFs via jsPDF (no server render).
 
